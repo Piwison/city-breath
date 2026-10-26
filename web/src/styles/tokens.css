@@ -1,0 +1,11 @@
+/* 暫用 token：hallmark scaffold 產出 tokens.css 後整檔取代。只保留骨架需要的變數名。 */
+:root {
+  --surface: oklch(0.18 0.01 260);
+  --ink: oklch(0.95 0.005 260);
+  --ink-muted: oklch(0.72 0.01 260);
+  --flow-in: oklch(0.78 0.14 75);
+  --flow-out: oklch(0.7 0.12 230);
+  --flow-arc: oklch(0.85 0.06 75);
+  --station-selected: oklch(0.98 0 0);
+  --font-body: system-ui, "Noto Sans TC", "PingFang TC", sans-serif;
+}

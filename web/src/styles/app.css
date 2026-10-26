@@ -1,0 +1,8 @@
+@import "./tokens.css";
+
+html, body { margin: 0; overflow-x: clip; background: var(--surface); color: var(--ink); font-family: var(--font-body); }
+.shell { display: grid; gap: 12px; padding: 16px; max-width: 960px; margin: 0 auto; }
+.city-map { height: 60vh; min-height: 320px; }
+.controls, .panel { display: grid; gap: 8px; }
+.controls p, .bar p { color: var(--ink-muted); margin: 0; }
+:focus-visible { outline: 2px solid var(--station-selected); outline-offset: 2px; }
