@@ -1,4 +1,5 @@
 ---
+type: prd
 title: 城市呼吸｜北捷人流脈搏
 status: final
 created: 2026-10-26

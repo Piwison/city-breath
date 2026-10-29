@@ -1,0 +1,49 @@
+# 通勤族找到同路人並把通勤卡分享出去 的 stories，依建置順序。
+
+[[entry]]
+id = 1
+type = "story"
+title = "起訖站與時段輸入"
+description = "3 步內選好起站、迄站、出發時段（骨架表單已完成）。"
+verify = "3 步內看到結果。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-1"
+
+[[entry]]
+id = 2
+type = "story"
+title = "同路人數、名次與前 5 目的地"
+description = "computeCommute 算出同路人數、名次與起站前 5 目的地，少於 10 人只顯示「少於 10 人」（邏輯與測試已完成）。"
+verify = "vitest 涵蓋少於 10 人、停止營運、名次。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-2"
+
+[[entry]]
+id = 3
+type = "story"
+title = "直式分享卡輸出"
+description = "一鍵產生直式圖片，附資料月份、來源與網址。"
+verify = "下載的圖片含三項資訊且版面在 IG 限動比例內。"
+covers = ["R2"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-3"
+
+[[entry]]
+id = 4
+type = "story"
+title = "下載分享卡計數"
+description = "記錄「下載分享卡」事件以量測北極星指標。"
+verify = "按下下載後事件可在分析工具看到。"
+covers = ["R2"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-4"

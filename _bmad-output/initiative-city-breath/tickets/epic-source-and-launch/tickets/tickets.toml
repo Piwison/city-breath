@@ -1,0 +1,25 @@
+# 網站公開上線並交代資料來源 的 stories，依建置順序。
+
+[[entry]]
+id = 1
+type = "story"
+title = "資料來源頁"
+description = "說明出處、授權、OD 非路徑、少於 10 人規則與環狀線限制。"
+verify = "頁面含五項說明並可從首頁到達。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-1"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Vercel 部署"
+description = "以靜態網站部署到 Vercel。"
+verify = "公開網址可開啟並載入最新月份。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-2"

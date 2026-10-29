@@ -1,0 +1,37 @@
+# 使用者認識每個站的個性 的 stories，依建置順序。
+
+[[entry]]
+id = 1
+type = "story"
+title = "類型、一句話與 24 小時曲線"
+description = "點站開啟個性卡，顯示類型、描述與平假日 24 小時曲線（類型與描述已完成，曲線圖未做）。"
+verify = "任一站開啟後三項皆可見。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-1"
+
+[[entry]]
+id = 2
+type = "story"
+title = "前 5 目的地與同類型站"
+description = "顯示全日最常去的 5 站與同類型其他站（前 5 已完成）。"
+verify = "任一站顯示 5 個目的地與同類型站。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-2"
+
+[[entry]]
+id = 3
+type = "story"
+title = "環狀線車站說明"
+description = "環狀線站出站未計，個性卡說明原因而不誤導（骨架已完成）。"
+verify = "點環狀線站看到說明文字，無類型標籤。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-3"

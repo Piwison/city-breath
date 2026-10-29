@@ -9,8 +9,8 @@ status: draft
 created: 2026-10-26
 updated: 2026-10-26
 binds: [US-1, US-2, US-3, US-4]
-sources: [../../prds/prd-city-breath-2026-10-26/prd.md]
-companions: [../../../../docs/data-contract.md]
+sources: [../prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md]
+companions: [../../../docs/data-contract.md]
 ---
 
 # Architecture Spine — 城市呼吸

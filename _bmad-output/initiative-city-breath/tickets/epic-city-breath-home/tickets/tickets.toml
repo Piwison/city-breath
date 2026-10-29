@@ -1,0 +1,49 @@
+# 城市觀察者看得到一整天的人潮流動 的 stories，依建置順序。
+
+[[entry]]
+id = 1
+type = "story"
+title = "站點脹縮光點"
+description = "每站光點大小＝該小時進出量、顏色＝淨流入或淨流出（開發骨架已在 web/src/map/CityMap.tsx）。"
+verify = "切換小時時光點大小與顏色更新。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "2-1"
+
+[[entry]]
+id = 2
+type = "story"
+title = "前 200 組弧線"
+description = "弧線來自 flows.json，每小時最多 200 組（骨架已完成）。"
+verify = "任一小時弧線數 ≤ 200。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "2-2"
+
+[[entry]]
+id = 3
+type = "story"
+title = "時間軸播放與日型切換"
+description = "播放一整天並切換平日／假日平均，reduced-motion 時放慢（骨架已完成）。"
+verify = "手機上播放不卡頓，可切換日型。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "2-3"
+
+[[entry]]
+id = 4
+type = "story"
+title = "城市睡覺狀態"
+description = "2–4 點停止營運時有明確的畫面狀態。"
+verify = "時間軸經過停止營運時段時有標示。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "2-4"

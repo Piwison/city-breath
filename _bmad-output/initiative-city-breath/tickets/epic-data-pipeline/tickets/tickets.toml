@@ -1,0 +1,85 @@
+# 每月 OD 原始檔變成網站讀得動的小檔 的 stories，依建置順序。
+
+[[entry]]
+id = 1
+type = "story"
+title = "下載月檔與出口座標"
+description = "`city-breath fetch --month` 從索引找到月檔與出口座標並下載到 data/raw/。"
+verify = "`uv run city-breath fetch --month 2026-09` 下載完成且檔案大小相符。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "0-1"
+
+[[entry]]
+id = 2
+type = "story"
+title = "站名正規化與座標"
+description = "迄站路線前綴（O景安、G大坪林、O頭前庄）與「大橋頭站」由別名表合併，每站有出口平均座標。"
+verify = "`build` 遇到未對應站名會報錯；120 站皆有座標。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "0-2"
+
+[[entry]]
+id = 3
+type = "story"
+title = "三張彙總表與假日表"
+description = "DuckDB 產出三張彙總表；週末與 holidays.csv 為假日。"
+verify = "pytest 驗證平均分母、跨月過濾、別名合併。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "0-3"
+
+[[entry]]
+id = 4
+type = "story"
+title = "車站分群"
+description = "24 小時曲線標準化後 k-means，k=4–8 以 silhouette 選 k，輸出草稿標籤。"
+verify = "2026-09 輸出 k=4 與每群代表站。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "0-4"
+
+[[entry]]
+id = 5
+type = "story"
+title = "輸出靜態契約與單元測試"
+description = "export.py 寫出 months/meta/stations/flows/daily/od 分片，少於 10 人輸出 null。"
+verify = "`uv run --group dev pytest` 全過；首頁資料約 190 KB。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "0-5"
+
+[[entry]]
+id = 6
+type = "story"
+title = "車站類型人工定名"
+description = "Piwi 看過分群結果，在 config/station_types.csv 定下類型名稱與一句話描述。"
+verify = "stations.json 的 types 皆為 draft=false。"
+covers = ["R1"]
+after = []
+hitl = true
+risk = "low"
+v6_key = "0-6"
+
+[[entry]]
+id = 7
+type = "story"
+title = "擴充到近 12 個月"
+description = "管線與 months.json 支援多個月份。"
+verify = "web/public/data/ 有近 12 個月，months.json 列出全部。"
+covers = ["R2"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "0-7"

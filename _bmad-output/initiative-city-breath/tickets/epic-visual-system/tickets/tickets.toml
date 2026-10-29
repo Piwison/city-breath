@@ -1,0 +1,37 @@
+# 城市呼吸有一套 hallmark 產出的視覺系統 的 stories，依建置順序。
+
+[[entry]]
+id = 1
+type = "story"
+title = "hallmark 詢問與主題選定"
+description = "回答 hallmark 的素材、受眾、主要行動、語氣，發牌並選定主題。"
+verify = "Picks block 已寫入，主題檔確定。"
+covers = ["R1"]
+after = []
+hitl = true
+risk = "low"
+v6_key = "1-1"
+
+[[entry]]
+id = 2
+type = "story"
+title = "產出 tokens 與 base"
+description = "hallmark scaffold 產出 tokens.css／base.css，取代 web/src/styles/tokens.css。"
+verify = "sloplint --render 無 FAIL。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "1-2"
+
+[[entry]]
+id = 3
+type = "story"
+title = "底圖與 maplibre worker"
+description = "修正 maplibre v6 在 Vite 建置後 worker 載入失敗，加上符合主題的底圖。"
+verify = "`npm run build` 後預覽無 worker 錯誤且底圖顯示。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "1-3"

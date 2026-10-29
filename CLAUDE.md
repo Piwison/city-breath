@@ -4,14 +4,19 @@
 
 ## 文件在哪
 
-- PRD：`_bmad-output/planning-artifacts/prds/prd-city-breath-2026-10-26/prd.md`（原文在 Claude Docs：https://claude.ai/artifact/S46QYMugL6cKGNZK9ePN7r）
-- 架構：`_bmad-output/planning-artifacts/architecture/architecture-city-breath-2026-10-26/ARCHITECTURE-SPINE.md`
-- Epics／進度：`_bmad-output/planning-artifacts/epics.md`
+BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 active initiative）：
+
+- Initiative（需求 R1–R12、限制、完成條件）：`_bmad-output/initiative-city-breath/initiative-city-breath.md`
+- PRD：`_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/`（原文在 Claude Docs：https://claude.ai/artifact/S46QYMugL6cKGNZK9ePN7r）
+- 架構：`_bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/`
+- Epics 與 stories：`_bmad-output/initiative-city-breath/tickets/`（`tickets.toml` 是建置順序；狀態寫在各 story 的 `*-plan.md`）
 - 資料契約：`docs/data-contract.md`
 
 ## 工作方式
 
-- 開發流程用 BMAD v6（`.claude/skills/bmad-*`）。不確定下一步就呼叫 `bmad-help`。實作單一 story 用 `bmad-build`，審查用 `bmad-code-review`。
+- 開發流程用 BMAD v7 預覽版（`.claude/skills/bmad*`，6.13.0-next）。不確定下一步就問 `bmad`。
+- 需求、切票、看板、中途改需求都找 Sofia（`bmad-agent-po`）。看進度：`uv run _bmad/method/scripts/tickets.py status`；下一張可做的：`tickets.py next`。
+- 實作一張 story 用 `bmad-build`（直接給 ref，例如「build 3.1」，不需要先寫 story 檔）；審查用 `bmad-code-review`；epic 結束跑 `bmad-retrospective`。
 - **所有視覺設計一律用 hallmark skill**（`.claude/skills/hallmark`）。做新畫面前先跑它的 Flow；改既有畫面時說「hallmark redesign <path>」。它的 Floor 規則不可違反：顏色與字型只能用 `:root` token、不用 eyebrow 或全大寫追蹤字距標籤、每個動畫要有 reduced-motion 版本、不編造任何數字。
 - 跟 Piwi 溝通用繁體中文。
 
