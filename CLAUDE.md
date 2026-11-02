@@ -20,6 +20,16 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 - **所有視覺設計一律用 hallmark skill**（`.claude/skills/hallmark`）。做新畫面前先跑它的 Flow；改既有畫面時說「hallmark redesign <path>」。它的 Floor 規則不可違反：顏色與字型只能用 `:root` token、不用 eyebrow 或全大寫追蹤字距標籤、每個動畫要有 reduced-motion 版本、不編造任何數字。
 - 跟 Piwi 溝通用繁體中文。
 
+## 設計與技術 skill 的分工
+
+都放在 `.claude/skills/`，每個資料夾的 `SOURCE.txt` 記著來源與版本（已審過內容，皆無執行腳本）。
+
+- **視覺方向與新畫面**：`hallmark`。
+- **動畫與手感**（Emil Kowalski）：`animate` 做新動畫、`review-animations` 審查、`animation-performance` 守 60fps、`emil-design-eng` 細節打磨、`apple-design` 彈簧與手勢、`mobile-native` 讓網頁在手機上像 app、`prototype` 同一元件做多版切換比較、`animation-vocabulary` 把模糊描述翻成正確術語。
+- **遊戲感**：`game-feel`（回饋、緩動、juice）、`game-ui-ux`（HUD、控制列、狀態流程）。
+- **地圖**（MapLibre 官方）：`maplibre-v6-migration`（含打包後 worker 問題）、`maplibre-cartography`、`maplibre-terrain-rendering`、`maplibre-pmtiles-patterns`（靜態網站自帶底圖）、`maplibre-source-wiring`、`maplibre-tile-sources`、`maplibre-sprites-icons`、`maplibre-fonts-glyphs`。
+- **3D**（只在決定走 Three.js／React Three Fiber 時用）：`threejs-*` 十個。
+
 ## GitHub 流程
 
 - `main` 是可部署的狀態，不直接 commit 到 `main`。

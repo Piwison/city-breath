@@ -1,0 +1,1 @@
+source: https://github.com/maplibre/maplibre-agent-skills @ 18cb484 (MIT)
