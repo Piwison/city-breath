@@ -1,0 +1,1 @@
+source: https://github.com/pbakaus/impeccable @ 24aa254 (Apache-2.0)；scripts/impeccable 首次執行會從 GitHub Releases 下載 engine，並用 engine-checksums.txt 驗證 sha256
