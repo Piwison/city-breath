@@ -20,6 +20,16 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 - **所有視覺設計一律用 hallmark skill**（`.claude/skills/hallmark`）。做新畫面前先跑它的 Flow；改既有畫面時說「hallmark redesign <path>」。它的 Floor 規則不可違反：顏色與字型只能用 `:root` token、不用 eyebrow 或全大寫追蹤字距標籤、每個動畫要有 reduced-motion 版本、不編造任何數字。
 - 跟 Piwi 溝通用繁體中文。
 
+## GitHub 流程
+
+- `main` 是可部署的狀態，不直接 commit 到 `main`。
+- 一張 story 一個分支，命名 `story/<ref>-<slug>`（例如 `story/3.3-share-card`），做完開 PR，標題帶票號（例如 `3.3 直式分享卡輸出`）。
+- PR 要通過 CI（`.github/workflows/ci.yml`：管線測試、網站測試與建置、ticket tree 檢查）才合併。
+- 合併後由 Piwi 把票標成 done：`uv run _bmad/method/scripts/tickets.py mark <ref> done`，跟著下一個 PR 一起 commit。
+- 新 clone 下來要先設定 active initiative（個人設定，不進版控）：在 `_bmad/custom/config.user.toml` 加上
+  `[core]` 與 `active_initiative = "initiative-city-breath"`。
+- 原始 OD 月檔（`data/raw/`）不進版控，需要時跑 `uv run city-breath fetch`。
+
 ## 不可違反的規則（摘自架構 AD）
 
 1. 網站只讀 `web/public/data/` 的 JSON，不讀原始 CSV（AD-1）。改欄位要同時改 `export.py`、`types.ts`、`docs/data-contract.md`。
