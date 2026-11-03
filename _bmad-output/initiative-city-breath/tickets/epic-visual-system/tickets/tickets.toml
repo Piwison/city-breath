@@ -27,12 +27,11 @@ v6_key = "1-2"
 [[entry]]
 id = 3
 type = "story"
-title = "底圖與 maplibre worker"
-description = "修正 maplibre v6 在 Vite 建置後 worker 載入失敗，加上符合主題的底圖。若架構決定改用 Three.js，改成載入微縮城市場景。"
-unknown = "渲染方式是 Three.js 微縮城市還是 MapLibre＋deck.gl？等 bmad-architecture 決定。"
-verify = "`npm run build` 後預覽沒有 worker 或載入錯誤，底圖或場景顯示。"
+title = "微縮城市場景基底"
+description = "用 Three.js＋React Three Fiber 建立場景基底：projection.ts（AD-12）、tokenColor（AD-8）、行政區底座與日夜光影，WebGL 不可用時有替代畫面。"
+verify = "`npm run build` 後預覽顯示微縮城市底座，切換時段時色票跟著 token 變，reduced-motion 時不自動播放。"
 covers = ["R1"]
-after = []
+after = [2]
 hitl = false
-risk = "low"
+risk = "medium"
 v6_key = "1-3"

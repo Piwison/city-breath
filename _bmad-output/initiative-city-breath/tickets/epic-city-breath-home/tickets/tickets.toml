@@ -7,7 +7,7 @@ title = "行政區流向弧線"
 description = "首頁自動播放全城一天：行政區之間的流向用弧線與粒子表示，粒子數依人數，平日／假日可切換；這是本 epic 的 tracer bullet。"
 verify = "首頁開啟就自動播放，8 點平日可看到永和往中山、中正、大安、信義的流向；切換假日流向改變；reduced-motion 時不自動播放。"
 covers = ["R1"]
-after = ["1.9"]
+after = ["1.9", "2.3"]
 hitl = false
 risk = "medium"
 

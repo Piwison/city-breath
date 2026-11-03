@@ -22,7 +22,7 @@ slug = "epic-city-breath-home"
 title = "城市觀察者看得到一整天各行政區之間的流動"
 description = "首頁自動播放行政區流向、可切換平日／假日；點一個行政區看這區的人去哪、誰來這裡並展開該區的站，在手機上順暢。"
 covers = ["R3", "R13"]
-after = [{ epic = 1, needs = "契約 v2 的行政區對照與行政區起訖彙總" }]
+after = [{ epic = 1, needs = "契約 v2 的行政區對照與行政區起訖彙總" }, { epic = 2, needs = "微縮城市場景基底（2.3）" }]
 # v6: Epic 2
 
 [[epic]]

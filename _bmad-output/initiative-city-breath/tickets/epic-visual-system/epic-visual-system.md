@@ -13,7 +13,7 @@ risk: medium
 
 ## Description
 
-微縮城市方向（等角視角、發光路線、日夜光影；design/prototypes）用 prototype 做幾版讓 Piwi 定案，tokens 與 base 用 impeccable 整理，正式底圖或 3D 場景在建置版可用。由 v6 Epic 1 遷移，2026-11-03 replan 改掉 hallmark。
+微縮城市方向（等角視角、發光路線、日夜光影；design/prototypes）用 prototype 做幾版讓 Piwi 定案，tokens 與 base 用 impeccable 整理，微縮城市場景基底在建置版可用。由 v6 Epic 1 遷移，2026-11-03 replan 改掉 hallmark。
 
 ## Outcome
 
@@ -32,7 +32,7 @@ R1 (parent R12): 所有畫面以手機優先版面設計，顏色與字型只透
 
 - 微縮城市方向由 Piwi 從 prototype 的幾個版本中定案，記錄在 DESIGN.md。
 - tokens.css 取代暫用 token，impeccable audit 沒有阻擋級問題。
-- 正式底圖或 3D 場景在建置版正常載入。
+- 微縮城市場景基底在建置版正常載入。
 
 ## References
 
@@ -41,3 +41,4 @@ R1 (parent R12): 所有畫面以手機優先版面設計，顏色與字型只透
 
 ## Notes
 - Decision: 2026-11-03 replan：hallmark 已移除（PR #1），2.1、2.2 在原 id 上改寫成 prototype 定案與 impeccable 整理 tokens；2.3 底圖要等 bmad-architecture 決定渲染方式（Three.js 或 MapLibre＋deck.gl）。
+- Decision: 2026-11-03 渲染方式定案為 Three.js＋React Three Fiber（architecture AD-11，Piwi 選），2.3 改寫成「微縮城市場景基底」，不再做 maplibre 底圖。

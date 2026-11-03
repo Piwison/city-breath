@@ -30,8 +30,8 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 - `prototype` 與 `review-animations` 只在明確呼叫時執行（例如 `/prototype`），不會自動觸發。
 - **動畫與手感**（Emil Kowalski）：`animate` 做新動畫、`review-animations` 審查、`animation-performance` 守 60fps、`emil-design-eng` 細節打磨、`apple-design` 彈簧與手勢、`mobile-native` 讓網頁在手機上像 app、`prototype` 同一元件做多版切換比較、`animation-vocabulary` 把模糊描述翻成正確術語。
 - **遊戲感**：`game-feel`（回饋、緩動、juice）、`game-ui-ux`（HUD、控制列、狀態流程）。
-- **地圖**（MapLibre 官方）：`maplibre-v6-migration`（含打包後 worker 問題）、`maplibre-cartography`、`maplibre-terrain-rendering`、`maplibre-pmtiles-patterns`（靜態網站自帶底圖）、`maplibre-source-wiring`、`maplibre-tile-sources`、`maplibre-sprites-icons`、`maplibre-fonts-glyphs`。
-- **3D**（只在決定走 Three.js／React Three Fiber 時用）：`threejs-*` 十個。
+- **地圖**（MapLibre 官方；渲染已改 Three.js，只在移除骨架或日後需要真地圖時參考）：`maplibre-v6-migration`（含打包後 worker 問題）、`maplibre-cartography`、`maplibre-terrain-rendering`、`maplibre-pmtiles-patterns`（靜態網站自帶底圖）、`maplibre-source-wiring`、`maplibre-tile-sources`、`maplibre-sprites-icons`、`maplibre-fonts-glyphs`。
+- **3D**（2026-11-03 定案走 Three.js＋React Three Fiber，AD-11）：`threejs-*` 十個，`threejs-react-three-fiber` 為主。
 
 ## GitHub 流程
 
@@ -49,7 +49,10 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 2. 站名正規化只在 `pipeline/stations.py` 與 `pipeline/config/`（AD-2）。
 3. 起訖人次 < 10 在管線端輸出 `null`，畫面顯示「少於 10 人」，前端不得反推（AD-3）。
 4. 停止營運時段是 `null` 不是 0（AD-5）。
-5. deck.gl 顏色用 `tokenRgb('--token')` 從 CSS 讀，不寫死 RGB（AD-8）。
+5. 顏色只走 `:root` token；Three.js 材質用 `tokenColor('--token')` 從 CSS 讀，不寫死（AD-8）。
+6. 站屬於哪個行政區只在管線判定（`pipeline/config/station_districts.csv`），前端不得自己推算（AD-9）。
+7. 場景用 Three.js＋React Three Fiber，經緯度一律經 `web/src/scene/projection.ts` 的 `project()` 轉換（AD-11、AD-12）。
+8. 活動日的原因只來自管線輸出的 `events.json`，前端不得自己猜（AD-13）。
 
 ## 常用指令
 
@@ -73,5 +76,5 @@ npm run build
 - 環狀線 11 站只有進站紀錄（出站由新北捷運營運、未入檔）；這些站不分群、不能當迄站。
 - 原始資料迄站欄位有路線前綴（O景安、G大坪林、O頭前庄），已在別名表處理；新月份若出現新前綴，`build` 會報錯提醒。
 - 假日表 `pipeline/config/holidays.csv` 要每月補；`daily.json` 的 anomalyCandidates 可幫忙找漏列的假日。
-- maplibre-gl v6 在 Vite 打包後 worker 載入失敗；目前用空白底圖不受影響，加底圖圖磚前要先修。
+- 骨架目前還用 maplibre-gl＋deck.gl；架構已改成 Three.js（AD-11），在首頁換成場景的那張票（3.5）移除。
 - `web/src/App.tsx` 是驗證資料與效能的開發骨架，不是設計稿。

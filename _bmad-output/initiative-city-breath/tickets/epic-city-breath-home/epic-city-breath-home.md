@@ -46,8 +46,9 @@ R2 (parent R13): 點一個行政區，看到這區的人去哪、誰來這裡，
 - architecture — _bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/architecture-city-breath-2026-10-26.md
 
 ## Notes
+- Waits on epic-visual-system because: 微縮城市場景基底（2.3）
 
 - Waits on epic-data-pipeline because: 契約 v2 的行政區對照與行政區起訖彙總
 - Decision: 2026-11-03 replan：需求變了，城市流動從站對站弧線改成行政區流向（initiative R3 改寫、新增 R13）。新增 3.5 行政區流向弧線（tracer bullet）、3.6 點行政區看去哪誰來並展開站、3.7 Refactor sweep；3.1 改為展開行政區後的站點光點。
 - Dropped: 3.2 前 200 組弧線 — 站對站弧線被行政區流向取代（2026-11-03 replan）。
-- Decision: 2026-11-03 渲染方式（Three.js 或 MapLibre＋deck.gl）等 bmad-architecture；3.5 開始前要先定。
+- Decision: 2026-11-03 渲染方式定案為 Three.js＋React Three Fiber（architecture AD-11、AD-12）；3.5 建在 2.3 的場景基底上，並移除骨架的 maplibre-gl 與 deck.gl。
