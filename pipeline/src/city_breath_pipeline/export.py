@@ -6,14 +6,17 @@ import datetime as dt
 import json
 import statistics
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
-from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW, TOP_ARCS_PER_HOUR
+from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW
 from .aggregate import MonthAggregate
 from .cluster import ClusterResult, cluster_stations
+from .district_flows import district_raw, total_count
 from .districts import DistrictResult
 from .stations import Station
-from .suppress import apply as apply_suppression, od_groups
+from .suppress import Suppressed, district_groups, od_groups
+from .suppress import apply as apply_suppression
 
 SOURCE = {
     "name": "臺北捷運每日分時各站 OD 流量統計資料",
@@ -45,15 +48,20 @@ def build_profiles(agg: MonthAggregate) -> dict[str, dict]:
 def suppress_od(
     od: dict[str, dict[str, list[list[float | None]]]],
     stations: list[Station],
-    top_dests: dict[tuple[str, str], list[tuple[float, str]]],
+    top_dests: dict[tuple[str, str], list[tuple[int, str]]],
     service_hours: list[int],
-):
-    """把起站×迄站×日型×小時的平均經 suppress.py 隱藏；回傳 ``Suppressed``，鍵是 ``(oi, di, t, h)``。"""
+    district_cells: DistrictCells | None = None,
+) -> Suppressed:
+    """把起站×迄站×日型×小時的平均（與行政區格）經 suppress.py 隱藏。
+
+    回傳 ``Suppressed``；od 格的鍵是 ``(oi, di, t, h)``，行政區格的鍵是 ``("D", fi, ti, t, h)``。
+    行政區格和 od 格有共同的組（站區塊，見 ``suppress.district_groups``），所以一定要一起處理。
+    """
     index = {s.name: i for i, s in enumerate(stations)}
     origins = sorted(index[name] for name in od)
     recorded = [i for i, s in enumerate(stations) if s.exits_recorded]
     by_index = {index[name]: by_type for name, by_type in od.items()}
-    raw = {
+    raw: dict = {
         (oi, di, t, h): by_index[oi][t][h][di]
         for oi in origins
         for t in DAY_TYPES
@@ -66,7 +74,52 @@ def suppress_od(
         for (name, t), dests in top_dests.items()
         if name in od
     }
-    return apply_suppression(raw, od_groups(origins, recorded, tops, service_hours))
+    groups = od_groups(origins, recorded, tops, service_hours)
+    if district_cells is not None:
+        raw.update(district_cells.raw)
+        groups += district_groups(
+            len(district_cells.index), district_cells.dest, origins, recorded,
+            district_cells.station_district, service_hours,
+        )
+    return apply_suppression(raw, groups)
+
+
+# ── district-flows.json（1.9；AD-7、AD-9、AD-10）────────────────
+
+
+@dataclass
+class DistrictCells:
+    """行政區格的原始平均與索引（彙總在 district_flows.py）。"""
+
+    index: list[str]  # 列／欄的 8 碼代碼
+    dest: list[int]  # 可當迄區的索引
+    raw: dict  # ("D", fi, ti, t, h) → 未隱藏的平均
+    station_district: list[int]  # 第 i 站所屬區的索引
+
+    @classmethod
+    def build(
+        cls,
+        od_hourly: list[tuple],
+        stations: list[Station],
+        codes: dict[str, str],
+        day_counts: dict[str, int],
+        service_hours: list[int],
+    ) -> DistrictCells:
+        index, dest, raw = district_raw(od_hourly, stations, codes, day_counts, service_hours)
+        pos = {code: i for i, code in enumerate(index)}
+        return cls(index, dest, raw, [pos[codes[s.name]] for s in stations])
+
+
+def district_flows_json(month: str, cells: DistrictCells, values: dict, service_hours: list[int]) -> dict:
+    """``weekday[h][起區][迄區]``：平均人次或 ``None``；停止營運的小時整格 ``None``。"""
+    n = len(cells.index)
+    out = {"v": CONTRACT_VERSION, "month": month, "districts": cells.index}
+    for t in DAY_TYPES:
+        out[t] = [
+            [[values.get(("D", fi, ti, t, h)) for ti in range(n)] for fi in range(n)] if h in service_hours else None
+            for h in HOURS
+        ]
+    return out
 
 
 def export_month(
@@ -91,23 +144,23 @@ def export_month(
     od: dict[str, dict[str, dict[str, list]]] = defaultdict(
         lambda: {t: [[None] * len(stations) for _ in HOURS] for t in DAY_TYPES}
     )
-    allday: dict[tuple[str, str], dict[str, float]] = defaultdict(lambda: defaultdict(float))
-    per_hour: dict[tuple[str, int], list[tuple[float, int, int]]] = defaultdict(list)
+    # 全日加總用整數總人次（與加總順序無關，重跑結果相同）
+    allday: dict[tuple[str, str], dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for o, d, day_type, h, avg in agg.od_hourly:
-        oi, di = index[o], index[d]
-        od[o][day_type][h][di] = avg
-        allday[(o, day_type)][d] += avg
-        if o != d:
-            per_hour[(day_type, h)].append((avg, oi, di))
+        od[o][day_type][h][index[d]] = avg
+        allday[(o, day_type)][d] += total_count(avg, agg.day_counts[day_type])
 
     # 全日最常去的 5 站（stations.json 的 topDestinations；也是次要隱藏的一種公開總量）
-    top_dests: dict[tuple[str, str], list[tuple[float, str]]] = {
+    top_dests: dict[tuple[str, str], list[tuple[int, str]]] = {
         (s.name, t): sorted(((v, d) for d, v in allday[(s.name, t)].items() if d != s.name), reverse=True)[:5]
         for s in stations
         for t in DAY_TYPES
     }
 
-    suppression = suppress_od(od, stations, top_dests, agg.service_hours)
+    district_cells = DistrictCells.build(
+        agg.od_hourly, stations, districts.station_codes, agg.day_counts, agg.service_hours
+    )
+    suppression = suppress_od(od, stations, top_dests, agg.service_hours, district_cells)
     od_values = suppression.values
 
     sizes: dict[str, int] = {}
@@ -134,21 +187,20 @@ def export_month(
             ]
         sizes[f"od/{s.id}.json"] = _write(out / "od" / f"{s.id}.json", shard)
 
-    # flows.json：每小時前 200 組起訖弧線，只取經隱藏後仍公開的格（數字與 od 分片一致）
-    flows = {"v": CONTRACT_VERSION, "month": agg.month, "top": TOP_ARCS_PER_HOUR}
-    for t in DAY_TYPES:
-        flows[t] = []
-        for h in HOURS:
-            shown = [(a, oi, di) for a, oi, di in per_hour.get((t, h), []) if od_values.get((oi, di, t, h)) is not None]
-            top = sorted(shown, reverse=True)[:TOP_ARCS_PER_HOUR]
-            flows[t].append([[oi, di, od_values[(oi, di, t, h)]] for a, oi, di in top])
-    sizes["flows.json"] = _write(out / "flows.json", flows)
+    # district-flows.json：行政區×行政區×小時×日型（數字與 od 分片一起經 suppress.py）
+    sizes["district-flows.json"] = _write(
+        out / "district-flows.json",
+        district_flows_json(agg.month, district_cells, od_values, agg.service_hours),
+    )
 
     # stations.json：主畫面與車站個性卡
     st_out = []
     for s in stations:
         p = profiles[s.name]
-        tops = {t: [{"station": index[d], "avg": round(v)} for v, d in top_dests[(s.name, t)]] for t in DAY_TYPES}
+        tops = {
+            t: [{"station": index[d], "avg": round(n / agg.day_counts[t])} for n, d in top_dests[(s.name, t)]]
+            for t in DAY_TYPES
+        }
         type_id = clusters.assignment.get(s.name)
         st_out.append(
             {
@@ -201,7 +253,7 @@ def export_month(
             "dates": [d.isoformat() for d in dates],
             "dayTypes": [day_type[d] for d in dates],
             "cityEntries": [city[d] for d in dates],
-            "stations": {by_name[n].id: [per_station[n].get(d, 0) for d in dates] for n in per_station if n in by_name},
+            "stations": {s.id: [per_station[s.name].get(d, 0) for d in dates] for s in stations if s.name in per_station},
             "anomalyCandidates": anomalies,
         },
     )
@@ -225,6 +277,8 @@ def export_month(
             f"起訖平均人次少於 {SUPPRESS_BELOW} 一律不顯示數字。",
             "若某組起訖只有一格不顯示、可由公開的總量減出，同組最小的一格也會一併不顯示。",
             "車站所屬行政區依國土測繪中心界線與車站出口平均座標判定，位在區界上的車站可能與一般認知不同。",
+            "行政區起訖的平均是區內各站總人次先加總再除以天數；抵達環狀線車站的人次不在資料中，"
+            "區內有環狀線車站的行政區，「誰來」會偏少。",
         ],
     }
     sizes["meta.json"] = _write(out / "meta.json", meta)
@@ -238,9 +292,18 @@ def export_month(
         "sizes": sizes,
         "meta": meta,
         "clusters": clusters,
-        "suppression": {
-            "cells": len(od_values),
-            "primary": suppression.primary_hidden,
-            "secondary": len(suppression.secondary_hidden),
-        },
+        "suppression": suppression_summary(suppression),
     }
+
+
+def suppression_summary(suppression: Suppressed) -> dict[str, dict[str, int]]:
+    """build 摘要：od 格與行政區格各自的格數、主要隱藏、次要隱藏。"""
+    out = {kind: {"cells": 0, "primary": 0, "secondary": 0} for kind in ("od", "district")}
+    kind = lambda k: "district" if k[0] == "D" else "od"  # noqa: E731
+    for k in suppression.values:
+        out[kind(k)]["cells"] += 1
+    for k in suppression.primary_keys:
+        out[kind(k)]["primary"] += 1
+    for k in suppression.secondary_hidden:
+        out[kind(k)]["secondary"] += 1
+    return out

@@ -146,8 +146,9 @@ def cmd_build(args) -> None:
     print(f"{args.month}：{m['rawRows']:,} 列，排除 {m['droppedRows']:,} 列，{m['stationCount']} 站，"
           f"日數 {m['dayCounts']}，營運時段 {m['serviceHours']}")
     print(f"分群 k={m['clustering']['k']} silhouette={m['clustering']['silhouette']}")
-    sup = result["suppression"]
-    print(f"起訖格 {sup['cells']:,}：少於 10 人隱藏 {sup['primary']:,} 格，次要隱藏 {sup['secondary']:,} 格")
+    for kind, label in (("od", "站起訖格"), ("district", "行政區起訖格")):
+        sup = result["suppression"][kind]
+        print(f"{label} {sup['cells']:,}：少於 10 人隱藏 {sup['primary']:,} 格，次要隱藏 {sup['secondary']:,} 格")
     for ty in result["clusters"].types:
         flag = "（草稿）" if ty["draft"] else ""
         print(f"  #{ty['id']} {ty['label']}{flag} {ty['size']} 站，例：{'、'.join(ty['examples'])}  {ty['features']}")

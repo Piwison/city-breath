@@ -45,17 +45,6 @@ export interface StationsFile {
   types: StationType[];
 }
 
-/** [起站索引, 迄站索引, 平均人次] */
-export type Arc = [number, number, number];
-
-export interface FlowsFile {
-  v: number;
-  month: string;
-  top: number;
-  weekday: Arc[][];
-  holiday: Arc[][];
-}
-
 /**
  * 起站分片。weekday[hour][destIndex]：平均人次；null 表示少於 10 人（AD-3）。
  * 整個小時為 null 表示停止營運。
@@ -94,6 +83,23 @@ export interface DistrictsFile {
   v: number;
   month: string;
   districts: District[];
+}
+
+/**
+ * 行政區起訖矩陣：matrix[起區索引][迄區索引] 為平均人次；null 表示少於 10 人或次要隱藏（AD-3），
+ * 前端顯示「少於 10 人」，不得用總量反推。索引對到 DistrictFlowsFile.districts。
+ */
+export type DistrictMatrix = (number | null)[][];
+
+/** district-flows.json（1.9；AD-7、AD-10） */
+export interface DistrictFlowsFile {
+  v: number;
+  month: string;
+  /** 列／欄索引：有車站的行政區 8 碼代碼，依代碼排序；名稱與界線從 districts.json 取 */
+  districts: string[];
+  /** 長度 24，索引是進站小時（AD-15）；停止營運的小時整格為 null（AD-5） */
+  weekday: (DistrictMatrix | null)[];
+  holiday: (DistrictMatrix | null)[];
 }
 
 export interface DataSource {

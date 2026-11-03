@@ -2,7 +2,7 @@
 
 管線（`pipeline/`）寫、網站（`web/`）讀。改任何欄位都要同時改 `pipeline/src/city_breath_pipeline/export.py` 與 `web/src/data/types.ts`，並把 `CONTRACT_VERSION` 加一（AD-1）；升版的 PR 要把 `web/public/data/` 下所有月份重建（AD-18）。
 
-v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `sources[]`。依架構 AD-10，v2 之後還會加 `district-flows.json`（1.9）、`daily/{YYYY-MM-DD}.json`（1.10）、`events.json`，並由那幾張票移除 `flows.json` 與 `daily.json`；在那之前兩者照舊輸出。
+v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `sources[]`。依架構 AD-10，v2 的檔案由各票陸續加入，不再另外升版：1.9 加 `district-flows.json` 並移除 `flows.json`；之後還有 `daily/{YYYY-MM-DD}.json`（1.10，同時移除 `daily.json`）與 `events.json`。
 
 ```text
 web/public/data/
@@ -11,7 +11,7 @@ web/public/data/
     meta.json                 # 來源、授權、日數、營運時段、限制說明
     stations.json   ~109 KB   # 車站、24 小時曲線、前 5 目的地、分群、行政區
     districts.json  ~66 KB    # 行政區：代碼、名稱、中心點、簡化界線、區內車站
-    flows.json      ~87 KB    # 每小時前 200 組起訖弧線
+    district-flows.json ~72 KB # 行政區×行政區×小時×日型平均人次
     daily.json                # 每日每站進站量、異常候選日
     od/{stationId}.json ~25KB # 起站分片：該起站到每個迄站的分時平均
 ```
@@ -27,9 +27,11 @@ web/public/data/
   - 列：某起站、某日型、某小時的各迄站 ＝ `stations.json` 該站 `entries[h]`（＝ 分片 `*Departures[h]`）。
   - 欄：某迄站、某日型、某小時的各起站 ＝ `stations.json` 該站 `exits[h]`。
   - 全日：某起站 `topDestinations` 的某迄站、某日型的各營運小時 ＝ 該筆 `avg`。
+  - 行政區列：某起區、某日型、某小時的各迄區 ＝ 區內各站 `entries[h]` 之和（見 district-flows.json）。
+  - 行政區欄：某迄區、某日型、某小時的各起區 ＝ 區內各站 `exits[h]` 之和。
+  - 站區塊：行政區格 (A, B) ＝ A 內各起站到 B 內各迄站的 od 格之和。組成員是這格行政區格＋整塊 od 格：行政區格公開而 od 只剩一格 `null` 可用減法反推，行政區格是唯一 `null` 也能把 od 加總反推，所以 od 分片與 district-flows.json 一起隱藏，od 分片因此也可能多出次要隱藏的格。
   - 組內只算出站有紀錄的迄站（環狀線車站整欄已知為 0，不算保護格）；原本無人搭的格與少於 10 人無法區分，算 `null`。
   - 總量是四捨五入前的和，格子各自四捨五入，差值只有累積的進位誤差，仍足以估出被藏的格，因此一律視為相等。
-  - 被次要隱藏的格也不會出現在 `flows.json`。
 
 ## stations.json
 
@@ -41,7 +43,7 @@ web/public/data/
 | `stations[].district` | 所屬行政區的 8 碼代碼字串（例 `"63000050"`），對到 `districts.json` 的 `id`；前端不得自行推算（AD-9） |
 | `stations[].type` | 分群 ID；出站未計的站為 `null` |
 | `stations[].weekday / holiday` | `{ entries[24], exits[24] }` 平均進站、出站人次 |
-| `stations[].topDestinations.{weekday,holiday}` | 全日最常去的 5 站 `{ station, avg }` |
+| `stations[].topDestinations.{weekday,holiday}` | 全日最常去的 5 站 `{ station, avg }`；`avg` ＝ 各小時整數總人次加總 ÷ 日型天數，再四捨五入 |
 | `types[]` | `{ id, label, description, draft, size, features, examples }`；`draft: true` 表示標籤待人工定名 |
 
 ## districts.json
@@ -67,9 +69,22 @@ web/public/data/
 
 `sources[]`：每個輸入資料集一筆 `{ name, publisher, url, license, retrieved, sha256, dataset? }`（AD-1），資料來源頁只從這裡產生。舊的 `source` 物件暫留給現有骨架。
 
-## flows.json
+## district-flows.json
 
-`weekday[hour]`、`holiday[hour]`：`[起站索引, 迄站索引, 平均人次][]`，依人次由大到小，最多 200 組，不含同站進出。
+行政區×行政區×小時×日型的平均人次（AD-10；1.9 起，取代 v1 的 `flows.json`）。首頁與「點行政區看去哪、誰來」用。
+
+| 欄位 | 說明 |
+| --- | --- |
+| `districts[]` | 列與欄的索引：有車站的行政區 8 碼代碼字串，依代碼排序（2026-09 為 21 區）；名稱、界線、`inflowPartial` 從 `districts.json` 以 `id` 查 |
+| `weekday[hour][from][to]` | 從 `districts[from]` 的車站在 `hour` 點進站、在 `districts[to]` 的車站出站的平均人次；`null`＝少於 10 人或次要隱藏。整個小時為 `null` 表示停止營運 |
+| `holiday[hour][from][to]` | 同上，假日平均 |
+
+- **平均的分母**（AD-7）：先把區內各站的整數總人次加總，再除以該日型天數，最後四捨五入；不是把站平均相加，所以一格可能過門檻、而它的每一組站對都少於 10 人。
+- `hour` 是進站時段（AD-15）：「h 點出發」，抵達可能在下一個小時。
+- `from == to` 是區內移動，包含同站進出。
+- **迄站只算出站有紀錄的站**：環狀線車站（`stations[].exitsRecorded == false`）的出站不在原始資料中，不計入任何欄。因此 `districts[].inflowPartial == true` 的區（目前板橋、中和、新莊、新店），「誰來」那一欄**少算**了到區內環狀線車站的人，顯示時要附固定說明；從這些站出發的人（起站）照常計入。
+- 同一區的「去哪」比例＝該列各格 ÷ 列總和；列總和要自行加總公開的格（被隱藏的格不在內），或改用區內各站 `stations[].{weekday,holiday}.entries[h]` 之和當分母。
+- 數字與 od 分片經同一次 `suppress.py` 隱藏，兩邊不會互相洩漏（見上方次要隱藏的「站區塊」）。
 
 ## od/{stationId}.json
 

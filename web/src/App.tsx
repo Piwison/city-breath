@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CityMap } from "./map/CityMap";
 import { computeCommute, formatCount, type CommuteResult } from "./data/commute";
-import { loadFlows, loadMeta, loadMonths, loadOdShard, loadStations } from "./data/load";
-import type { DayType, FlowsFile, MetaFile, StationsFile } from "./data/types";
+import { loadMeta, loadMonths, loadOdShard, loadStations } from "./data/load";
+import type { DayType, MetaFile, StationsFile } from "./data/types";
 
 const pad = (h: number) => `${String(h).padStart(2, "0")}:00`;
 
@@ -11,7 +11,6 @@ export default function App() {
   const [month, setMonth] = useState<string>();
   const [meta, setMeta] = useState<MetaFile>();
   const [st, setSt] = useState<StationsFile>();
-  const [flows, setFlows] = useState<FlowsFile>();
   const [error, setError] = useState<string>();
   const [dayType, setDayType] = useState<DayType>("weekday");
   const [hour, setHour] = useState(8);
@@ -22,10 +21,9 @@ export default function App() {
     loadMonths()
       .then(async ({ latest }) => {
         setMonth(latest);
-        const [m, s, f] = await Promise.all([loadMeta(latest), loadStations(latest), loadFlows(latest)]);
+        const [m, s] = await Promise.all([loadMeta(latest), loadStations(latest)]);
         setMeta(m);
         setSt(s);
-        setFlows(f);
       })
       .catch((e: Error) => setError(e.message));
   }, []);
@@ -41,7 +39,6 @@ export default function App() {
   }, [playing, service]);
 
   const onSelect = useCallback((i: number) => setSelected(i), []);
-  const arcs = useMemo(() => flows?.[dayType][hour] ?? [], [flows, dayType, hour]);
 
   if (error) return <main className="shell"><p role="alert">{error}</p></main>;
   if (!st || !meta || !month) return <main className="shell"><p>載入資料中…</p></main>;
@@ -56,7 +53,7 @@ export default function App() {
         <p>{month} 北捷每日分時起訖人次（{meta.dayCounts.weekday} 個平日、{meta.dayCounts.holiday} 個假日）</p>
       </header>
 
-      <CityMap stations={st.stations} arcs={arcs} dayType={dayType} hour={hour} selected={selected} onSelect={onSelect} />
+      <CityMap stations={st.stations} dayType={dayType} hour={hour} selected={selected} onSelect={onSelect} />
 
       <section className="controls" aria-label="時間軸">
         <button type="button" onClick={() => setPlaying((p) => !p)}>{playing ? "暫停" : "播放一整天"}</button>
