@@ -1,0 +1,435 @@
+<title>城市呼吸 微縮城市</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* 一個畫面的 app：3D 微縮城市鋪滿，時鐘 HUD 在上，玻璃控制列在下。顏色隨時間由 JS 改寫 token。 */
+:root{
+  --sky-top:#BFE0F6; --sky-low:#EAF4F7;
+  --ink:#14182A; --ink-soft:#3F4A62; --ink-on:#F7F4EC;
+  --glass:rgba(255,255,255,.62); --glass-line:rgba(20,30,60,.12);
+  --energy:#F2A33A; --track:rgba(20,30,60,.14);
+  --font-num:"Geist",ui-sans-serif,system-ui,sans-serif;
+  --font-text:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{margin:0;overflow:hidden;background:linear-gradient(180deg,var(--sky-top),var(--sky-low) 55%);color:var(--ink);font-family:var(--font-text);-webkit-tap-highlight-color:transparent}
+#scene{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none}
+.hud{position:fixed;left:0;right:0;top:calc(14px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.clock{font-family:var(--font-num);font-weight:600;font-size:clamp(48px,11vw,72px);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-shadow:0 2px 20px var(--clock-glow,rgba(255,255,255,.7))}
+.energy{display:flex;align-items:center;gap:8px}
+.energy svg{width:12px;height:16px}
+.bar{width:min(200px,46vw);height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--energy);transform-origin:left;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.phase{font-weight:700;font-size:15px;text-shadow:0 1px 12px var(--clock-glow,rgba(255,255,255,.7))}
+.city-n{font-family:var(--font-num);font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+.labels{position:fixed;inset:0;pointer-events:none}
+.labels span{position:absolute;transform:translate(-50%,-140%);font-size:12px;font-weight:700;color:var(--ink);text-shadow:0 0 6px var(--sky-low),0 0 2px var(--sky-low);white-space:nowrap}
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(560px,calc(100% - 2*max(16px,env(safe-area-inset-left,0px))));display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:24px;background:var(--glass);border:1px solid var(--glass-line);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-sizing:border-box}
+.row{display:flex;align-items:center;gap:12px}
+.play{flex:none;width:48px;height:48px;border-radius:50%;border:0;background:var(--ink);color:var(--ink-on);display:grid;place-items:center;cursor:pointer;transition:transform .12s ease}
+.play:active{transform:scale(.94)}
+.play svg{width:16px;height:16px}
+.story{margin:0;font-size:15px;line-height:1.45;font-weight:500;min-width:0}
+.time{position:relative}
+.time .track{position:absolute;left:0;right:0;top:10px;height:8px;border-radius:999px}
+.time input{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;position:relative}
+.time input::-webkit-slider-runnable-track{height:8px;background:transparent}
+.time input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--ink);margin-top:-8px;box-shadow:0 2px 10px rgba(0,0,0,.28)}
+.time input::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--ink)}
+.ticks{display:flex;justify-content:space-between;font-family:var(--font-num);font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.modes{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -4px;padding:2px 4px}
+.modes::-webkit-scrollbar{display:none}
+.modes button{flex:none;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--glass-line);background:transparent;color:var(--ink);font:500 14px/1 var(--font-text);cursor:pointer;transition:background .2s ease,color .2s ease,transform .12s ease}
+.modes button:active{transform:scale(.96)}
+.modes button[aria-pressed="true"]{background:var(--ink);color:var(--ink-on);border-color:var(--ink)}
+.hint{font-size:12px;color:var(--ink-soft)}
+.card{position:fixed;left:50%;transform:translate(-50%,12px);opacity:0;bottom:calc(var(--dock-h,190px) + 26px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100% - 32px));padding:14px 16px;border-radius:20px;background:var(--glass);border:1px solid var(--glass-line);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);transition:opacity .2s ease,transform .25s cubic-bezier(.2,.8,.2,1);pointer-events:none;box-sizing:border-box}
+.card.open{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.card h2{margin:0;font-size:18px;display:flex;align-items:center;gap:8px;text-wrap:balance}
+.dots{display:flex;gap:4px}.dots i{width:10px;height:10px;border-radius:50%}
+.card .num{font-family:var(--font-num);font-weight:700;font-size:30px;font-variant-numeric:tabular-nums}
+.chip{display:inline-block;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--track)}
+.card p{margin:4px 0 0;font-size:13px;color:var(--ink-soft);line-height:1.5}
+.close{position:absolute;right:8px;top:8px;width:36px;height:36px;border:0;border-radius:50%;background:transparent;color:var(--ink);cursor:pointer;font-size:18px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.boot[hidden]{display:none}
+.boot{position:fixed;inset:0;display:grid;place-items:center;font-size:15px;color:var(--ink-soft);pointer-events:none}
+@media (prefers-reduced-motion:reduce){.bar>i,.card,.play,.modes button{transition:none}}
+</style>
+
+<canvas id="scene" aria-label="台北捷運微縮城市：平日各站人流隨時間變化"></canvas>
+<div class="boot" id="boot">載入城市中…</div>
+<div class="labels" id="labels" aria-hidden="true"></div>
+
+<header class="hud">
+  <div class="clock" id="clock">08:00</div>
+  <div class="energy" aria-label="全城這一小時進站人數">
+    <svg viewBox="0 0 12 16" aria-hidden="true"><path d="M7 0 L0 9 H5 L4 16 L12 6 H7 Z" fill="var(--energy)"/></svg>
+    <div class="bar"><i id="bar"></i></div>
+  </div>
+  <div class="phase" id="phase">尖峰吸氣</div>
+  <div class="city-n" id="cityN"></div>
+</header>
+
+<section class="card" id="card" aria-live="polite">
+  <button class="close" id="cardClose" type="button" aria-label="關閉車站資訊">×</button>
+  <h2><span id="cName">台北車站</span><span class="dots" id="cDots"></span></h2>
+  <div class="row" style="gap:10px;align-items:baseline;margin-top:4px">
+    <span class="num" id="cNum">0</span><span id="cUnit">人進出</span>
+    <span class="chip" id="cChip">吸人</span>
+  </div>
+  <p id="cNote"></p>
+</section>
+
+<section class="dock" id="dock" aria-label="時間與地圖模式">
+  <div class="row">
+    <button class="play" id="play" type="button" aria-label="播放一整天">
+      <svg id="playIcon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1 L15 8 L3 15 Z" fill="currentColor"/></svg>
+    </button>
+    <p class="story" id="story"></p>
+  </div>
+  <div class="time">
+    <div class="track" id="dayTrack" aria-hidden="true"></div>
+    <label for="hour" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">時間</label>
+    <input id="hour" type="range" min="0" max="23.99" step="0.01" value="8">
+    <div class="ticks" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+  </div>
+  <div class="modes" role="group" aria-label="地圖模式" id="modes">
+    <button type="button" data-mode="trains" aria-pressed="true">光點列車</button>
+    <button type="button" data-mode="ripples" aria-pressed="false">漣漪</button>
+    <button type="button" data-mode="windows" aria-pressed="false">建築亮燈</button>
+    <button type="button" data-mode="heat" aria-pressed="false">吸吐熱度</button>
+    <button type="button" data-mode="columns" aria-pressed="false">光柱</button>
+  </div>
+  <div class="hint" id="hint">點車站看人數；拖曳可轉動視角</div>
+</section>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const D = {"names":["板橋（板南線）","板橋（環狀線）","七張","三和國中","三民高中","三重","三重國小","中原","中和","中山","中山國中","中山國小","中正紀念堂","丹鳳","亞東醫院","信義安和","先嗇宮","內湖","公館","六張犁","劍南路","劍潭","動物園","北投","北門","十四張","南京三民","南京復興","南勢角","南港","南港展覽館","南港軟體園區","古亭","台北101/世貿","台北小巨蛋","台北橋","台北車站","台大醫院","台電大樓","唭哩岸","善導寺","國父紀念館","圓山","土城","士林","大坪林","大安","大安森林公園","大橋頭","大湖公園","大直","奇岩","小南門","小碧潭","市政府","幸福","府中","廣慈/奉天宮","後山埤","徐匯中學","復興崗","忠孝復興","忠孝敦化","忠孝新生","忠義","文德","新北投","新北產業園區","新埔","新埔民生","新店","新店區公所","新莊","昆陽","明德","景安","景平","景美","木柵","東湖","東門","松山","松山機場","松江南京","板新","橋和","民權西路","永安市場","永寧","永春","江子翠","海山","淡水","港墘","石牌","秀朗橋","科技大樓","竹圍","紅樹林","芝山","菜寮","萬芳社區","萬芳醫院","萬隆","葫洲","蘆洲","行天宮","西湖","西門","象山","輔大","辛亥","迴龍","關渡","雙連","頂埔","頂溪","頭前庄","麟光","龍山寺"],"xy":[[108.9,370.0],[109.9,370.0],[242.5,441.0],[147.8,254.2],[125.4,237.7],[144.1,293.3],[165.0,265.6],[144.0,380.9],[164.7,392.4],[204.5,298.8],[244.4,283.8],[215.1,280.4],[199.9,333.7],[40.4,343.0],[91.0,398.9],[259.5,335.1],[122.6,310.7],[329.1,241.4],[227.9,368.8],[259.1,352.3],[263.8,239.3],[212.5,240.5],[304.2,399.9],[168.3,152.5],[187.7,304.8],[217.1,425.3],[277.8,301.2],[243.6,300.1],[185.4,414.9],[350.0,300.2],[368.0,294.4],[365.5,284.8],[208.6,347.0],[276.2,335.4],[257.8,300.8],[171.0,279.8],[200.3,309.8],[197.9,318.7],[217.7,358.4],[181.3,172.7],[210.8,313.9],[267.2,319.9],[204.3,264.4],[77.2,446.1],[214.5,223.2],[240.6,428.3],[242.6,334.6],[229.6,334.4],[191.9,279.1],[342.3,241.2],[249.3,248.6],[172.4,164.0],[188.2,330.4],[220.8,447.5],[281.7,320.3],[103.7,303.9],[102.0,380.1],[309.2,326.3],[308.6,313.6],[137.4,247.6],[145.8,141.7],[244.6,319.3],[255.0,319.6],[225.6,319.0],[125.9,153.7],[313.5,251.0],[175.6,142.8],[103.0,282.4],[117.2,353.5],[114.9,348.1],[233.6,474.6],[240.1,456.4],[90.8,329.5],[327.1,303.0],[202.1,193.1],[178.2,408.1],[197.8,411.5],[239.2,410.1],[293.8,399.9],[357.5,272.1],[218.9,333.7],[300.3,303.6],[257.2,278.9],[226.2,300.4],[123.9,369.6],[154.2,387.6],[203.8,280.6],[189.0,392.1],[63.7,457.9],[298.1,320.9],[124.4,340.4],[84.8,423.0],[79.3,85.4],[296.9,248.1],[197.0,184.8],[212.8,414.0],[243.5,348.3],[102.6,142.8],[101.5,110.1],[208.3,205.7],[155.9,285.6],[285.4,399.1],[267.5,397.6],[236.1,392.9],[351.2,262.1],[111.2,226.7],[226.3,286.6],[282.9,244.2],[184.6,318.3],[288.0,335.7],[63.0,335.8],[266.3,387.0],[22.0,356.0],[115.2,164.0],[205.1,289.6],[34.6,471.5],[196.5,371.4],[105.8,322.8],[268.9,362.1],[171.1,331.0]],"lines":{"R":[92,98,97,113,64,60,23,51,39,94,74,99,44,21,42,86,114,9,36,37,12,80,47,46,15,33,109,57],"R2":[23,66],"BL":[115,88,43,91,14,56,0,68,90,119,108,36,40,63,61,62,41,54,89,58,73,29,30],"G":[70,71,2,45,77,103,18,38,32,12,52,108,24,9,83,27,34,26,81],"G2":[2,53],"O":[28,75,87,116,32,80,63,83,106,11,86,48,35,100,5,16,117,72,110,13,112],"O2":[48,6,3,59,4,105],"BR":[22,78,101,102,111,118,19,96,46,61,27,10,82,50,20,107,93,65,17,49,104,79,31,30],"Y":[45,25,95,76,75,8,85,7,84,1,69,117,55,67]},"tot":[[309,20,156,177,150,133,167,3,8,550,113,280,149,137,227,250,43,97,384,115,82,306,38,177,160,4,184,343,279,125,278,18,293,309,131,174,1237,124,182,79,142,407,277,83,222,186,202,68,139,19,79,64,52,14,512,5,322,65,151,158,48,471,394,303,25,51,34,15,347,5,108,133,139,136,119,226,8,168,39,60,202,224,15,284,5,5,199,259,86,196,291,272,363,108,241,3,121,109,181,230,133,26,92,135,52,155,233,97,963,133,136,32,153,94,221,141,324,52,53,320],[10,0,8,0,0,1,0,0,0,27,1,7,4,13,10,4,0,7,18,1,3,8,0,12,8,0,1,13,15,3,13,0,12,11,1,2,38,11,3,4,6,7,12,8,5,12,6,1,2,2,1,7,2,0,17,0,14,6,9,0,4,20,8,14,3,0,0,0,12,0,8,6,12,4,1,10,0,10,0,4,5,1,0,14,0,0,11,12,6,8,4,12,64,5,6,0,1,12,22,4,1,0,0,6,2,1,8,2,40,5,9,0,11,7,9,14,17,4,0,8],null,null,null,[2,0,2,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,2,0,0,0,0,0,0,0,4,2,0,4,0,0,2,0,7,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,1,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,2,0,2,0,6,0,0,2,0,4,0,0,0,0,0,0,2,0,4,0,0,0,0,0,0,0,2,0,0,2],[1431,28,535,705,559,440,631,13,40,622,374,627,637,446,1179,552,253,313,768,347,313,1102,77,1009,631,32,741,1057,843,825,1296,144,828,568,616,391,5165,799,475,393,619,556,1236,494,1013,679,604,317,611,105,315,350,294,87,1546,37,998,387,539,458,238,787,637,750,167,146,196,24,1587,19,581,431,530,877,610,805,55,550,187,279,729,856,271,912,30,8,908,887,955,536,1079,1178,1216,434,1369,36,339,438,498,850,499,77,372,388,268,687,787,350,1415,524,287,127,567,569,741,600,1172,226,149,1120],[5368,173,2867,2819,2770,1999,2294,97,298,2690,2032,2817,4657,2319,5178,2691,1338,1547,3095,1881,1457,4092,627,3898,2494,349,4318,5561,3475,4443,5420,965,3976,2732,3327,1603,16315,4052,2466,1353,4063,2355,5322,1809,4400,3105,5283,1307,2415,574,1847,1531,2712,636,6635,426,4187,1703,2331,2280,886,3237,2938,3147,631,1760,1046,136,6211,119,2353,2147,2889,3215,3234,3928,222,2647,1258,2208,3825,3897,751,5980,185,41,4055,4009,2812,3407,4462,5098,4960,3324,5818,227,2012,1739,2737,3759,2587,466,2347,1749,1653,3457,3995,2130,4982,1946,1738,589,2928,2420,2886,3324,5372,1208,695,3630],[9203,214,3842,3981,3713,2807,3073,158,501,6599,4324,4362,7309,2916,7437,5935,2400,2550,5269,3252,2660,5296,1403,3747,4803,545,7750,14526,6157,6384,10006,2944,7366,7926,7304,2419,26567,6232,3463,1808,6325,5571,5517,2640,4432,5261,7112,1727,3236,968,2113,2788,3037,650,13527,613,6855,1674,3769,3672,1122,5878,6392,7872,1001,1447,803,149,9873,120,3170,3413,3236,4874,2876,6554,404,3623,1160,2703,5044,7465,1175,13913,278,58,6668,6820,3072,4731,7749,7257,6017,7019,6046,436,4120,1925,3991,5519,3008,911,3317,2557,2551,4988,9023,5910,10469,4401,2857,1158,3480,3689,4944,4874,8364,1636,1183,4329],[4888,134,2004,2000,1638,1342,1863,76,268,4157,2252,2305,3189,1371,4455,2876,819,1438,3803,1755,1625,3622,837,2275,2109,258,3794,6599,3070,3841,6763,1278,4610,5790,3350,1370,17016,3994,1800,958,3853,3964,3300,1306,3322,3186,3234,1071,1736,511,1291,1517,1661,387,8673,282,3855,1040,2191,1671,473,4160,3520,4847,640,695,499,80,5734,64,1745,1864,1448,2621,1880,3559,211,2213,595,1247,3251,3788,684,5536,123,34,3458,3640,2061,2657,4207,3347,4066,3518,4219,195,2547,1277,2057,2928,1559,396,1819,1455,1298,2351,4040,3373,5911,2584,2098,555,1745,2654,2841,2050,4997,743,694,3330],[3364,78,1252,1087,969,727,1073,44,129,3715,1013,1399,2348,750,2680,1513,343,836,2770,883,839,2230,580,1710,1472,142,1953,3251,1666,2315,3533,380,2906,2392,1604,846,12489,3480,1270,607,2104,2689,2178,858,2288,1730,1965,724,1195,303,731,703,1050,236,5292,126,2624,772,1354,974,300,3839,2361,3154,304,374,426,52,3485,25,1064,1147,765,1155,1324,1922,117,1509,374,627,2476,1742,522,3076,62,26,1909,2096,1272,1623,2446,1906,2851,1094,3252,92,1260,919,1155,1994,903,210,1141,923,659,1269,2177,958,4884,1082,941,268,835,1194,2632,1280,3051,400,386,2746],[3196,67,1160,849,802,663,885,48,111,4464,934,1322,2552,566,2158,1483,275,790,2616,745,845,1907,554,1592,1335,121,1755,3175,1417,2002,2653,429,2671,2377,1510,790,12958,3031,1231,554,1964,2908,2091,709,2369,1670,1803,730,1155,272,668,662,990,287,4988,89,2376,842,1302,840,309,4159,2600,3054,272,354,491,51,2990,23,970,1022,666,1016,1220,1621,100,1348,313,543,2717,1513,601,3082,54,28,1901,1811,1025,1502,2148,1532,2692,834,2906,73,1177,834,1067,1861,774,171,965,835,613,984,2320,701,5519,804,711,237,702,1049,2535,1078,2716,347,358,2755],[3470,81,1277,882,785,691,897,57,120,5213,1078,1463,3247,611,2253,1546,332,811,3336,857,863,2367,626,1575,1526,106,1855,3485,1411,2192,2679,497,3217,2812,1676,799,14311,3104,1466,584,2550,3142,2220,730,2675,1729,2142,824,1207,264,931,762,1286,315,5453,87,2465,831,1451,826,370,4767,2868,3942,304,377,488,58,3169,23,937,1058,699,1222,1218,1623,84,1538,342,578,3125,1742,651,3301,56,47,2219,1940,1009,1673,2270,1608,2758,968,3205,66,1654,844,1105,1963,797,169,1105,898,712,979,2483,965,6289,930,1037,259,730,1239,2591,1094,2728,389,386,2868],[3644,95,1268,918,829,701,888,57,113,5366,1086,1513,3147,598,2267,1793,349,846,3219,883,897,2195,571,1660,1677,110,1946,3842,1446,2251,2754,539,3326,2977,1872,825,14382,3216,1550,602,2477,3291,2159,719,2710,1755,2162,858,1229,270,852,781,1157,289,5647,89,2507,885,1531,881,346,5015,3095,3863,303,391,518,65,3118,27,979,1104,749,1236,1270,1646,88,1449,321,561,3174,1811,652,3427,60,40,2247,1914,987,1685,2351,1610,2707,1001,3300,66,1616,880,1177,2060,806,168,1062,907,729,991,2659,954,6463,980,1145,235,785,1210,2630,1158,2759,414,400,2976],[3361,89,1121,776,759,639,806,45,95,5418,971,1342,2607,509,1984,1622,293,760,2861,786,884,1947,510,1478,1475,81,1767,3374,1305,2043,2496,439,2885,2737,1617,783,13718,3040,1316,545,1896,3303,2041,641,2521,1623,1868,772,1060,252,739,618,1190,303,5321,69,2226,902,1323,861,301,4790,3048,3516,241,347,537,55,2780,23,920,933,681,979,1178,1478,74,1269,292,486,2619,1591,726,3322,48,35,1983,1768,922,1600,2087,1348,2771,813,2875,50,1245,814,1021,1969,729,156,899,806,565,865,2335,696,6286,813,813,212,628,1056,2472,984,2457,393,326,2874],[3641,101,1215,851,797,709,846,48,94,5581,990,1396,2732,538,2175,1594,303,811,2983,801,871,2181,525,1539,1580,86,1745,3333,1365,2267,2794,457,2971,2938,1646,839,14617,2957,1413,578,2055,3529,2217,716,2570,1594,1931,808,1299,287,910,636,1200,351,5391,61,2305,887,1364,853,308,4990,3099,3866,256,379,521,68,3106,26,924,992,738,1068,1256,1537,64,1456,329,554,2617,1722,666,3103,48,40,2023,1818,1061,1817,2208,1595,3024,824,3064,36,1389,821,1167,1999,821,167,1066,876,638,915,2396,780,6531,919,1067,237,707,1191,2423,1137,2669,429,340,2978],[5009,128,1845,1617,1720,1213,1487,73,104,6872,1571,2125,4402,928,2950,2286,467,1427,3953,1434,1316,3885,757,2531,2209,175,3027,4928,2094,4312,4490,789,4254,3689,2447,1273,20405,3320,2319,885,3986,4271,3877,1096,3981,2439,4787,1149,1752,459,1571,931,2036,530,7919,69,3473,1458,2102,1392,491,6038,3802,4810,394,1395,877,85,4304,31,1391,1422,1525,1970,2356,2154,72,2059,985,1790,3881,2528,823,4488,85,60,3420,2736,1848,3396,3373,3079,3491,2233,4265,45,2028,1354,1654,2827,1568,239,1874,1225,1198,1634,3258,1270,8338,1363,1526,389,1301,1662,2792,1528,3981,634,526,4067],[7574,246,2859,2480,2293,1990,2368,209,161,9589,2371,3399,6607,1797,4466,3513,1125,2081,5991,2030,2131,5019,1080,3511,3590,353,4875,8220,3315,5996,7232,1364,6243,5502,4424,1946,28825,4973,3333,1291,5195,6224,4650,1554,5751,3753,5899,1861,2614,627,2309,1449,2608,755,11294,111,4873,1596,2958,2333,762,8019,5716,6979,551,1370,1212,239,6821,54,1947,2189,2453,3083,2808,3531,126,3308,953,1807,5932,4678,1192,7948,116,164,4834,4710,2382,4358,5131,4308,5054,3349,5712,68,3079,1790,2471,4684,2147,369,2295,1908,1905,2648,4979,2544,11464,2274,2177,596,2043,2293,4127,2617,6075,1088,688,5267],[10340,320,3943,3336,3068,2553,2998,645,285,12852,4215,4821,6699,2347,5770,6073,1932,2747,6813,3025,3022,5878,1059,3822,4551,280,7331,14007,4974,7024,9234,2942,8561,9087,7086,2625,32843,4630,3916,1633,6429,8594,5475,2244,6165,5666,6706,2185,3095,821,2411,2361,2697,832,16468,174,6812,1553,3946,3340,920,10736,8909,9615,737,1445,1037,496,9889,65,2344,3093,2993,4862,2770,5547,183,3815,1089,2396,6777,7788,1316,13495,203,509,6617,6635,3226,5058,7757,6107,5786,6367,6865,79,4342,2054,3459,5939,2667,601,3262,2500,2432,3664,8129,5253,14601,3954,2969,889,2784,3075,5051,3904,8414,1415,985,5745],[6560,215,2611,2216,2077,1650,2128,305,166,8515,2413,3034,3261,1707,3902,3733,929,1671,4265,1848,1906,4189,630,2657,2530,103,4193,8124,3308,4215,5799,1659,5075,5728,3969,1787,20016,2226,2301,1097,2861,5511,3634,1462,3944,3760,3767,1139,1923,507,1340,1536,1253,551,10950,99,4401,952,2515,2102,607,7319,5575,5733,539,850,575,264,6299,43,1589,2065,1927,3229,1832,3862,136,2452,660,1386,3815,5216,774,6775,108,297,3945,4195,2050,3170,4914,4342,4664,4145,4047,46,2409,1504,2532,3730,1571,372,2003,1619,1393,2535,4548,3390,9723,2625,1604,572,1919,2381,3252,2575,5305,860,663,3795],[4292,144,1586,1324,1162,946,1314,91,86,6267,1337,1931,1833,974,2354,1996,463,1065,2960,1069,1064,2837,368,1859,1519,54,2237,4326,2114,2571,2984,809,3313,3060,2064,1196,14260,1247,1610,742,1742,3410,2415,821,2538,2023,2321,740,1246,318,865,791,721,332,6897,54,2932,608,1627,1350,391,5267,3637,3582,326,555,392,122,3963,36,1076,1315,1175,1497,1132,2307,57,1647,404,860,2563,3087,437,3617,59,77,2404,2511,1283,1961,3132,2516,3103,1773,2764,23,1416,1005,1669,2325,981,233,1104,1108,866,1390,2509,1382,7192,1191,1050,360,1120,1250,2137,1384,3414,471,428,2664],[4011,136,1421,1326,1170,901,1314,49,82,6179,1272,1877,2103,873,2128,1874,370,1124,3128,973,1086,2755,323,1627,1356,44,2007,4076,2084,2236,2725,587,3370,2812,2105,1101,14028,1171,1606,662,2083,3580,2456,806,2285,1793,2416,804,1224,342,879,704,713,319,6488,51,3057,600,1571,1194,351,5045,3523,3438,254,575,568,86,3734,39,985,1252,1064,1255,1050,2154,42,1675,401,881,2610,2777,403,3373,57,51,2131,2482,1052,1851,3067,2396,2253,1490,2569,18,1427,860,1361,2184,975,210,1022,1090,820,1382,2206,869,7115,1028,1048,324,1041,998,1905,1192,3489,447,448,2649],[3061,153,1127,1074,1074,724,1108,32,64,4362,886,1389,1543,723,1643,1352,277,759,2414,738,942,2071,272,1202,880,33,1465,2709,1805,1440,2036,288,2220,2369,1437,927,12307,1110,1149,511,1426,3548,1558,597,1642,1363,1594,466,860,204,663,495,453,273,5138,45,2448,453,1114,1118,272,3619,2487,2127,156,354,287,63,2970,33,768,959,986,957,733,1727,34,1183,334,657,1714,1870,304,1985,46,36,1457,1948,925,1186,2247,2056,1913,877,1773,22,943,626,1167,1725,822,164,737,781,525,1206,1471,544,5707,943,952,257,965,663,1273,940,2618,345,325,1902],[1045,60,423,385,418,286,446,16,27,1397,282,625,422,411,590,634,107,256,963,269,292,858,95,448,361,16,547,967,685,496,691,73,750,878,553,391,3541,337,441,197,448,1390,650,241,549,496,504,171,373,70,221,176,143,94,1506,25,856,162,425,411,109,1172,955,787,61,109,121,35,940,15,318,355,419,394,262,636,16,422,96,192,508,773,66,725,21,14,554,722,396,442,826,744,1000,252,643,8,327,313,520,534,330,59,248,295,175,439,584,207,2295,380,381,84,466,300,520,438,977,129,122,808]],"inflow":["101110100010011011010011000010100001000100011101011101001111100011101011111101110000000111111110011111111100001111011111","111110111000011111100011010011110100000100010100010101011111100011111111110111110110110111011001011001111100011111011110",null,null,null,"111111111111111111111111111111111111111011111111111111111111111111111111110111111111111111111101111111111111111111111111","100001000101100110101110101101011110111011101011101010100100011110100000011000001111001010000110100100000011010000100000","000000000101100110101100101101011110111011101011101010100100011111100000011000101011001001000110100100100011011001100000","000000000111100110101100001100111110011011001011100010100000011110000000010000001011001000000100100000000011111001100000","000000000111100110101110001100111110010011001011001010100000011110000000010000001111001000000110100000000011011001100000","000000000111100100101110101100111110011011001011001010100100011110100000010000001011001000000110100100000011011001100000","000000000101100100101010101100111110100011001010000011100000011100100000000000001011001000000000100100000011111000100000","000000000101000100101010101100111110101001001010000001100000011100000000000000001111001000000000000100000010110000100000","000000000101100110101010101100111110011011000011000010100000011110100000000000001011001000000000100000000010111000100000","100001000101100110100000101001000111111001110011010011100101111101100000101001000000000011000000010100000000100000100101","101111100101010001010001100011000001100100110001010001001111100001001011100101110110000111111000011010011100100110011111","101111100110011101011001100011001001100100010000010100001011100000001001100101000110000100111000011111011100100110011111","101111100110011001000001100011000001100101110100010101001011100000001011100101010100000110111000011111111100100110011111","101111100000011001010101000011000001100100110000011001001111100001001011101101110100000111111000011111111100101110001111","101111100000011001010111000011000001001100110000011101001111100001101011101101110000000111111010011111111100101110011111","101111100000011011010111000011000001000100110100011101001111100001101011101101110000000111111010011111111100001110011111","101111100000011011010111100011100001000100110100111101001111100011001011111101110000000111111010011111111100001111011111","101111100000011011010111100011100001000100110100111101001111100011101011111101110000000111111010011011111100001111011111","101111100000011011010011000010100001000100110100011101001111100011101011111101110000000111111010011111111100001111011111"],"city":[10466,417,0,0,0,35,36481,167090,270132,151913,93286,87980,97283,99403,90357,95365,142966,210090,281439,175622,108439,103241,77903,28315],"recorded":[1,0,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]};
+const LC = {R:'#E3002C',BL:'#0070BD',G:'#008659',O:'#F8B61C',BR:'#C48C31',Y:'#FFDB00'};
+const LN = {R:'淡水信義線',BL:'板南線',G:'松山新店線',O:'中和新蘆線',BR:'文湖線',Y:'環狀線'};
+// skyTop, skyLow, dark, ground, river, hill
+const PAL = [
+['#0B1024','#1B2045',1,'#1B2238','#24305A','#1A2440'],['#0A0F22','#181C3E',1,'#1A2136','#222E56','#19233E'],
+['#070A18','#10142B',1,'#151B30','#1C2647','#151D35'],['#070A18','#10142B',1,'#151B30','#1C2647','#151D35'],
+['#080B1C','#141834',1,'#171E34','#1E2A4C','#172038'],['#1C2350','#5C4F80',1,'#33395A','#555684','#334460'],
+['#4F61A8','#F0B49E',1,'#A39B8E','#E2B09A','#6F8A72'],['#9CC3E8','#F8DCC6',0,'#D2D3BC','#A9CCE0','#86A986'],
+['#BFE0F6','#EAF4F7',0,'#D3DBB9','#8EC3E3','#8DB38B'],['#C8E4F7','#EFF6F6',0,'#D4DCBA','#91C5E4','#8EB48C'],
+['#D2E9F8','#F3F8F3',0,'#DCE1CD','#A2CFE8','#8FB58C'],['#D6EBF8','#F4F8F1',0,'#DDE1CD','#A4D0E8','#90B58C'],
+['#D8ECF8','#F5F8EE',0,'#DEE1CC','#A5D0E8','#90B58C'],['#D6EAF6','#F5F6EA',0,'#DEE0CA','#A6CFE5','#91B48A'],
+['#D2E6F2','#F6F0DF',0,'#DFDEC6','#ABCDDF','#93B288'],['#CFE2EE','#F6E9D2',0,'#DFDBC2','#B1CDDA','#95B187'],
+['#D4DEE6','#F5DEBE',0,'#DFD7BD','#B7CFDA','#97AF87'],['#E3B48C','#F4CFA4',0,'#E0C9A2','#EBC29A','#9AA67F'],
+['#B4553A','#6D4F9A',1,'#93766B','#C77E6A','#66625F'],['#3E3F7A','#B4677A',1,'#41405F','#6A5A86','#3D465E'],
+['#252A5E','#4E4172',1,'#282C48','#34386A','#283048'],['#161B3E','#2B2D55',1,'#1C2239','#232C52','#1C253B'],
+['#111633','#24274C',1,'#1A2036','#212A4E','#1A2338'],['#0E1330','#1F2246',1,'#191F36','#1F294D','#192237']];
+const PHASE = ['城市入睡','末班車之後','停駛中，城市睡著了','停駛中，城市睡著了','停駛中，天快亮了','第一班車，城市醒來','日出，第一波人出門','吸氣：人往城裡走','尖峰吸氣','吸氣慢慢平息','平穩呼吸','平穩呼吸','午休','平穩呼吸','平穩呼吸','平穩呼吸','開始吐氣','吐氣：下班潮','尖峰吐氣','吐氣慢慢平息','晚上的城市','晚上的城市','夜深了','最後幾班車'];
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const N = D.xy.length;
+const MAXT = Math.max(...D.tot.filter(Boolean).flat());
+const W = p => new THREE.Vector3((p[0]-195)/10, 0, (p[1]-290)/10);
+const SP = D.xy.map(W);
+
+// 每站所屬路線（主線優先，轉乘站多條）
+const memb = Array.from({length:N},()=>[]);
+for (const [k,seq] of Object.entries(D.lines)) { const b=k.replace('2',''); seq.forEach(i=>{ if(!memb[i].includes(b)) memb[i].push(b); }); }
+const stColor = memb.map(m => m.length>1 ? '#FFFFFF' : LC[m[0]]);
+
+// ---------- renderer / scene ----------
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog('#EAF4F7', 110, 260);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 700);
+// 天空：上下漸層的大球
+const skyU = {top:{value:new THREE.Color('#BFE0F6')}, low:{value:new THREE.Color('#EAF4F7')}};
+const sky = new THREE.Mesh(new THREE.SphereGeometry(420,32,16), new THREE.ShaderMaterial({uniforms:skyU, side:THREE.BackSide, depthWrite:false, fog:false,
+  vertexShader:'varying vec3 vP; void main(){ vP=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader:'uniform vec3 top; uniform vec3 low; varying vec3 vP; void main(){ float t=smoothstep(-0.05,0.55,vP.y); gl_FragColor=vec4(mix(low,top,t),1.0); }'}));
+scene.add(sky);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+controls.minPolarAngle = 0.55; controls.maxPolarAngle = 1.12;
+controls.minAzimuthAngle = -0.7; controls.maxAzimuthAngle = 0.7;
+controls.minDistance = 36; controls.maxDistance = 160;
+controls.target.set(0, 0, 1);
+
+const hemi = new THREE.HemisphereLight('#ffffff', '#88997a', 1.2); scene.add(hemi);
+const sun = new THREE.DirectionalLight('#fff3dd', 2.2);
+sun.castShadow = true; sun.shadow.mapSize.set(1024,1024);
+Object.assign(sun.shadow.camera, {left:-34,right:34,top:34,bottom:-34,near:1,far:160});
+sun.shadow.bias = -0.0008; scene.add(sun); scene.add(sun.target);
+
+// ---------- diorama tile ----------
+function roundedRect(w,h,r){ const s=new THREE.Shape(); const x=-w/2,y=-h/2;
+  s.moveTo(x+r,y); s.lineTo(x+w-r,y); s.quadraticCurveTo(x+w,y,x+w,y+r); s.lineTo(x+w,y+h-r); s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  s.lineTo(x+r,y+h); s.quadraticCurveTo(x,y+h,x,y+h-r); s.lineTo(x,y+r); s.quadraticCurveTo(x,y,x+r,y); return s; }
+const tileGeo = new THREE.ExtrudeGeometry(roundedRect(46,58,4), {depth:2.4, bevelEnabled:true, bevelSize:.4, bevelThickness:.4, bevelSegments:3, curveSegments:10});
+tileGeo.rotateX(-Math.PI/2); tileGeo.translate(0,-2.8,1);
+const groundMat = new THREE.MeshStandardMaterial({color:'#DADFCB', roughness:.95});
+const sideMat = new THREE.MeshStandardMaterial({color:'#9C8A6E', roughness:1});
+const tile = new THREE.Mesh(tileGeo, [groundMat, sideMat]); tile.receiveShadow = true; scene.add(tile);
+
+// 河流：平面帶狀
+function ribbon(pts, width){ const v=[],idx=[]; const P=pts.map(W);
+  for(let i=0;i<P.length;i++){ const a=P[Math.max(0,i-1)], b=P[Math.min(P.length-1,i+1)];
+    const d=new THREE.Vector3().subVectors(b,a).normalize(); const n=new THREE.Vector3(-d.z,0,d.x).multiplyScalar(width/2);
+    v.push(P[i].x+n.x,0.03,P[i].z+n.z, P[i].x-n.x,0.03,P[i].z-n.z);
+    if(i<P.length-1){ const k=i*2; idx.push(k,k+1,k+2,k+1,k+3,k+2); } }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(v,3)); g.setIndex(idx); g.computeVertexNormals(); return g; }
+const riverMat = new THREE.MeshStandardMaterial({color:'#9CCBE6', roughness:.25, metalness:.1});
+const RIVERS = [
+  [[[48,70],[75,118],[100,158],[128,190],[152,214],[170,240],[178,268],[176,300],[160,330],[147,336]], 1.0],
+  [[[147,336],[178,346],[198,352],[212,368],[220,392],[226,416],[232,440],[228,470],[222,505]], 0.85],
+  [[[147,336],[126,334],[108,338],[94,352],[80,376],[66,404],[54,436],[44,470],[38,512]], 0.85],
+  [[[150,213],[175,228],[195,246],[210,254],[232,258],[253,264],[276,268],[300,272],[322,278],[345,282],[380,266]], 0.6]];
+RIVERS.forEach(([p,w])=>{ const m=new THREE.Mesh(ribbon(p,w),riverMat); m.receiveShadow=true; scene.add(m); });
+
+// 山：低多邊形
+const hillMat = new THREE.MeshStandardMaterial({color:'#8DB38B', roughness:.9, flatShading:true});
+[[250,88,11,3.4,5.5],[24,118,4.6,2.6,3.6],[334,362,4.8,2.2,3.2],[300,458,7.4,2.6,3.6],[332,204,5.4,1.6,2.4],[44,522,6.6,1.8,3],[372,420,3.6,2,3]]
+.forEach(([x,y,r,h,rz],k)=>{ const g=new THREE.IcosahedronGeometry(1,1); const pos=g.attributes.position;
+  for(let i=0;i<pos.count;i++){ const yy=pos.getY(i); if(yy<0) pos.setY(i,yy*0.05); const n=Math.sin(i*12.9898+k)*0.08; pos.setX(i,pos.getX(i)*(1+n)); }
+  g.computeVertexNormals(); const m=new THREE.Mesh(g,hillMat); const p=W([x,y]); m.position.set(p.x,0,p.z); m.scale.set(r, h, rz); m.castShadow=true; m.receiveShadow=true; scene.add(m); });
+
+// 建築：每站周圍一群，含窗戶光
+const B_PER = 6; const bCount = N*B_PER;
+const bGeo = new THREE.BoxGeometry(1,1,1); bGeo.translate(0,.5,0);
+const bMat = new THREE.MeshStandardMaterial({color:'#F1ECE1', roughness:.8});
+const bMesh = new THREE.InstancedMesh(bGeo, bMat, bCount); bMesh.castShadow=true; bMesh.receiveShadow=true;
+// 窗戶：三條樓層燈帶，加法混色，黑色時等於不存在
+const wGeo = mergeGeometries([.28,.52,.76].map(y=>{ const g=new THREE.BoxGeometry(1.04,.07,1.04); g.translate(0,y,0); return g; }));
+const wMat = new THREE.MeshBasicMaterial({color:'#ffffff', toneMapped:false, blending:THREE.AdditiveBlending, transparent:true, depthWrite:false});
+const wMesh = new THREE.InstancedMesh(wGeo, wMat, bCount);
+const bOwner = new Int16Array(bCount); const bH = new Float32Array(bCount);
+const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
+let rnd = 7; const R = () => (rnd = (rnd*16807)%2147483647)/2147483647;
+for(let i=0,k=0;i<N;i++){ for(let j=0;j<B_PER;j++,k++){
+  const ang=R()*Math.PI*2, dist=0.7+R()*1.6; const x=SP[i].x+Math.cos(ang)*dist, z=SP[i].z+Math.sin(ang)*dist;
+  const centrality = Math.max(0, 1 - Math.hypot(SP[i].x-0.5, SP[i].z+0.5)/16);
+  const h=0.25+R()*0.9+centrality*R()*2.2, w=0.35+R()*0.35, d=0.35+R()*0.35;
+  bOwner[k]=i; bH[k]=h;
+  ps.set(x,0,z); q.setFromAxisAngle(new THREE.Vector3(0,1,0), R()*0.6); sc.set(w,h,d); m4.compose(ps,q,sc); bMesh.setMatrixAt(k,m4);
+  sc.set(w,h,d); ps.set(x,0,z); m4.compose(ps,q,sc); wMesh.setMatrixAt(k,m4); wMesh.setColorAt(k,new THREE.Color(0,0,0));
+}}
+scene.add(bMesh, wMesh);
+
+// 台北 101（示意）
+const t101 = new THREE.Group(); const glass = new THREE.MeshStandardMaterial({color:'#5E9A94', roughness:.35, metalness:.3, emissive:'#0d2a2a'});
+const base101 = new THREE.Mesh(new THREE.BoxGeometry(1.1,.9,1.1), glass); base101.position.y=.45; t101.add(base101);
+for(let s=0;s<8;s++){ const seg=new THREE.Mesh(new THREE.CylinderGeometry(.56,.42,.62,4,1), glass); seg.rotation.y=Math.PI/4; seg.position.y=.9+.31+s*.62; t101.add(seg); }
+const spire = new THREE.Mesh(new THREE.CylinderGeometry(.03,.06,1.4,6), glass); spire.position.y=.9+8*.62+.7; t101.add(spire);
+t101.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
+const p101 = SP[33].clone().add(new THREE.Vector3(.9,0,-.5)); t101.position.copy(p101); scene.add(t101);
+
+// 發光路線
+const railMats = {};
+const curves = {};
+for (const [k,seq] of Object.entries(D.lines)) { const b=k.replace('2','');
+  railMats[b] ??= new THREE.MeshStandardMaterial({color:LC[b], emissive:LC[b], emissiveIntensity:.6, roughness:.4});
+  const pts = seq.map(i=>SP[i].clone().setY(.32));
+  const c = new THREE.CatmullRomCurve3(pts, false, 'centripetal', .5); curves[k]=c;
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(c, seq.length*10, .14, 8, false), railMats[b]); tube.castShadow=true; scene.add(tube); }
+
+// 車站底座
+const padMat = new THREE.MeshStandardMaterial({color:'#ffffff', roughness:.5});
+const pads = new THREE.InstancedMesh(new THREE.CylinderGeometry(.24,.24,.12,16), padMat, N);
+for(let i=0;i<N;i++){ m4.makeTranslation(SP[i].x,.36,SP[i].z); pads.setMatrixAt(i,m4); pads.setColorAt(i,new THREE.Color(stColor[i])); }
+scene.add(pads);
+
+// ---------- 地圖模式的圖層 ----------
+// 光點列車
+const trainGeo = new THREE.SphereGeometry(.13,10,8);
+const trains = {};
+for (const k of Object.keys(D.lines)) { const b=k.replace('2','');
+  const mat = new THREE.MeshBasicMaterial({color:new THREE.Color(LC[b]).multiplyScalar(1.6), toneMapped:false});
+  const max = k.endsWith('2') ? 6 : 70; const m = new THREE.InstancedMesh(trainGeo, mat, max); m.count = 0;
+  trains[k] = {mesh:m, max, seed:Array.from({length:max},(_,i)=>i/max+R()*0.4/max), dir:Array.from({length:max},(_,i)=>i%2?1:-1), lane:Array.from({length:max},(_,i)=>i%2?.14:-.14)};
+  scene.add(m); }
+// 漣漪
+const ringGeo = new THREE.RingGeometry(.86,1,48); ringGeo.rotateX(-Math.PI/2);
+const ripples = []; const rippleGroup = new THREE.Group(); scene.add(rippleGroup);
+for(let i=0;i<N;i++){ for(let r=0;r<2;r++){ const mat=new THREE.MeshBasicMaterial({color:new THREE.Color(stColor[i]), transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending, toneMapped:false});
+  const m=new THREE.Mesh(ringGeo,mat); m.position.set(SP[i].x,.08,SP[i].z); rippleGroup.add(m); ripples.push({m,i,phase:r*.5+R()*.2}); } }
+// 熱度光暈
+const glowTex = (()=>{ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d'); const gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.35,'rgba(255,255,255,.55)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,128,128);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
+const heatGeo = new THREE.PlaneGeometry(1,1); heatGeo.rotateX(-Math.PI/2);
+const heatMat = new THREE.MeshBasicMaterial({map:glowTex, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, vertexColors:false, toneMapped:false});
+const heat = new THREE.InstancedMesh(heatGeo, heatMat, N); heat.renderOrder=2; scene.add(heat);
+// 光柱
+const colGeo = new THREE.CylinderGeometry(.2,.2,1,14,1,true); colGeo.translate(0,.5,0);
+const colMat = new THREE.MeshBasicMaterial({color:'#ffffff', transparent:true, opacity:.78, depthWrite:false, side:THREE.DoubleSide, toneMapped:false});
+const cols = new THREE.InstancedMesh(colGeo, colMat, N); scene.add(cols);
+for(let i=0;i<N;i++) cols.setColorAt(i,new THREE.Color(stColor[i]).multiplyScalar(1.2));
+
+// 雲
+const cloudMat = new THREE.SpriteMaterial({map:glowTex, color:'#ffffff', transparent:true, opacity:.7, depthWrite:false});
+const clouds = [[-22,9,24],[24,8,14],[-18,7,-26],[20,10,-22],[0,11,36]].map(([x,y,z])=>{ const s=new THREE.Sprite(cloudMat); s.position.set(x,y,z); s.scale.set(16,5,1); scene.add(s); return s; });
+
+// ---------- 後製光暈 ----------
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1,1), .3, .6, .82); composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// ---------- 狀態 ----------
+let hour = 8, playing = false, mode = 'trains', selected = -1;
+const cur = new Float32Array(N), tgt = new Float32Array(N), inflowCur = new Float32Array(N);
+const cA = new THREE.Color(), cB = new THREE.Color(), tmpC = new THREE.Color();
+const lerpHex = (a,b,t) => '#'+cA.set(a).lerp(cB.set(b),t).getHexString();
+function totAt(h){ const a=Math.floor(h)%24, b=(a+1)%24, t=h-Math.floor(h); const A=D.tot[a], B=D.tot[b];
+  return i => { const va=A?A[i]:0, vb=B?B[i]:0; return va+(vb-va)*t; }; }
+function inflowAt(h){ const a=Math.round(h)%24; const s=D.inflow[a]; return i => s ? (s[i]==='1'?1:0) : .5; }
+function palAt(h){ const a=Math.floor(h)%24, b=(a+1)%24, t=h-Math.floor(h); const A=PAL[a], B=PAL[b];
+  return {skyTop:lerpHex(A[0],B[0],t), skyLow:lerpHex(A[1],B[1],t), dark:(t<.5?A[2]:B[2]), ground:lerpHex(A[3],B[3],t), river:lerpHex(A[4],B[4],t), hill:lerpHex(A[5],B[5],t), night:(A[2]+(B[2]-A[2])*t)}; }
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const root = document.documentElement.style;
+$('dayTrack').style.background = 'linear-gradient(90deg,'+PAL.map((p,i)=>p[0]+' '+(i/24*100).toFixed(1)+'%').join(',')+')';
+
+function setHud(){ const hi=Math.floor(hour)%24; const mm=Math.floor((hour-Math.floor(hour))*60);
+  $('clock').textContent=String(hi).padStart(2,'0')+':'+String(mm-mm%10).padStart(2,'0');
+  $('phase').textContent=PHASE[hi]; const c=D.city[hi];
+  $('bar').style.transform='scaleX('+(c/Math.max(...D.city)).toFixed(3)+')';
+  $('cityN').textContent = D.tot[hi] ? '全城 '+fmt(c)+' 人進站' : '停駛';
+  let s; if(!D.tot[hi]) s='凌晨 2 點到 5 點停駛，城市在睡覺。';
+  else if(hi===8) s='八點，全城一小時 270,132 人進站，人往辦公區走。';
+  else if(hi===18) s='六點，一天最多人進站：281,439 人往家裡走。';
+  else s=String(hi).padStart(2,'0')+':00 這一小時，全城 '+fmt(c)+' 人進站。';
+  $('story').textContent=s; if(document.activeElement!==$('hour')) $('hour').value=hour.toFixed(2);
+  if(selected>=0) fillCard(); }
+
+function applyTheme(p){ const dark=p.night>.5;
+  root.setProperty('--sky-top',p.skyTop); root.setProperty('--sky-low',p.skyLow);
+  root.setProperty('--ink',dark?'#F7F4EC':'#14182A'); root.setProperty('--ink-soft',dark?'#CFD3E6':'#3F4A62'); root.setProperty('--ink-on',dark?'#14182A':'#F7F4EC');
+  root.setProperty('--glass',dark?'rgba(14,18,40,.56)':'rgba(255,255,255,.62)'); root.setProperty('--glass-line',dark?'rgba(255,255,255,.14)':'rgba(20,30,60,.12)');
+  root.setProperty('--energy',dark?'#FFD27A':'#F2A33A'); root.setProperty('--track',dark?'rgba(255,255,255,.18)':'rgba(20,30,60,.14)');
+  root.setProperty('--clock-glow',dark?'rgba(0,0,0,.35)':'rgba(255,255,255,.75)'); }
+
+// ---------- 卡片 ----------
+function fillCard(){ const i=selected, hi=Math.floor(hour)%24; const T=D.tot[hi];
+  $('cName').textContent=D.names[i];
+  $('cDots').innerHTML=memb[i].map(b=>'<i title="'+LN[b]+'" style="background:'+LC[b]+'"></i>').join('');
+  if(!T){ $('cNum').textContent='停駛'; $('cUnit').textContent=''; $('cChip').hidden=true; }
+  else { $('cNum').textContent=fmt(T[i]); $('cUnit').textContent='人進出'; $('cChip').hidden=!D.recorded[i];
+    $('cChip').textContent = D.inflow[hi][i]==='1' ? '吸人：出站比較多' : '吐人：進站比較多'; }
+  $('cNote').textContent = (D.recorded[i] ? '' : '環狀線出站人次未公開，只計進站。') + '平日 '+String(hi).padStart(2,'0')+':00 那一小時的平均（2026 年 9 月）。'; }
+function openCard(i){ selected=i; fillCard(); $('card').classList.add('open'); }
+function closeCard(){ selected=-1; $('card').classList.remove('open'); }
+$('cardClose').addEventListener('click', closeCard);
+
+// 點選車站：投影到螢幕找最近的站
+let down=null;
+canvas.addEventListener('pointerdown', e=>{ down={x:e.clientX,y:e.clientY}; });
+canvas.addEventListener('pointerup', e=>{ if(!down) return; const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y); down=null; if(moved>6) return;
+  const r=canvas.getBoundingClientRect(); let best=-1, bd=28; const v=new THREE.Vector3();
+  for(let i=0;i<N;i++){ v.copy(SP[i]).setY(.4).project(camera); const sx=(v.x+1)/2*r.width, sy=(1-v.y)/2*r.height; const d=Math.hypot(sx-(e.clientX-r.left), sy-(e.clientY-r.top)); if(d<bd){bd=d;best=i;} }
+  best>=0 ? openCard(best) : closeCard(); });
+
+// ---------- 控制 ----------
+const playIcon = $('playIcon');
+function setPlaying(p){ playing=p; $('play').setAttribute('aria-label', p?'暫停':'播放一整天');
+  playIcon.innerHTML = p ? '<rect x="3" y="2" width="3.5" height="12" fill="currentColor"/><rect x="9.5" y="2" width="3.5" height="12" fill="currentColor"/>' : '<path d="M3 1 L15 8 L3 15 Z" fill="currentColor"/>'; }
+$('play').addEventListener('click', ()=>setPlaying(!playing));
+$('hour').addEventListener('input', e=>{ hour=parseFloat(e.target.value); setPlaying(false); setHud(); });
+$('modes').addEventListener('click', e=>{ const b=e.target.closest('button[data-mode]'); if(!b) return; mode=b.dataset.mode;
+  for(const x of $('modes').children) x.setAttribute('aria-pressed', String(x===b)); });
+
+// 地標標籤
+const LABELS = [[36,'台北車站'],[54,'市政府'],[0,'板橋'],[92,'淡水'],[22,'動物園'],[70,'新店']];
+const labelEls = LABELS.map(([i,t])=>{ const s=document.createElement('span'); s.textContent=t; $('labels').appendChild(s); return s; });
+
+// ---------- 版面 ----------
+function resize(){ const w=innerWidth, h=innerHeight; renderer.setSize(w,h,false); composer.setSize(w,h); bloom.setSize(w*.5,h*.5);
+  camera.aspect=w/h; camera.updateProjectionMatrix(); const portrait=h>w;
+  const dist = portrait ? 122 : 74; const sph=new THREE.Spherical(dist, portrait?0.88:0.82, 0); const off=new THREE.Vector3().setFromSpherical(sph);
+  if(!resize.done){ camera.position.copy(controls.target).add(off); resize.done=true; }
+  root.setProperty('--dock-h', $('dock').offsetHeight+'px'); }
+addEventListener('resize', resize); resize();
+
+// ---------- 迴圈 ----------
+const clock3 = new THREE.Clock(); let t0=0;
+const sunDir = new THREE.Vector3();
+function frame(){
+  const dt=Math.min(.05, clock3.getDelta()); t0+=dt;
+  if(playing){ hour=(hour+dt/(reduce?3.2:1.6))%24; setHud(); }
+  const p=palAt(hour); applyTheme(p);
+  scene.fog.color.set(p.skyLow); skyU.top.value.set(p.skyTop); skyU.low.value.set(p.skyLow); groundMat.color.set(p.ground); riverMat.color.set(p.river); hillMat.color.set(p.hill);
+  sideMat.color.copy(groundMat.color).multiplyScalar(.62);
+  // 太陽：6 點東升、18 點西落；夜裡換成月光
+  const dayT=(hour-6)/12, isDay=dayT>0&&dayT<1; const el=isDay?Math.sin(Math.PI*dayT):.35;
+  const az=isDay?Math.PI*(1-dayT):Math.PI*.3;
+  sunDir.set(Math.cos(az)*Math.cos(el*1.1), Math.max(.15,Math.sin(el*1.1)), -.35).normalize();
+  sun.position.copy(sunDir).multiplyScalar(60); sun.target.position.set(0,0,0);
+  const night=p.night; sun.intensity = isDay ? 0.6+2.2*el : 0.35;
+  sun.color.set(isDay ? lerpHex('#ffb37a','#fff6e6',Math.min(1,el*1.6)) : '#9fb4ff');
+  hemi.intensity = 0.35+0.95*(1-night); hemi.color.set(p.skyTop); hemi.groundColor.set(p.ground);
+  bloom.strength = 0.28+0.95*night; renderer.toneMappingExposure = 1.0-0.1*night;
+  for(const m of Object.values(railMats)) m.emissiveIntensity = .9+2.0*night;
+  bMat.color.set(lerpHex('#F4EFE4','#343C5E',night)); glass.emissiveIntensity = .2+1.6*night;
+  cloudMat.opacity = .45*(1-night)+.08;
+  clouds.forEach((c,k)=>{ c.position.x += Math.sin(t0*.05+k)*0.004; });
+
+  // 資料：平滑追上目標值
+  const fT=totAt(hour), fI=inflowAt(hour); const k=reduce?1:Math.min(1,dt*4);
+  for(let i=0;i<N;i++){ tgt[i]=Math.sqrt(fT(i)/MAXT); cur[i]+= (tgt[i]-cur[i])*k; inflowCur[i]+= (fI(i)-inflowCur[i])*k; }
+
+  const show = n => n===mode;
+  // 列車
+  for(const [key,tr] of Object.entries(trains)){ tr.mesh.visible=show('trains'); if(!tr.mesh.visible) continue;
+    const seq=D.lines[key]; let avg=0; for(const i of seq) avg+=cur[i]; avg/=seq.length;
+    const n=Math.round(tr.max*Math.min(1,avg*1.7)); tr.mesh.count=n; const c=curves[key]; const speed=reduce?0:.018;
+    for(let j=0;j<n;j++){ let u=(tr.seed[j]+t0*speed*tr.dir[j])%1; if(u<0)u+=1; c.getPointAt(u,ps); const tan=c.getTangentAt(u);
+      ps.x+=-tan.z*tr.lane[j]; ps.z+=tan.x*tr.lane[j]; ps.y=.34; const s=.8+avg*.9; sc.set(s,s,s); m4.compose(ps,q.identity(),sc); tr.mesh.setMatrixAt(j,m4); }
+    tr.mesh.instanceMatrix.needsUpdate=true; }
+  // 漣漪
+  rippleGroup.visible=show('ripples');
+  if(rippleGroup.visible){ for(const r of ripples){ const v=cur[r.i]; const spd=reduce?0:(.35+v*.9); const ph=(r.phase+t0*spd)%1;
+    const s=.3+ph*(.8+v*4.2); r.m.scale.set(s,1,s); r.m.material.opacity = v<.03?0:(1-ph)*(.25+v*.9); } }
+  // 建築亮燈
+  const winOn = show('windows');
+  for(let b=0;b<bCount;b++){ const v=cur[bOwner[b]]; const lit = winOn ? v*v*2.6*(0.5+0.5*night) : night*.55*(0.4+v);
+    tmpC.setRGB(1.0*lit,.78*lit,.42*lit); wMesh.setColorAt(b,tmpC); }
+  wMesh.instanceColor.needsUpdate=true;
+  // 熱度
+  heat.visible=show('heat');
+  if(heat.visible){ for(let i=0;i<N;i++){ const v=cur[i]; const s=.4+v*7.5; ps.set(SP[i].x,.06+i*.0004,SP[i].z); sc.set(s,1,s); m4.compose(ps,q.identity(),sc); heat.setMatrixAt(i,m4);
+      const warm=inflowCur[i]; tmpC.setRGB((.25+.95*warm)*v*1.6, (.55-.1*warm)*v*1.4, (1.1-.85*warm)*v*1.6); heat.setColorAt(i,tmpC); }
+    heat.instanceMatrix.needsUpdate=true; heat.instanceColor.needsUpdate=true; }
+  // 光柱
+  cols.visible=show('columns');
+  if(cols.visible){ for(let i=0;i<N;i++){ const hgt=.05+cur[i]*9; ps.set(SP[i].x,.36,SP[i].z); sc.set(1,hgt,1); m4.compose(ps,q.identity(),sc); cols.setMatrixAt(i,m4); } cols.instanceMatrix.needsUpdate=true; }
+  // 選中的站：底座放大
+  for(let i=0;i<N;i++){ const s=i===selected?1.9:1; ps.set(SP[i].x,.36,SP[i].z); sc.set(s,1,s); m4.compose(ps,q.identity(),sc); pads.setMatrixAt(i,m4); }
+  pads.instanceMatrix.needsUpdate=true;
+
+  controls.update(); composer.render();
+  // 標籤
+  const r=canvas.getBoundingClientRect(); const v3=new THREE.Vector3();
+  LABELS.forEach(([i],j)=>{ v3.copy(SP[i]).setY(1.2).project(camera); labelEls[j].style.left=((v3.x+1)/2*r.width)+'px'; labelEls[j].style.top=((1-v3.y)/2*r.height)+'px'; });
+  requestAnimationFrame(frame);
+}
+setHud(); for(let i=0;i<N;i++){ cur[i]=Math.sqrt(totAt(hour)(i)/MAXT); inflowCur[i]=inflowAt(hour)(i); }
+$('boot').hidden=true; requestAnimationFrame(frame);
+</script>
