@@ -120,6 +120,39 @@ export interface MetaFile {
   notes: string[];
 }
 
+/**
+ * 場館站當天的到站來源（daily/{date}.json 的 venues[]）。
+ * arrivals[i][hour]：從 origins[i] 這個行政區在 hour 點進站、到這個場館站出站的人次（AD-15）；
+ * null 表示少於 10 人或次要隱藏（AD-3），整個小時停止營運也是 null。
+ * 沒列在 origins 的行政區＝整天都是 null；前端不得用 exits 反推。
+ */
+export interface VenueArrivals {
+  /** 場館站：stations.json 的陣列索引 */
+  station: number;
+  /** pipeline/config/venues.csv 的 venue_id（同站可能有多個場館） */
+  venueIds: string[];
+  /** 來源行政區 8 碼代碼（AD-9），依代碼排序 */
+  origins: string[];
+  arrivals: Hourly[];
+}
+
+/**
+ * 逐日檔 daily/{YYYY-MM-DD}.json：進入某一天才載入（AD-6）。
+ * entries／exits 以 stations.json 的陣列索引排列，每站 24 小時；站層級總量不隱藏（AD-3）。
+ * 當日全市沒有人次的小時為 null（停止營運，AD-5）。
+ */
+export interface DailyFile {
+  v: number;
+  month: string;
+  /** YYYY-MM-DD */
+  date: string;
+  dayType: DayType;
+  entries: Hourly[];
+  /** 出站；exitsRecorded=false 的站（環狀線）整列為 null */
+  exits: (Hourly | null)[];
+  venues: VenueArrivals[];
+}
+
 export interface MonthsFile {
   v: number;
   months: string[];

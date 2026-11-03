@@ -21,8 +21,9 @@ from pathlib import Path
 
 from . import districts as geo
 from .aggregate import aggregate_month
-from .export import SOURCE, export_month
+from .export import SOURCE, export_daily, export_month
 from .stations import build_stations, canonical, load_aliases, load_exit_coordinates
+from .venues import VenueError, load_venues, resolve_venues
 
 ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / "data" / "raw"
@@ -110,14 +111,19 @@ def _file_source(path: Path, **fields) -> dict:
 def _load_month(args):
     raw = Path(args.raw) if getattr(args, "raw", None) else RAW / f"od_{args.month.replace('-', '')}.csv"
     aliases = load_aliases()
-    agg = aggregate_month(raw, args.month, aliases)
+    venues = load_venues(aliases)  # 場館站（1.10）：逐日檔的來源行政區只算這些迄站
+    agg = aggregate_month(raw, args.month, aliases, arrival_dests={v.station for v in venues})
     coords = load_exit_coordinates(RAW / "exits.csv")
     stations = build_stations(agg.origin_names, agg.dest_names, coords)
     # 防呆：所有原始站名都應該在別名表或直接對得上
     unknown = {canonical(n, aliases) for n in agg.origin_names | agg.dest_names} - {s.name for s in stations}
     if unknown:
         raise SystemExit(f"未對應的站名：{sorted(unknown)}")
-    return raw, agg, stations
+    try:
+        venue_stations = resolve_venues(venues, stations)
+    except VenueError as e:
+        raise SystemExit(str(e)) from e
+    return raw, agg, stations, venue_stations
 
 
 def _districts(stations):
@@ -131,7 +137,7 @@ def _districts(stations):
 
 def cmd_build(args) -> None:
     t = time.time()
-    raw, agg, stations = _load_month(args)
+    raw, agg, stations, venue_stations = _load_month(args)
     districts = _districts(stations)
     src = districts.source
     sources = [
@@ -154,6 +160,12 @@ def cmd_build(args) -> None:
     overrides = sum(a.method == "override" for a in districts.assignment.values())
     print(f"行政區 {len(districts.districts)} 個，{len(districts.station_codes)} 站都有行政區（人工修正 {overrides} 站），"
           f"簡化容差 {districts.tolerance}，districts.json {result['sizes']['districts.json'] / 1e3:.0f} KB")
+    daily = export_daily(agg, stations, districts, venue_stations, Path(args.out))
+    dsup = daily["suppression"]
+    print(f"逐日檔 {len(daily['sizes'])} 個共 {sum(daily['sizes'].values()) / 1e3:.0f} KB（最大 "
+          f"{max(daily['sizes'].values()) / 1e3:.0f} KB）；場館站 {len(venue_stations)} 站，來源行政區格 "
+          f"{dsup['cells']:,}：少於 10 人隱藏 {dsup['primary']:,} 格，次要隱藏 {dsup['secondary']:,} 格")
+    result["sizes"].update(daily["sizes"])
     total = sum(result["sizes"].values())
     biggest = sorted(result["sizes"].items(), key=lambda kv: -kv[1])[:4]
     print(f"輸出 {len(result['sizes'])} 檔共 {total / 1e6:.2f} MB；最大：" + "、".join(f"{k} {v / 1e3:.0f} KB" for k, v in biggest))
@@ -172,7 +184,7 @@ def nlsc_point_query(lon: float, lat: float) -> str | None:
 
 
 def cmd_district_report(args) -> None:
-    _, _, stations = _load_month(args)
+    _, _, stations, _ = _load_month(args)
     districts = _districts(stations)
     draft = json.loads(Path(args.draft).read_text("utf-8"))
     api = None

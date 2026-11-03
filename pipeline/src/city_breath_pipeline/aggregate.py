@@ -3,6 +3,7 @@
 1. 站 × 小時 × 日型 的平均進站、出站人次
 2. 起站 × 迄站 × 小時 × 日型 的平均人次
 3. 每日每站進出總量（找異常日用）
+4. 每日每站每小時進出（逐日檔，1.10），以及場館站當日每個起站每小時的到站人次
 
 平均值的分母是「該月該日型的天數」，沒有人搭的時段算 0（AD-7）。
 """
@@ -11,7 +12,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import duckdb
@@ -37,6 +38,8 @@ class MonthAggregate:
     daily_station: list[tuple]  # (date, name, entries, exits)
     raw_rows: int
     dropped_rows: int
+    daily_hourly: list[tuple] = field(default_factory=list)  # (date, name, hour, entries, exits)，整數人次
+    daily_arrivals: list[tuple] = field(default_factory=list)  # (date, origin, dest, hour, n)，只含 arrival_dests、n > 0
 
 
 def aggregate_month(
@@ -44,7 +47,9 @@ def aggregate_month(
     month: str,
     aliases: dict[str, str] | None = None,
     holidays: dict[dt.date, str] | None = None,
+    arrival_dests: set[str] | frozenset[str] = frozenset(),
 ) -> MonthAggregate:
+    """``arrival_dests``：要輸出逐日到站來源的迄站（正規站名，通常是 venues.csv 的場館站）。"""
     aliases = aliases if aliases is not None else load_aliases()
     holidays = holidays if holidays is not None else load_holidays()
     con = duckdb.connect()
@@ -134,6 +139,31 @@ def aggregate_month(
         """
     ).fetchall()
 
+    # 逐日每站每小時（1.10）：整數加總，結果與輸入順序無關
+    daily_hourly = con.execute(
+        """
+        with e as (select d, o as name, h, sum(n) n from od group by all),
+             x as (select d, dest as name, h, sum(n) n from od group by all)
+        select coalesce(e.d, x.d) as d, coalesce(e.name, x.name) as name, coalesce(e.h, x.h) as h,
+               coalesce(e.n, 0)::bigint, coalesce(x.n, 0)::bigint
+        from e full outer join x on e.d = x.d and e.name = x.name and e.h = x.h
+        order by 1, 2, 3
+        """
+    ).fetchall()
+
+    daily_arrivals: list[tuple] = []
+    if arrival_dests:
+        con.execute("create table adest(name varchar)")
+        con.executemany("insert into adest values (?)", [(n,) for n in sorted(arrival_dests)])
+        daily_arrivals = con.execute(
+            """
+            select d, o, dest, h, sum(n)::bigint as n from od
+            where dest in (select name from adest)
+            group by all having sum(n) > 0
+            order by 1, 2, 3, 4
+            """
+        ).fetchall()
+
     return MonthAggregate(
         month=month,
         days=days,
@@ -146,4 +176,6 @@ def aggregate_month(
         daily_station=daily_station,
         raw_rows=raw_rows,
         dropped_rows=dropped,
+        daily_hourly=daily_hourly,
+        daily_arrivals=daily_arrivals,
     )

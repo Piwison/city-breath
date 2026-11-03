@@ -118,3 +118,18 @@ def od_groups(
         for oi in origins:
             groups += [[(oi, di, t, h) for h in service_hours] for di in top_dests.get((oi, t), [])]
     return groups
+
+
+def venue_origin_groups(
+    venue_stations: list[int],
+    origin_districts: list[str],
+    open_hours: list[int],
+) -> list[list[tuple[int, str, int]]]:
+    """逐日檔場館格子 ``(場館站索引, 來源行政區代碼, 小時)`` 中，和等於已公開總量的組（AD-3，1.10）。
+
+    某場館站、某小時的各來源行政區（含場館站自己的區，即同站進出）之和 ＝ 同一個逐日檔的
+    ``exits[站][h]``（站層級總量，照樣公開），所以每個（站, 小時）是一組。
+    ``origin_districts`` 要列出所有可能的來源區（有車站的區），沒有人次的區是 ``None`` 格。
+    全日加總（某站當日出站）是各小時組的聯集，各小時組保護好就一併保護好，不另列。
+    """
+    return [[(vi, dc, h) for dc in origin_districts] for vi in venue_stations for h in open_hours]
