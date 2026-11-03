@@ -1,16 +1,62 @@
-# 城市觀察者看得到一整天的人潮流動 的 stories，依建置順序。
+# 城市觀察者看得到一整天各行政區之間的流動 的 stories，依建置順序。
+
+[[entry]]
+id = 5
+type = "story"
+title = "行政區流向弧線"
+description = "首頁自動播放全城一天：行政區之間的流向用弧線與粒子表示，粒子數依人數，平日／假日可切換；這是本 epic 的 tracer bullet。"
+verify = "首頁開啟就自動播放，8 點平日可看到永和往中山、中正、大安、信義的流向；切換假日流向改變；reduced-motion 時不自動播放。"
+covers = ["R1"]
+after = ["1.9", "2.3"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 3
+type = "story"
+title = "時間軸播放與日型切換"
+description = "播放一整天並切換平日／假日平均；時間軸與小時存在 web/src/state/ 的單一畫面狀態並同步到網址；reduced-motion 時不自動播放、直接切換（architecture AD-8、AD-16）。"
+verify = "手機上播放不卡頓，可切換日型。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "2-3"
+
+[[entry]]
+id = 6
+type = "story"
+title = "點行政區看去哪、誰來並展開站"
+description = "點一個行政區，顯示這區的人去哪幾區、誰來這區（平日與假日分開），並在地圖上展開該區的站。"
+verify = "點大安區假日看到前幾名目的地為中正、大安、信義（與 2026-09 查核一致），站點展開且可再點站。"
+covers = ["R2"]
+after = [5]
+hitl = false
+risk = "medium"
 
 [[entry]]
 id = 1
 type = "story"
 title = "站點脹縮光點"
-description = "每站光點大小＝該小時進出量、顏色＝淨流入或淨流出（開發骨架已在 web/src/map/CityMap.tsx）。"
+description = "展開一個行政區後，該區每站光點大小＝該小時進出量、顏色＝淨流入或淨流出（開發骨架已在 web/src/map/CityMap.tsx）。"
 verify = "切換小時時光點大小與顏色更新。"
+covers = ["R1"]
+after = [6]
+hitl = false
+risk = "low"
+v6_key = "2-1"
+
+[[entry]]
+id = 4
+type = "story"
+title = "城市睡覺狀態"
+description = "2–4 點停止營運時有明確的畫面狀態。"
+verify = "時間軸經過停止營運時段時有標示。"
 covers = ["R1"]
 after = []
 hitl = false
 risk = "low"
-v6_key = "2-1"
+v6_key = "2-4"
 
 [[entry]]
 id = 2
@@ -25,25 +71,12 @@ risk = "low"
 v6_key = "2-2"
 
 [[entry]]
-id = 3
+id = 7
 type = "story"
-title = "時間軸播放與日型切換"
-description = "播放一整天並切換平日／假日平均，reduced-motion 時放慢（骨架已完成）。"
-verify = "手機上播放不卡頓，可切換日型。"
-covers = ["R1"]
-after = []
+title = "Refactor sweep"
+description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定。"
+verify = "npm test 與 npm run build 通過，延後的整理項目都處理或記錄。"
+covers = ["R1", "R2"]
+after = [5, 3, 6, 1, 4]
 hitl = false
 risk = "low"
-v6_key = "2-3"
-
-[[entry]]
-id = 4
-type = "story"
-title = "城市睡覺狀態"
-description = "2–4 點停止營運時有明確的畫面狀態。"
-verify = "時間軸經過停止營運時段時有標示。"
-covers = ["R1"]
-after = []
-hitl = false
-risk = "low"
-v6_key = "2-4"

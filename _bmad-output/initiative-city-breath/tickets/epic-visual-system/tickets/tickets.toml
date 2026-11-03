@@ -1,11 +1,11 @@
-# 城市呼吸有一套 hallmark 產出的視覺系統 的 stories，依建置順序。
+# 城市呼吸有一套微縮城市視覺系統 的 stories，依建置順序。
 
 [[entry]]
 id = 1
 type = "story"
-title = "hallmark 詢問與主題選定"
-description = "回答 hallmark 的素材、受眾、主要行動、語氣，發牌並選定主題。"
-verify = "Picks block 已寫入，主題檔確定。"
+title = "微縮城市方向定案"
+description = "用 prototype 以 design/prototypes 的微縮城市為基礎做幾個版本（日夜色票、路線光、流向粒子），Piwi 選定一版並記在 DESIGN.md。"
+verify = "DESIGN.md 記下 Piwi 選定的版本與日夜色票。"
 covers = ["R1"]
 after = []
 hitl = true
@@ -16,10 +16,10 @@ v6_key = "1-1"
 id = 2
 type = "story"
 title = "產出 tokens 與 base"
-description = "hallmark scaffold 產出 tokens.css／base.css，取代 web/src/styles/tokens.css。"
-verify = "sloplint --render 無 FAIL。"
+description = "用 impeccable 依定案方向整理 tokens.css／base.css 與 DESIGN.md，取代 web/src/styles/tokens.css。"
+verify = "impeccable audit 沒有阻擋級問題，網站只從 tokens.css 取顏色與字型。"
 covers = ["R1"]
-after = []
+after = [1]
 hitl = false
 risk = "low"
 v6_key = "1-2"
@@ -27,11 +27,11 @@ v6_key = "1-2"
 [[entry]]
 id = 3
 type = "story"
-title = "底圖與 maplibre worker"
-description = "修正 maplibre v6 在 Vite 建置後 worker 載入失敗，加上符合主題的底圖。"
-verify = "`npm run build` 後預覽無 worker 錯誤且底圖顯示。"
+title = "微縮城市場景基底"
+description = "用 Three.js＋React Three Fiber 建立場景基底：projection.ts（AD-12）、tokenColor（AD-8）、行政區底座與日夜光影，WebGL 不可用時有替代畫面。"
+verify = "`npm run build` 後預覽顯示微縮城市底座，切換時段時色票跟著 token 變，reduced-motion 時不自動播放。"
 covers = ["R1"]
-after = []
+after = [2]
 hitl = false
-risk = "low"
+risk = "medium"
 v6_key = "1-3"

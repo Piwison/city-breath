@@ -27,7 +27,7 @@ R2 (parent R2): 一鍵把結果輸出成直式分享圖片，含資料月份、�
 ## Constraints
 
 - 起訖人次少於 10 人一律不顯示數字（initiative Constraints；architecture AD-3）。
-- 顏色與字型只透過 token，設計用 hallmark（architecture AD-8）。
+- 顏色與字型只透過 `:root` token，每個動畫有 reduced-motion 版本，不編造數字（initiative Constraints；hallmark 已移除）。
 
 ## Done when
 
@@ -44,3 +44,4 @@ R2 (parent R2): 一鍵把結果輸出成直式分享圖片，含資料月份、�
 
 - Waits on epic-data-pipeline because: od/{stationId}.json 分片
 - Waits on epic-visual-system because: 分享卡的視覺 token
+- Decision: 2026-11-03 replan：首頁上方疊「找你的通勤」入口（user-stories 決定 2），由 4.1 做，所以 4.1 等首頁的 3.5；其餘不變。

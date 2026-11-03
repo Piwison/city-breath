@@ -26,7 +26,7 @@ R1 (parent R4): 點一個站，看到它的類型標籤與一句話描述、24 �
 ## Constraints
 
 - 起訖人次少於 10 人一律不顯示數字（initiative Constraints；architecture AD-3）。
-- 顏色與字型只透過 token，設計用 hallmark（architecture AD-8）。
+- 顏色與字型只透過 `:root` token，每個動畫有 reduced-motion 版本，不編造數字（initiative Constraints；hallmark 已移除）。
 
 ## Done when
 
