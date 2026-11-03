@@ -4,10 +4,10 @@
 id = 1
 type = "story"
 title = "起訖站與時段輸入"
-description = "3 步內選好起站、迄站、出發時段（骨架表單已完成）。"
+description = "3 步內選好起站、迄站、出發時段（骨架表單已完成）；入口疊在首頁上方，播放中也能直接輸入。"
 verify = "3 步內看到結果。"
 covers = ["R1"]
-after = []
+after = ["3.5"]
 hitl = false
 risk = "low"
 v6_key = "3-1"

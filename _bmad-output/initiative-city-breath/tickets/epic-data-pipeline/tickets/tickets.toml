@@ -61,6 +61,39 @@ risk = "low"
 v6_key = "0-5"
 
 [[entry]]
+id = 8
+type = "story"
+title = "每站對上官方行政區"
+description = "用臺北市資料大平臺的捷運車站點位與區界圖（新北另用內政部區界）判斷每站所屬行政區，取代 design/research 的手寫草稿；輸出到契約 v2。"
+verify = "120 站都有行政區，與手寫草稿的差異列成報告由 Piwi 看過。"
+covers = ["R3"]
+after = []
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 9
+type = "story"
+title = "行政區起訖彙總"
+description = "依站的行政區把起站×迄站×小時×日型加總成行政區×行政區×小時×日型，少於 10 人輸出 null，寫進契約 v2 與 docs/data-contract.md。"
+verify = "永和（頂溪）平日 7–9 點去中山、中正、大安、信義的比例與 2026-09 原型一致，pytest 通過。"
+covers = ["R3"]
+after = [8]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 10
+type = "story"
+title = "逐日每站每小時輸出"
+description = "管線多輸出每一天每站每小時進出量（約 120 站 × 24 × 30），停止營運時段為 null，寫進契約 v2。"
+verify = "2026-09-13 小巨蛋站 16 點出站約 2,642、平常約 730，與先前的查核一致；pytest 通過。"
+covers = ["R4"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
 id = 6
 type = "story"
 title = "車站類型人工定名"

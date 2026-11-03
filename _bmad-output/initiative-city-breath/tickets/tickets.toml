@@ -1,28 +1,28 @@
-# 城市呼吸 initiative 的 epics，依建置順序。由 v6 epics.md 遷移（2026-10-29）。
+# 城市呼吸 initiative 的 epics，依建置順序。由 v6 epics.md 遷移（2026-10-29），2026-11-03 replan。
 
 [[epic]]
 id = 1
 slug = "epic-data-pipeline"
 title = "每月 OD 原始檔變成網站讀得動的小檔"
-description = "一個指令就能把該月 OD 檔彙總成契約 v1 的靜態 JSON，車站類型由人定名。"
+description = "一個指令就能把該月 OD 檔彙總成靜態 JSON（契約 v2：含行政區對照、行政區起訖與逐日每站每小時），車站類型由人定名。"
 covers = ["R10"]
 # v6: Epic 0
 
 [[epic]]
 id = 2
 slug = "epic-visual-system"
-title = "城市呼吸有一套 hallmark 產出的視覺系統"
-description = "hallmark 選定主題並產出 tokens.css／base.css，底圖可用。"
+title = "城市呼吸有一套微縮城市視覺系統"
+description = "微縮城市方向用 prototype 定案，tokens 與 base 用 impeccable 整理，正式底圖或場景在建置版可用。"
 covers = ["R12"]
 # v6: Epic 1
 
 [[epic]]
 id = 3
 slug = "epic-city-breath-home"
-title = "城市觀察者看得到一整天的人潮流動"
-description = "首頁地圖上站點脹縮、前 200 組弧線、時間軸播放與平日／假日切換，在手機上順暢。"
-covers = ["R3"]
-after = [{ epic = 1, needs = "契約 v1 的 stations.json 與 flows.json" }]
+title = "城市觀察者看得到一整天各行政區之間的流動"
+description = "首頁自動播放行政區流向、可切換平日／假日；點一個行政區看這區的人去哪、誰來這裡並展開該區的站，在手機上順暢。"
+covers = ["R3", "R13"]
+after = [{ epic = 1, needs = "契約 v2 的行政區對照與行政區起訖彙總" }]
 # v6: Epic 2
 
 [[epic]]
@@ -31,8 +31,17 @@ slug = "epic-commute-card"
 title = "通勤族找到同路人並把通勤卡分享出去"
 description = "輸入起訖站與時段看到同路人數與名次，一鍵下載直式分享卡，下載次數可計數。"
 covers = ["R1", "R2"]
-after = [{ epic = 1, needs = "od/{stationId}.json 分片" }, { epic = 2, needs = "分享卡的視覺 token" }]
+after = [{ epic = 1, needs = "od/{stationId}.json 分片" }, { epic = 2, needs = "分享卡的視覺 token" }, { epic = 3, needs = "首頁，通勤入口疊在上面" }]
 # v6: Epic 3
+
+[[epic]]
+id = 7
+slug = "epic-event-days"
+title = "使用者看得到上個月哪幾天特別不一樣、為什麼"
+description = "每月自動列出異常日並對上場館檔期，人工補的活動附來源，對不到的標「原因未查證」；點進一天看和平常的差異與人從哪些區來。"
+covers = ["R5"]
+after = [{ epic = 1, needs = "逐日每站每小時資料" }, { epic = 3, needs = "行政區流向地圖" }]
+# 2026-11-03 replan 新增
 
 [[epic]]
 id = 5
@@ -49,5 +58,5 @@ slug = "epic-source-and-launch"
 title = "網站公開上線並交代資料來源"
 description = "資料來源頁說清楚出處與限制，網站部署到 Vercel。"
 covers = ["R11"]
-after = [{ epic = 3, needs = "首頁" }, { epic = 4, needs = "通勤卡" }]
+after = [{ epic = 3, needs = "首頁" }, { epic = 4, needs = "通勤卡" }, { epic = 7, needs = "活動日" }]
 # v6: Epic 5

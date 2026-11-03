@@ -6,7 +6,7 @@
 
 BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 active initiative）：
 
-- Initiative（需求 R1–R12、限制、完成條件）：`_bmad-output/initiative-city-breath/initiative-city-breath.md`
+- Initiative（需求 R1–R16、限制、完成條件；2026-11-03 replan 的來源是 `user-stories-city-breath-2026-11-03/`）：`_bmad-output/initiative-city-breath/initiative-city-breath.md`
 - PRD：`_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/`（原文在 Claude Docs：https://claude.ai/artifact/S46QYMugL6cKGNZK9ePN7r）
 - 架構：`_bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/`
 - Epics 與 stories：`_bmad-output/initiative-city-breath/tickets/`（`tickets.toml` 是建置順序；狀態寫在各 story 的 `*-plan.md`）
