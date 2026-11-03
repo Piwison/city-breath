@@ -6,3 +6,6 @@ __pycache__/
 .pytest_cache/
 *.part
 .DS_Store
+
+# Claude Code agent worktrees
+.claude/worktrees/
