@@ -2,13 +2,12 @@ import { useEffect, useMemo, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { ArcLayer, ScatterplotLayer } from "@deck.gl/layers";
-import type { Arc, DayType, Station } from "../data/types";
+import { ScatterplotLayer } from "@deck.gl/layers";
+import type { DayType, Station } from "../data/types";
 import { tokenRgb } from "./tokens";
 
 interface Props {
   stations: Station[];
-  arcs: Arc[];
   dayType: DayType;
   hour: number;
   selected: number | null;
@@ -22,7 +21,7 @@ const BLANK_STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: "bg", type: "background", paint: { "background-color": "rgba(0,0,0,0)" } }],
 };
 
-export function CityMap({ stations, arcs, dayType, hour, selected, onSelect }: Props) {
+export function CityMap({ stations, dayType, hour, selected, onSelect }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const overlay = useRef<MapboxOverlay | null>(null);
 
@@ -46,20 +45,8 @@ export function CityMap({ stations, arcs, dayType, hour, selected, onSelect }: P
   const layers = useMemo(() => {
     const inflow = tokenRgb("--flow-in");
     const outflow = tokenRgb("--flow-out");
-    const arc = tokenRgb("--flow-arc");
     const ring = tokenRgb("--station-selected");
     return [
-      new ArcLayer<Arc>({
-        id: "arcs",
-        data: arcs,
-        getSourcePosition: (a) => [stations[a[0]].lon, stations[a[0]].lat],
-        getTargetPosition: (a) => [stations[a[1]].lon, stations[a[1]].lat],
-        getSourceColor: [...arc, 40],
-        getTargetColor: [...arc, 160],
-        getWidth: (a) => Math.max(0.5, Math.sqrt(a[2]) / 6),
-        widthUnits: "pixels",
-        updateTriggers: { getWidth: [hour, dayType] },
-      }),
       new ScatterplotLayer<Station>({
         id: "stations",
         data: stations,
@@ -84,7 +71,7 @@ export function CityMap({ stations, arcs, dayType, hour, selected, onSelect }: P
         updateTriggers: { getRadius: [hour, dayType], getFillColor: [hour, dayType], getLineWidth: [selected] },
       }),
     ];
-  }, [stations, arcs, dayType, hour, selected, onSelect]);
+  }, [stations, dayType, hour, selected, onSelect]);
 
   useEffect(() => {
     overlay.current?.setProps({ layers });
