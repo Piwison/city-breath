@@ -92,7 +92,7 @@ flowchart LR
 ### AD-9 — 行政區只在管線判定
 - **Binds:** R3、R13、R5，任何以行政區呈現的數字
 - **Prevents:** 首頁、通勤卡、活動日對同一站給出不同的行政區
-- **Rule:** 行政區 ID＝國土測繪中心鄉鎮市區界的 8 碼代碼（字串，例如 `"63000010"`），臺北與新北用同一份界線，市府圖資只用來比對。判定用的座標就是 `stations.json` 匯出的 `lon/lat`，其他點位資料只拿來產生差異報告；人工修正寫在 `pipeline/config/station_districts.csv`。`districts.json` 的多邊形簡化後，管線檢查每站仍落在自己的區內，不在就降低簡化或報錯。`stations.json` 每站帶 `district`，前端不得自己推算。
+- **Rule:** 行政區 ID＝國土測繪中心鄉鎮市區界的 8 碼代碼（字串，例如 `"63000010"`），臺北與新北用同一份界線，市府圖資只用來比對。判定用的座標就是 `stations.json` 匯出的 `lon/lat`，其他點位資料只拿來產生差異報告；人工修正寫在 `pipeline/config/station_districts.csv`。`districts.json` 的多邊形簡化後，管線檢查每站仍落在自己的區內，不在就在該站周邊局部保留原始界線、降低簡化，或報錯。界線取自國土測繪中心全國村里界，依 8 碼代碼合併成鄉鎮市區（來源與 sha256 在 `pipeline/config/geo_sources.csv`）。`stations.json` 每站帶 `district`，前端不得自己推算。
 
 ### AD-10 — 資料契約 v2 的檔案
 - **Binds:** 管線 export.py、網站 load.ts、types.ts
@@ -226,5 +226,4 @@ city-breath/
 - 每月更新的自動化（GitHub Actions 排程）：先照 Conventions 手動，連續三個月穩定後再做。
 - 資料量與 git 歷史：每月約 3–4 MB 進 git；12 個月後評估改用 Git LFS 或部署時下載。
 - 河流與城市底座幾何的來源與簡化程度：2.1 定案視覺時決定，受 AD-12 約束。
-- 國土測繪中心鄉鎮市區界的確切版本與欄位名：1.8 開工時對實際檔案確認。
 - 站級異常門檻：epic-event-days 的活動匯入票決定，寫回 AD-14。
