@@ -1,6 +1,6 @@
-import type { FlowsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
+import type { DistrictsFile, FlowsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
 
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;
 const BASE = `${import.meta.env.BASE_URL}data`;
 
 const cache = new Map<string, Promise<unknown>>();
@@ -25,6 +25,7 @@ async function getJson<T>(path: string): Promise<T> {
 export const loadMonths = () => getJson<MonthsFile>("months.json");
 export const loadMeta = (month: string) => getJson<MetaFile>(`${month}/meta.json`);
 export const loadStations = (month: string) => getJson<StationsFile>(`${month}/stations.json`);
+export const loadDistricts = (month: string) => getJson<DistrictsFile>(`${month}/districts.json`);
 export const loadFlows = (month: string) => getJson<FlowsFile>(`${month}/flows.json`);
 /** 只有使用者選了起站才載入（約 25 KB） */
 export const loadOdShard = (month: string, stationId: string) =>
