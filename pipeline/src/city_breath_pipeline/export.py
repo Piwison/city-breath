@@ -14,6 +14,7 @@ from .cluster import ClusterResult, cluster_stations
 from .districts import DistrictResult
 from .stations import Station
 from .suppress import apply as apply_suppression, od_groups
+from .suppress import venue_origin_groups
 
 SOURCE = {
     "name": "臺北捷運每日分時各站 OD 流量統計資料",
@@ -244,3 +245,96 @@ def export_month(
             "secondary": len(suppression.secondary_hidden),
         },
     }
+
+
+# ── daily/{YYYY-MM-DD}.json（1.10；AD-3、AD-5、AD-6、AD-10、AD-13、AD-15）──────────
+# 每天一檔，進入某一天才載入。站層級總量（每站每小時進、出）不受 < 10 限制；場館站的
+# 「來源行政區 × 小時」到站人次是起訖數字，經 suppress.py（venue_origin_groups）隱藏。
+
+
+def export_daily(
+    agg: MonthAggregate,
+    stations: list[Station],
+    districts: DistrictResult,
+    venue_stations: dict[int, list[str]],
+    out_root: Path,
+) -> dict:
+    """寫出 ``{month}/daily/{date}.json``；``venue_stations`` 是 venues.resolve_venues 的結果。
+
+    回傳 ``{"sizes": {相對路徑: bytes}, "suppression": {...}}``。
+    """
+    out = out_root / agg.month / "daily"
+    if out.is_dir():  # 整個資料夾重產，不留舊檔
+        for old in out.glob("*.json"):
+            old.unlink()
+    n = len(stations)
+    index = {s.name: i for i, s in enumerate(stations)}
+    code_of = [districts.station_codes[s.name] for s in stations]  # AD-9：區只來自 districts.py
+    origin_districts = sorted(set(code_of))
+    for vi in venue_stations:
+        if not stations[vi].exits_recorded:
+            raise ValueError(f"場館站 {stations[vi].name} 的出站不在資料中，無法輸出來源行政區")
+
+    entries = {d: [[0] * 24 for _ in range(n)] for d, _ in agg.days}
+    exits = {d: [[0] * 24 for _ in range(n)] for d, _ in agg.days}
+    city = {d: [0] * 24 for d, _ in agg.days}
+    for d, name, h, ent, ext in agg.daily_hourly:
+        i = index[name]
+        entries[d][i][h] = int(ent)
+        exits[d][i][h] = int(ext)
+        city[d][h] += int(ent)
+
+    arrivals: dict[tuple, int] = defaultdict(int)  # (date, 場館站, 來源區, h) → 人次
+    for d, o, dest, h, cnt in agg.daily_arrivals:
+        vi = index[dest]
+        if vi in venue_stations:
+            arrivals[(d, vi, code_of[index[o]], h)] += int(cnt)
+
+    sizes: dict[str, int] = {}
+    stats = {"cells": 0, "primary": 0, "secondary": 0}
+    for d, day_type in agg.days:
+        open_hours = [h for h in HOURS if city[d][h] > 0]  # 當日全市沒有人次的小時＝停止營運（AD-5）
+        closed = [h for h in HOURS if h not in open_hours]
+        ent_out, ext_out = entries[d], exits[d]
+        for i in range(n):
+            for h in closed:
+                ent_out[i][h] = None
+                ext_out[i][h] = None
+
+        raw = {
+            (vi, dc, h): arrivals.get((d, vi, dc, h))
+            for vi in venue_stations
+            for dc in origin_districts
+            for h in open_hours
+        }
+        for vi in venue_stations:  # 各來源區之和必須等於公開的出站量，否則組定義不成立
+            for h in open_hours:
+                total = sum(raw[(vi, dc, h)] or 0 for dc in origin_districts)
+                if total != ext_out[vi][h]:
+                    raise RuntimeError(f"{d} {stations[vi].name} {h} 點：來源區合計 {total} ≠ 出站 {ext_out[vi][h]}")
+        sup = apply_suppression(raw, venue_origin_groups(list(venue_stations), origin_districts, open_hours))
+        stats["cells"] += len(raw)
+        stats["primary"] += sup.primary_hidden
+        stats["secondary"] += len(sup.secondary_hidden)
+
+        venues_out = []
+        for vi, ids in venue_stations.items():
+            origins, rows = [], []
+            for dc in origin_districts:
+                row = [sup.values[(vi, dc, h)] if h in open_hours else None for h in HOURS]
+                if any(v is not None for v in row):  # 整天都不公開的區不列出（等同全為 null）
+                    origins.append(dc)
+                    rows.append(row)
+            venues_out.append({"station": vi, "venueIds": ids, "origins": origins, "arrivals": rows})
+
+        body = {
+            "v": CONTRACT_VERSION,
+            "month": agg.month,
+            "date": d.isoformat(),
+            "dayType": day_type,
+            "entries": ent_out,
+            "exits": [row if s.exits_recorded else None for s, row in zip(stations, ext_out)],
+            "venues": venues_out,
+        }
+        sizes[f"daily/{d.isoformat()}.json"] = _write(out / f"{d.isoformat()}.json", body)
+    return {"sizes": sizes, "suppression": stats}

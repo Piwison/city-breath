@@ -2,7 +2,7 @@
 
 管線（`pipeline/`）寫、網站（`web/`）讀。改任何欄位都要同時改 `pipeline/src/city_breath_pipeline/export.py` 與 `web/src/data/types.ts`，並把 `CONTRACT_VERSION` 加一（AD-1）；升版的 PR 要把 `web/public/data/` 下所有月份重建（AD-18）。
 
-v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `sources[]`。依架構 AD-10，v2 之後還會加 `district-flows.json`（1.9）、`daily/{YYYY-MM-DD}.json`（1.10）、`events.json`，並由那幾張票移除 `flows.json` 與 `daily.json`；在那之前兩者照舊輸出。
+v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `sources[]`；1.10 加 `daily/{YYYY-MM-DD}.json`（只新增檔案，版本不變）。依架構 AD-10，v2 之後還會加 `district-flows.json`（1.9）、`daily/{YYYY-MM-DD}.json`（1.10）、`events.json`，並由那幾張票移除 `flows.json` 與 `daily.json`；在那之前兩者照舊輸出。
 
 ```text
 web/public/data/
@@ -14,6 +14,7 @@ web/public/data/
     flows.json      ~87 KB    # 每小時前 200 組起訖弧線
     daily.json                # 每日每站進站量、異常候選日
     od/{stationId}.json ~25KB # 起站分片：該起站到每個迄站的分時平均
+    daily/{YYYY-MM-DD}.json ~40KB # 逐日：當日每站每小時進出、場館站的來源行政區（進入某天才載）
 ```
 
 ## 共通規則
@@ -81,4 +82,29 @@ web/public/data/
 
 ## daily.json
 
-`dates[]`、`dayTypes[]`、`cityEntries[]`（全市進站總量）、`stations{id: 每日進站[]}`、`anomalyCandidates[]`（與同星期幾中位數差距 ≥ 15% 的日子）。
+`dates[]`、`dayTypes[]`、`cityEntries[]`（全市進站總量）、`stations{id: 每日進站[]}`、`anomalyCandidates[]`（與同星期幾中位數差距 ≥ 15% 的日子）。7.1 移除，改由 `daily/` 與 `events.json` 取代。
+
+## daily/{YYYY-MM-DD}.json
+
+1.10 起（AD-10）。該月每一天一檔，網站只在進入某一天時載入（AD-6，`loadDaily(month, date)` 會一併取同月 `stations.json` 檢查 `month` 與站數）。2026-09 共 30 檔約 1.19 MB，單檔約 39–40 KB（gzip 約 13 KB）。
+
+| 欄位 | 說明 |
+| --- | --- |
+| `date` / `dayType` | `YYYY-MM-DD`；`weekday`／`holiday`（AD-4） |
+| `entries[stationIndex][hour]` | 當日該站該小時的進站人次（整數），依 `stations.json` 陣列索引排列 |
+| `exits[stationIndex][hour]` | 出站人次；`exitsRecorded: false` 的站（環狀線）整列為 `null` |
+| `venues[]` | `pipeline/config/venues.csv` 的場館站，依站索引排序：`{ station, venueIds[], origins[], arrivals[][24] }` |
+| `venues[].station` | 場館站的 `stations.json` 陣列索引 |
+| `venues[].venueIds` | 對到此站的 `venue_id`（同站可有多個場館） |
+| `venues[].origins` | 來源行政區 8 碼代碼（AD-9），依代碼排序；只列當天至少有一格公開數字的區 |
+| `venues[].arrivals[i][hour]` | 從 `origins[i]` 的車站在 `hour` 點進站、到此場館站出站的人次；`null`＝少於 10 人或次要隱藏 |
+
+- 小時是進站時段（AD-15）：出站量與到站來源都歸在進站的那個小時。
+- **停止營運**（AD-5）：當日全市進站人次為 0（含原始檔沒有列）的小時，所有站、所有場館格皆為 `null`；全市有營運、該站沒有人次則為 `0`。
+- **站層級總量不隱藏**（AD-3）：`entries`、`exits` 少於 10 照樣公開，但算作「已公開的總量」。
+- **場館來源行政區照起訖規則隱藏**（AD-3，`suppress.py` 的 `venue_origin_groups`）：單日人次少於 10 → `null`；某場館站某小時的各來源行政區（含場館站自己的區，即同站進出）之和恰等於同檔 `exits[站][hour]`，所以每個（場館站, 小時）是一組，組內只有一格 `null` 時再隱藏組內最小的已公開格。沒列在 `origins` 的區整天都算 `null` 格。前端不得用 `exits` 減出被隱藏的格。
+- 來源行政區由管線依起站的 `stations[].district` 加總（AD-9），前端不自行歸區。
+
+### pipeline/config/venues.csv
+
+`venue_id,venue_name,station_name,source`。`station_name` 寫正規站名（例 `台北小巨蛋`、`台北101/世貿`），經 `stations.canonical()` 與別名表解析；對不到車站，或對到出站未入檔的環狀線站，`build` 直接失敗。之後的活動匯入（AD-13）只讀這份表。
