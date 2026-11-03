@@ -123,7 +123,7 @@ flowchart LR
 ### AD-14 — 異常日與「平常」只有一個擁有者
 - **Binds:** R5、AD-4、AD-13
 - **Prevents:** 不同畫面對同一天是否異常、和平常差多少給出不同答案
-- **Rule:** `pipeline/anomaly.py` 是唯一判定異常日與計算「平常」的地方。「平常」＝同月同星期幾、排除當日的中位數，站級與全市級同一定義。異常分兩層：全市級（全市進站差 ≥ 15%，也供假日檢查）與站級（門檻由活動匯入那張票定 [ASSUMPTION]）。結果只輸出在 `events.json`：`days[]`（`date`、`dayType`、`cityEntries`、`cityRatio`）、`anomalies[]`（`date`、`station`、`ratio`、`baseline`、`eventIds[]`，空陣列即「原因未查證」）、`events[]`（`id`、`startDate`、`endDate`、`venue`、`stations[]`、`name`、`source`、`url`、`verified`）。前端只查表，不比對日期區間。
+- **Rule:** `pipeline/anomaly.py` 是唯一判定異常日與計算「平常」的地方。「平常」＝同月同星期幾、排除當日的中位數，站級與全市級同一定義。異常分兩層：全市級（全市進站差 ≥ 15%，也供假日檢查）與站級（門檻由活動匯入那張票定 [ASSUMPTION]）。結果只輸出在 `events.json`：`days[]`（`date`、`dayType`、`cityEntries`、`cityRatio`）、`anomalies[]`（`date`、`station`（全市級為 `null`）、`measure`（`entries` 或 `exits`）、`ratio`、`baseline`、`eventIds[]`，空陣列即「原因未查證」）、`events[]`（`id`、`startDate`、`endDate`、`venue`、`stations[]`、`name`、`source`、`url`、`verified`）。頂層 `thresholds` 記錄當次使用的門檻（站級標 `provisional` 直到 7.2 定案）。前端只查表，不比對日期區間。
 
 ### AD-15 — 小時一律是進站時段
 - **Binds:** 所有小時陣列與時間軸
