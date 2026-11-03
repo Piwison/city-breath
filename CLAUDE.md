@@ -17,8 +17,21 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 - 開發流程用 BMAD v7 預覽版（`.claude/skills/bmad*`，6.13.0-next）。不確定下一步就問 `bmad`。
 - 需求、切票、看板、中途改需求都找 Sofia（`bmad-agent-po`）。看進度：`uv run _bmad/method/scripts/tickets.py status`；下一張可做的：`tickets.py next`。
 - 實作一張 story 用 `bmad-build`（直接給 ref，例如「build 3.1」，不需要先寫 story 檔）；審查用 `bmad-code-review`；epic 結束跑 `bmad-retrospective`。
-- **所有視覺設計一律用 hallmark skill**（`.claude/skills/hallmark`）。做新畫面前先跑它的 Flow；改既有畫面時說「hallmark redesign <path>」。它的 Floor 規則不可違反：顏色與字型只能用 `:root` token、不用 eyebrow 或全大寫追蹤字距標籤、每個動畫要有 reduced-motion 版本、不編造任何數字。
+- 視覺設計的分工見下一節。不論用哪個 skill，這幾條不可違反：顏色與字型只能用 `:root` token、每個動畫要有 reduced-motion 版本、不編造任何數字、少於 10 人不顯示數字。
 - 跟 Piwi 溝通用繁體中文。
+
+## 設計與技術 skill 的分工
+
+都放在 `.claude/skills/`，每個資料夾的 `SOURCE.txt` 記著來源與版本（已審過內容；只有 impeccable 帶執行腳本，見其 SOURCE.txt）。
+
+- **視覺方向與新畫面**：先用 `prototype` 做多個可切換的版本給 Piwi 選；方向定案（2026-11-03 起偏向「微縮城市」：等角視角、發光路線、日夜光影）後照該方向實作。
+- **打磨、稽核、評論**：`impeccable`（audit、polish、critique、animate 等指令）。
+- **`hallmark` 已移除**（2026-11-03 Piwi 決定）：它的規則以一般網頁為前提，跟滿版地圖與 3D 場景衝突。保留的底線規則已寫在上方「工作方式」。
+- `prototype` 與 `review-animations` 只在明確呼叫時執行（例如 `/prototype`），不會自動觸發。
+- **動畫與手感**（Emil Kowalski）：`animate` 做新動畫、`review-animations` 審查、`animation-performance` 守 60fps、`emil-design-eng` 細節打磨、`apple-design` 彈簧與手勢、`mobile-native` 讓網頁在手機上像 app、`prototype` 同一元件做多版切換比較、`animation-vocabulary` 把模糊描述翻成正確術語。
+- **遊戲感**：`game-feel`（回饋、緩動、juice）、`game-ui-ux`（HUD、控制列、狀態流程）。
+- **地圖**（MapLibre 官方）：`maplibre-v6-migration`（含打包後 worker 問題）、`maplibre-cartography`、`maplibre-terrain-rendering`、`maplibre-pmtiles-patterns`（靜態網站自帶底圖）、`maplibre-source-wiring`、`maplibre-tile-sources`、`maplibre-sprites-icons`、`maplibre-fonts-glyphs`。
+- **3D**（只在決定走 Three.js／React Three Fiber 時用）：`threejs-*` 十個。
 
 ## GitHub 流程
 

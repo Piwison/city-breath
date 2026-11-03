@@ -1,0 +1,1 @@
+source: https://github.com/gamedev-skills/awesome-gamedev-agent-skills @ 19d93f9 (Apache-2.0)
