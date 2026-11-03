@@ -1,0 +1,56 @@
+# 使用者看得到上個月哪幾天特別不一樣、為什麼 的 stories，依建置順序。2026-11-04 refine。
+
+[[entry]]
+id = 1
+type = "story"
+title = "異常日與 events.json"
+description = "新增 pipeline/anomaly.py：依 AD-14 算全市級與站級異常日（平常＝同月同星期幾、排除當日的中位數），輸出 events.json 的 days 與 anomalies（eventIds 先為空），把契約寫進 docs/data-contract.md，並移除 v1 的 daily.json（AD-4 的假日檢查改讀 events.json）。這是本 epic 的 tracer bullet。"
+verify = "2026-09 的 events.json 裡，9/13 小巨蛋站與 9/5 劍潭站出現在站級異常；全市級異常含 9/28 教師節；pytest 與 npm run build 通過。"
+covers = ["R1"]
+after = ["1.10"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 2
+type = "story"
+title = "場館檔期自動匯入"
+description = "從臺北市資料大平臺抓小巨蛋場地租用、花博公園展館、中山堂演出的當月檔期快照到 data/raw/，對上 venues.csv 的車站，和站級異常日配對後寫進 events.json 的 events 與 eventIds；租用期含進場拆台，用期間內的站級尖峰判定演出日；定下站級異常門檻並寫回 architecture AD-14。"
+verify = "2026-09 的 IVE（9/7–13）、漢斯季默（9/20–21）配對到小巨蛋站的異常日，來源標 auto 並附資料集網址。"
+covers = ["R1"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 3
+type = "story"
+title = "人工活動表"
+description = "pipeline/config/events.csv（起訖日、場館、名稱、來源網址、verified）由管線合併進 events.json，標 manual；補上 2026-09 已查證的 SEMICON（南港展覽館 9/2–4）與大象來了（劍潭 9/5）；對不到的異常日維持「原因未查證」；把每月補活動的步驟寫進 CLAUDE.md 的每月更新流程。"
+verify = "2026-09 的 events.json 有 SEMICON 與大象來了兩筆 manual 事件並配對到異常日；沒有來源網址的列會讓 build 報錯。"
+covers = ["R1"]
+after = [1]
+hitl = true
+risk = "low"
+
+[[entry]]
+id = 4
+type = "story"
+title = "活動日畫面"
+description = "月曆列出上個月的異常日與原因（或「原因未查證」），點進一天看那天和平常的差異，以及場館站的人從哪些行政區來；共用首頁的流向圖層與檢視模型（AD-19）。開工前先做 prototype 給 Piwi 確認。"
+verify = "在建置版點 9/13 看到小巨蛋站比平常多出的人數與主要來源行政區，少於 10 人顯示「少於 10 人」；reduced-motion 時不自動播放。"
+covers = ["R1"]
+after = [2, 3, "3.5"]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Refactor sweep"
+description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定。"
+verify = "pytest、npm test 與 npm run build 通過，延後的整理項目都處理或記錄。"
+covers = ["R1"]
+after = [1, 2, 3, 4]
+hitl = false
+risk = "low"
