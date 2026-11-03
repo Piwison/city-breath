@@ -11,6 +11,7 @@ from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW, TOP_ARCS_PER_H
 from .aggregate import MonthAggregate
 from .anomaly import detect as detect_anomalies, to_json as anomalies_json
 from .cluster import ClusterResult, cluster_stations
+from .schedules import link as link_schedules
 from .districts import DistrictResult
 from .stations import Station
 from .suppress import apply as apply_suppression, od_groups
@@ -320,8 +321,20 @@ def export_daily(
 # 由 7.2／7.3 填入並配對 anomalies[].eventIds；在那之前一律為空陣列（前端顯示「原因未查證」）。
 
 
-def export_events(agg: MonthAggregate, stations: list[Station], out_root: Path) -> dict:
-    """寫出 ``{month}/events.json``；回傳 ``{"sizes": {...}, "detection": anomaly.Detection}``。"""
+def export_events(
+    agg: MonthAggregate,
+    stations: list[Station],
+    out_root: Path,
+    schedules: list | None = None,
+    venue_stations: dict[int, list[str]] | None = None,
+) -> dict:
+    """寫出 ``{month}/events.json``；回傳 ``{"sizes", "detection", "linked"}``。
+
+    ``schedules`` 是 ``schedules.load()`` 的場館檔期（7.2），和站級異常配對後寫進 ``events[]``
+    與 ``anomalies[].eventIds``（AD-13、AD-14）。
+    """
     det = detect_anomalies(agg.days, agg.daily_station, stations)
-    body = {"v": CONTRACT_VERSION, "month": agg.month, **anomalies_json(det), "events": []}
-    return {"sizes": {"events.json": _write(out_root / agg.month / "events.json", body)}, "detection": det}
+    linked = link_schedules(schedules or [], det.anomalies, venue_stations or {})
+    body = {"v": CONTRACT_VERSION, "month": agg.month, **anomalies_json(det, linked.event_ids), "events": linked.events}
+    return {"sizes": {"events.json": _write(out_root / agg.month / "events.json", body)}, "detection": det,
+            "linked": linked}

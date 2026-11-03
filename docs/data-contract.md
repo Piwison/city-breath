@@ -88,7 +88,7 @@ web/public/data/
 
 | 欄位 | 說明 |
 | --- | --- |
-| `thresholds` | `{ city, stationRatio, stationExtra, provisional }`，即下面的門檻；`provisional: true` 表示站級門檻是暫定值 |
+| `thresholds` | `{ city, stationRatio, stationExtra, stationZ, provisional }`，即下面的門檻；7.2 起 `provisional: false`（站級門檻定案） |
 | `days[]` | 每天一筆，依日期排序：`{ date, dayType, cityEntries, cityRatio }` |
 | `days[].cityEntries` | 當日全市進站總量（整數） |
 | `days[].cityRatio` | 當日 ÷ 平常，3 位小數；沒有基準時 `null` |
@@ -97,19 +97,29 @@ web/public/data/
 | `anomalies[].measure` | `ratio`、`baseline` 指的是 `"entries"`（進站）或 `"exits"`（出站）；全市級固定 `"entries"`。同站同日進、出都過門檻時取倍數大的一邊 |
 | `anomalies[].ratio` | 當日 ÷ 平常，3 位小數 |
 | `anomalies[].baseline` | 平常，四捨五入成整數 |
-| `anomalies[].eventIds` | 對到 `events[].id`；**空陣列＝畫面顯示「原因未查證」**。7.1 一律為空，由 7.2／7.3 配對 |
-| `events[]` | 活動，7.1 為空陣列。形狀：`{ id, startDate, endDate, venue, stations[], name, source, url, verified }` |
-| `events[].startDate / endDate` | `YYYY-MM-DD`，含首尾 |
+| `anomalies[].eventIds` | 對到 `events[].id`，排序、不重複；**空陣列＝畫面顯示「原因未查證」**。全市級一律為空 |
+| `events[]` | 活動，依場館、起日排序：`{ id, startDate, endDate, venue, stations[], name, source, url, verified }`。自動檔期只收配到至少一筆異常的 |
+| `events[].id` | `auto-<venue>-<起日 YYYYMMDD>`，同場館同起日再加 `-2`、`-3` |
+| `events[].startDate / endDate` | `YYYY-MM-DD`，含首尾。小巨蛋、花博是**租用期**（含進場與拆台）；中山堂是同名節目當月最早／最晚的演出日 |
 | `events[].venue` | `pipeline/config/venues.csv` 的 `venue_id` |
 | `events[].stations` | `stations.json` 的陣列索引 |
 | `events[].source` | `"auto"`（臺北市資料大平臺場館檔期，7.2）或 `"manual"`（`pipeline/config/events.csv`，7.3） |
-| `events[].url` / `verified` | 來源網址；是否經人工查證 |
+| `events[].url` / `verified` | 來源網址（auto 為資料集頁 `https://data.taipei/dataset/detail?id=…`）；是否經人工查證（auto 為 `false`） |
+
+**演出日與配對（7.2）**：租用期含進場與拆台，不另外輸出演出日。管線把站級異常配給「場館的車站（`venues.csv`）相同、日期是候選日」的檔期：小巨蛋、花博的候選日是租用期每一天，中山堂是實際演出日。所以演出日＝期間內場館站有站級異常、`eventIds` 指向該檔期的日子；前端只查 `eventIds`，不比對日期區間。
 
 門檻：
 
 - **全市級**：`|cityEntries ÷ 平常 − 1| ≥ 0.15`（多或少都算）。也是 AD-4 的假日檢查：`build` 會列出全市級異常日，平日卻少 15% 以上時提示可能漏列 `config/holidays.csv`。
-- **站級（暫定）**：某站當日進站或出站 **≥ 平常 × 1.5，且多出 ≥ 1,000 人**；只抓「多」，「少」多半是全市假日，已在全市級。環狀線站（`exitsRecorded: false`）只看進站。此門檻由 7.2（場館檔期匯入）定案並寫回架構 AD-14。
+- **站級（7.2 定案）**：某站當日進站或出站同時滿足三條：
+  1. **≥ 平常 × 1.3**；
+  2. **多出 ≥ 1,000 人**（擋住小站的小人數）；
+  3. **modified z-score ≥ 3.5**（Iglewicz & Hoaglin）：該站該方向整月每天「當日 ÷ 平常」的倍數為一組，`M = 0.6745 × (倍數 − 中位數) ÷ MAD`。整月本來就大起大落的站（例如開學讓同星期幾的中位數混進放假日）不會被當成異常；MAD 為 0 時這條視為通過。
+
+  只抓「多」，「少」多半是全市假日，已在全市級。環狀線站（`exitsRecorded: false`）只看進站。
 - 剛好等於門檻也算（管線以分數精確比較）。
+
+**場館檔期快照**：`uv run city-breath fetch-events --month YYYY-MM` 從臺北市資料大平臺抓小巨蛋場地租用（每月一個資源，BIG-5）、花博公園展館（年度資源）、中山堂演出（滾動資源）到 `data/raw/events/YYYYMM/`，`sources.json` 記網址、sha256、取得日期；資源尚未發布（例如花博當年度檔）記為 missing，`build` 會印出提醒。用到的快照列進 `meta.json` 的 `sources[]`（`dataset` 為該資源的下載網址）。沒有快照時 `build` 失敗。
 
 `loadEvents(month)` 會一併取同月 `stations.json`，檢查 `month` 相同、所有站索引在範圍內（AD-2）。
 

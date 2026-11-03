@@ -2,6 +2,7 @@
 
     uv run city-breath fetch --month 2026-09          # 下載月檔與出口座標到 data/raw/
     uv run city-breath fetch-geo                      # 下載行政區界線到 data/raw/geo/
+    uv run city-breath fetch-events --month 2026-09   # 場館檔期快照到 data/raw/events/202609/
     uv run city-breath build --month 2026-09          # 彙總並輸出到 web/public/data/
     uv run city-breath district-report --month 2026-09 --draft ../design/research/station_district.json
 """
@@ -20,6 +21,7 @@ import urllib.request
 from pathlib import Path
 
 from . import districts as geo
+from . import schedules as sched
 from .aggregate import aggregate_month
 from .export import SOURCE, export_daily, export_events, export_month
 from .stations import build_stations, canonical, load_aliases, load_exit_coordinates
@@ -103,6 +105,25 @@ def cmd_fetch_geo(args) -> None:
         print(f"已更新 {geo.GEO_SOURCES}")
 
 
+def _events_dir(month: str) -> Path:
+    return RAW / "events" / month.replace("-", "")
+
+
+def cmd_fetch_events(args) -> None:
+    """抓臺北市資料大平臺的場館檔期當月快照（7.2，AD-13）；資源尚未發布的資料集記為 missing，不中斷。"""
+    dest = _events_dir(args.month)
+    try:
+        manifest = sched.fetch(args.month, dest)
+    except sched.ScheduleError as e:
+        raise SystemExit(str(e)) from e
+    for entry in manifest:
+        if entry["status"] == "ok":
+            print(f"完成 {entry['name']}：{entry['resource']} → {dest / entry['file']}")
+        else:
+            print(f"注意：{entry['name']} {entry['note']}，本月沒有這個場館的自動檔期")
+    print(f"寫出 {dest / sched.MANIFEST}")
+
+
 def _file_source(path: Path, **fields) -> dict:
     stamp = dt.datetime.fromtimestamp(path.stat().st_mtime).date().isoformat()
     return {**fields, "retrieved": stamp, "sha256": geo.sha256_file(path)}
@@ -137,6 +158,10 @@ def _districts(stations):
 
 def cmd_build(args) -> None:
     t = time.time()
+    try:  # 場館檔期快照（7.2）先讀：沒抓就早點失敗
+        snapshot = sched.load(args.month, _events_dir(args.month))
+    except sched.ScheduleError as e:
+        raise SystemExit(str(e)) from e
     raw, agg, stations, venue_stations = _load_month(args)
     districts = _districts(stations)
     src = districts.source
@@ -147,6 +172,7 @@ def cmd_build(args) -> None:
         {"name": src["name"], "publisher": src["publisher"], "url": src["url"], "dataset": src["dataset"],
          "license": src["license"], "retrieved": src["retrieved"], "sha256": src["sha256"]},
     ]
+    sources += snapshot.sources
     result = export_month(agg, stations, Path(args.out), districts, sources)
     m = result["meta"]
     print(f"{args.month}：{m['rawRows']:,} 列，排除 {m['droppedRows']:,} 列，{m['stationCount']} 站，"
@@ -166,8 +192,9 @@ def cmd_build(args) -> None:
           f"{max(daily['sizes'].values()) / 1e3:.0f} KB）；場館站 {len(venue_stations)} 站，來源行政區格 "
           f"{dsup['cells']:,}：少於 10 人隱藏 {dsup['primary']:,} 格，次要隱藏 {dsup['secondary']:,} 格")
     result["sizes"].update(daily["sizes"])
-    events = export_events(agg, stations, Path(args.out))
+    events = export_events(agg, stations, Path(args.out), snapshot.schedules, venue_stations)
     _report_anomalies(events["detection"], stations)
+    _report_schedules(snapshot, events["linked"], events["detection"], stations)
     result["sizes"].update(events["sizes"])
     total = sum(result["sizes"].values())
     biggest = sorted(result["sizes"].items(), key=lambda kv: -kv[1])[:4]
@@ -184,8 +211,20 @@ def _report_anomalies(det, stations) -> None:
         if a.ratio < 1 and types[a.date] == "weekday":
             print(f"注意：{a.date} 是平日但全市進站只有平常的 {a.ratio:.0%}，是否漏列 config/holidays.csv？")
     top = sorted(det.stations(), key=lambda a: -a.ratio)[:5]
-    print(f"站級異常 {len(det.stations())} 筆（暫定門檻）；最高："
+    print(f"站級異常 {len(det.stations())} 筆；最高："
           + "、".join(f"{a.date:%m/%d} {stations[a.station].name} {a.ratio:.2f}" for a in top))
+
+
+def _report_schedules(snapshot, linked, det, stations) -> None:
+    """場館檔期配對摘要（7.2）：配到的檔期、沒配到的檔期數、尚未發布的資料集、仍是「原因未查證」的站級異常。"""
+    for entry in snapshot.missing:
+        print(f"注意：{entry['name']} {entry['note']}")
+    for e in linked.events:
+        days = sorted(d for (d, i), ids in linked.event_ids.items() if e["id"] in ids)
+        print(f"  檔期 {e['startDate']}～{e['endDate']} {e['name']} → 異常日 {'、'.join(f'{d:%m/%d}' for d in days)}")
+    print(f"場館檔期 {len(snapshot.schedules)} 筆，配到異常 {len(linked.events)} 筆，未配到 {len(linked.unmatched)} 筆")
+    left = [a for a in det.stations() if (a.date, a.station) not in linked.event_ids]
+    print(f"原因未查證的站級異常 {len(left)} 筆：" + ("、".join(f"{a.date:%m/%d} {stations[a.station].name}" for a in left) or "無"))
 
 
 NLSC_POINT_API = "https://api.nlsc.gov.tw/other/TownVillagePointQuery/{lon}/{lat}/4326"
@@ -225,6 +264,9 @@ def main(argv: list[str] | None = None) -> None:
     g = sub.add_parser("fetch-geo", help="下載行政區界線（國土測繪中心）")
     g.add_argument("--update", action="store_true", help="sha256 不同時寫回 config/geo_sources.csv")
     g.set_defaults(func=cmd_fetch_geo)
+    e = sub.add_parser("fetch-events", help="下載場館檔期快照（小巨蛋、花博、中山堂）")
+    e.add_argument("--month", required=True, help="YYYY-MM")
+    e.set_defaults(func=cmd_fetch_events)
     r = sub.add_parser("district-report", help="官方行政區與手寫草稿的差異報告")
     r.add_argument("--month", required=True, help="YYYY-MM")
     r.add_argument("--draft", required=True, help="草稿 JSON：正規站名 → 區名")
