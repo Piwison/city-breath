@@ -2,7 +2,7 @@
 
 管線（`pipeline/`）寫、網站（`web/`）讀。改任何欄位都要同時改 `pipeline/src/city_breath_pipeline/export.py` 與 `web/src/data/types.ts`，並把 `CONTRACT_VERSION` 加一（AD-1）；升版的 PR 要把 `web/public/data/` 下所有月份重建（AD-18）。
 
-v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `sources[]`；1.10 加 `daily/{YYYY-MM-DD}.json`（只新增檔案，版本不變）。依架構 AD-10，v2 之後還會加 `district-flows.json`（1.9）、`daily/{YYYY-MM-DD}.json`（1.10）、`events.json`，並由那幾張票移除 `flows.json` 與 `daily.json`；在那之前兩者照舊輸出。
+v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `sources[]`；1.10 加 `daily/{YYYY-MM-DD}.json`；7.1 加 `events.json` 並移除 v1 的 `daily.json`（AD-10 已列為 v2 的檔案，版本不變）。依架構 AD-10，`district-flows.json` 由 1.9 加入並移除 `flows.json`。
 
 ```text
 web/public/data/
@@ -12,7 +12,7 @@ web/public/data/
     stations.json   ~109 KB   # 車站、24 小時曲線、前 5 目的地、分群、行政區
     districts.json  ~66 KB    # 行政區：代碼、名稱、中心點、簡化界線、區內車站
     flows.json      ~87 KB    # 每小時前 200 組起訖弧線
-    daily.json                # 每日每站進站量、異常候選日
+    events.json     ~4 KB     # 每日全市進站、異常日（全市級＋站級）、活動（7.2／7.3 起）
     od/{stationId}.json ~25KB # 起站分片：該起站到每個迄站的分時平均
     daily/{YYYY-MM-DD}.json ~40KB # 逐日：當日每站每小時進出、場館站的來源行政區（進入某天才載）
 ```
@@ -80,9 +80,38 @@ web/public/data/
 | `holiday[hour][destIndex]` | 同上 |
 | `weekdayDepartures[hour]` / `holidayDepartures[hour]` | 該時段從此站出發的總平均人次 |
 
-## daily.json
+## events.json
 
-`dates[]`、`dayTypes[]`、`cityEntries[]`（全市進站總量）、`stations{id: 每日進站[]}`、`anomalyCandidates[]`（與同星期幾中位數差距 ≥ 15% 的日子）。7.1 移除，改由 `daily/` 與 `events.json` 取代。
+7.1 起（AD-10、AD-13、AD-14）。異常日與「平常」只在 `pipeline/src/city_breath_pipeline/anomaly.py` 判定，結果只在這個檔；前端只查表，不自己套門檻、不比對日期區間。v1 的 `daily.json` 已移除：每日全市總量看 `days[]`，每站每天的進出看 `daily/`。
+
+**「平常」**＝同月、同星期幾、**排除當日本身**的中位數；全市級與站級用同一個定義。同月沒有其他同星期幾的日子，或平常為 0，就不判定。人次是當日總量（小時歸進站時段，AD-15）。
+
+| 欄位 | 說明 |
+| --- | --- |
+| `thresholds` | `{ city, stationRatio, stationExtra, provisional }`，即下面的門檻；`provisional: true` 表示站級門檻是暫定值 |
+| `days[]` | 每天一筆，依日期排序：`{ date, dayType, cityEntries, cityRatio }` |
+| `days[].cityEntries` | 當日全市進站總量（整數） |
+| `days[].cityRatio` | 當日 ÷ 平常，3 位小數；沒有基準時 `null` |
+| `anomalies[]` | 異常，依日期、再依站索引排序（全市級在前）：`{ date, station, measure, ratio, baseline, eventIds }` |
+| `anomalies[].station` | `null`＝**全市級**；否則是**站級**，值為同月 `stations.json` 的陣列索引（AD-2） |
+| `anomalies[].measure` | `ratio`、`baseline` 指的是 `"entries"`（進站）或 `"exits"`（出站）；全市級固定 `"entries"`。同站同日進、出都過門檻時取倍數大的一邊 |
+| `anomalies[].ratio` | 當日 ÷ 平常，3 位小數 |
+| `anomalies[].baseline` | 平常，四捨五入成整數 |
+| `anomalies[].eventIds` | 對到 `events[].id`；**空陣列＝畫面顯示「原因未查證」**。7.1 一律為空，由 7.2／7.3 配對 |
+| `events[]` | 活動，7.1 為空陣列。形狀：`{ id, startDate, endDate, venue, stations[], name, source, url, verified }` |
+| `events[].startDate / endDate` | `YYYY-MM-DD`，含首尾 |
+| `events[].venue` | `pipeline/config/venues.csv` 的 `venue_id` |
+| `events[].stations` | `stations.json` 的陣列索引 |
+| `events[].source` | `"auto"`（臺北市資料大平臺場館檔期，7.2）或 `"manual"`（`pipeline/config/events.csv`，7.3） |
+| `events[].url` / `verified` | 來源網址；是否經人工查證 |
+
+門檻：
+
+- **全市級**：`|cityEntries ÷ 平常 − 1| ≥ 0.15`（多或少都算）。也是 AD-4 的假日檢查：`build` 會列出全市級異常日，平日卻少 15% 以上時提示可能漏列 `config/holidays.csv`。
+- **站級（暫定）**：某站當日進站或出站 **≥ 平常 × 1.5，且多出 ≥ 1,000 人**；只抓「多」，「少」多半是全市假日，已在全市級。環狀線站（`exitsRecorded: false`）只看進站。此門檻由 7.2（場館檔期匯入）定案並寫回架構 AD-14。
+- 剛好等於門檻也算（管線以分數精確比較）。
+
+`loadEvents(month)` 會一併取同月 `stations.json`，檢查 `month` 相同、所有站索引在範圍內（AD-2）。
 
 ## daily/{YYYY-MM-DD}.json
 

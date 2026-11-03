@@ -1,5 +1,6 @@
 import type { DistrictsFile, FlowsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
 import type { DailyFile } from "./types";
+import type { EventsFile } from "./types";
 
 export const CONTRACT_VERSION = 2;
 const BASE = `${import.meta.env.BASE_URL}data`;
@@ -44,6 +45,26 @@ export async function loadDaily(month: string, date: string): Promise<DailyFile>
     throw new Error(`${date} 的逐日檔與 ${stations.month} 的 stations.json 對不上`);
   }
   return daily;
+}
+/**
+ * 異常日與活動（events.json，約 4 KB）：異常與原因只來自這裡，前端只查表（AD-13、AD-14）。
+ * 站級異常與活動的車站是同月 stations.json 的索引，所以一併取得並檢查 month 與索引範圍（AD-2）。
+ */
+export async function loadEvents(month: string): Promise<EventsFile> {
+  const [events, stations] = await Promise.all([
+    getJson<EventsFile>(`${month}/events.json`),
+    loadStations(month),
+  ]);
+  const n = stations.stations.length;
+  const isIndex = (i: number) => Number.isInteger(i) && i >= 0 && i < n;
+  if (
+    events.month !== stations.month ||
+    !events.anomalies.every((a) => a.station === null || isIndex(a.station)) ||
+    !events.events.every((e) => e.stations.every(isIndex))
+  ) {
+    throw new Error(`${month} 的 events.json 與 stations.json 對不上`);
+  }
+  return events;
 }
 /** 只有使用者選了起站才載入（約 25 KB） */
 export const loadOdShard = (month: string, stationId: string) =>

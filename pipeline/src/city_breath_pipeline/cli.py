@@ -21,7 +21,7 @@ from pathlib import Path
 
 from . import districts as geo
 from .aggregate import aggregate_month
-from .export import SOURCE, export_daily, export_month
+from .export import SOURCE, export_daily, export_events, export_month
 from .stations import build_stations, canonical, load_aliases, load_exit_coordinates
 from .venues import VenueError, load_venues, resolve_venues
 
@@ -166,10 +166,26 @@ def cmd_build(args) -> None:
           f"{max(daily['sizes'].values()) / 1e3:.0f} KB）；場館站 {len(venue_stations)} 站，來源行政區格 "
           f"{dsup['cells']:,}：少於 10 人隱藏 {dsup['primary']:,} 格，次要隱藏 {dsup['secondary']:,} 格")
     result["sizes"].update(daily["sizes"])
+    events = export_events(agg, stations, Path(args.out))
+    _report_anomalies(events["detection"], stations)
+    result["sizes"].update(events["sizes"])
     total = sum(result["sizes"].values())
     biggest = sorted(result["sizes"].items(), key=lambda kv: -kv[1])[:4]
     print(f"輸出 {len(result['sizes'])} 檔共 {total / 1e6:.2f} MB；最大：" + "、".join(f"{k} {v / 1e3:.0f} KB" for k, v in biggest))
     print(f"耗時 {time.time() - t:.1f}s")
+
+
+def _report_anomalies(det, stations) -> None:
+    """events.json 的摘要；平日卻比平常少 15% 以上的日子，提示可能漏列假日（AD-4）。"""
+    city = det.city()
+    print("全市級異常日：" + ("、".join(f"{a.date:%m/%d} {a.ratio:.2f}" for a in city) or "無"))
+    types = {d.date: d.day_type for d in det.days}
+    for a in city:
+        if a.ratio < 1 and types[a.date] == "weekday":
+            print(f"注意：{a.date} 是平日但全市進站只有平常的 {a.ratio:.0%}，是否漏列 config/holidays.csv？")
+    top = sorted(det.stations(), key=lambda a: -a.ratio)[:5]
+    print(f"站級異常 {len(det.stations())} 筆（暫定門檻）；最高："
+          + "、".join(f"{a.date:%m/%d} {stations[a.station].name} {a.ratio:.2f}" for a in top))
 
 
 NLSC_POINT_API = "https://api.nlsc.gov.tw/other/TownVillagePointQuery/{lon}/{lat}/4326"

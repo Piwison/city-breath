@@ -76,6 +76,6 @@ npm run build
 
 - 環狀線 11 站只有進站紀錄（出站由新北捷運營運、未入檔）；這些站不分群、不能當迄站。
 - 原始資料迄站欄位有路線前綴（O景安、G大坪林、O頭前庄），已在別名表處理；新月份若出現新前綴，`build` 會報錯提醒。
-- 假日表 `pipeline/config/holidays.csv` 要每月補；`daily.json` 的 anomalyCandidates（契約 v2 起改在 `events.json` 的全市級異常日）可幫忙找漏列的假日。
+- 假日表 `pipeline/config/holidays.csv` 要每月補；`events.json` 的全市級異常日（`anomalies[]` 中 `station` 為 `null` 者）可幫忙找漏列的假日，`build` 也會對「平日卻少 15% 以上」的日子印出提示。
 - 骨架目前還用 maplibre-gl＋deck.gl；架構已改成 Three.js（AD-11），在首頁換成場景的那張票（3.5）移除。
 - `web/src/App.tsx` 是驗證資料與效能的開發骨架，不是設計稿。

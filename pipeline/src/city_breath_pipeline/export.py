@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import statistics
 from collections import defaultdict
 from pathlib import Path
 
 from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW, TOP_ARCS_PER_HOUR
 from .aggregate import MonthAggregate
+from .anomaly import detect as detect_anomalies, to_json as anomalies_json
 from .cluster import ClusterResult, cluster_stations
 from .districts import DistrictResult
 from .stations import Station
@@ -177,35 +177,10 @@ def export_month(
         {"v": CONTRACT_VERSION, "month": agg.month, "districts": districts.districts},
     )
 
-    # daily.json：每日每站總量＋城市級異常候選（與同星期幾中位數比較）
-    dates = [d for d, _ in agg.days]
-    day_type = {d: t for d, t in agg.days}
-    city = defaultdict(int)
-    per_station: dict[str, dict[dt.date, int]] = defaultdict(dict)
-    for d, name, ent, _ext in agg.daily_station:
-        city[d] += ent
-        per_station[name][d] = ent
-    by_dow: dict[int, list[int]] = defaultdict(list)
-    for d in dates:
-        by_dow[d.weekday()].append(city[d])
-    anomalies = []
-    for d in dates:
-        med = statistics.median(by_dow[d.weekday()])
-        ratio = city[d] / med if med else 1
-        if abs(ratio - 1) >= 0.15:
-            anomalies.append({"date": d.isoformat(), "ratio": round(ratio, 3), "dayType": day_type[d]})
-    sizes["daily.json"] = _write(
-        out / "daily.json",
-        {
-            "v": CONTRACT_VERSION,
-            "month": agg.month,
-            "dates": [d.isoformat() for d in dates],
-            "dayTypes": [day_type[d] for d in dates],
-            "cityEntries": [city[d] for d in dates],
-            "stations": {by_name[n].id: [per_station[n].get(d, 0) for d in dates] for n in per_station if n in by_name},
-            "anomalyCandidates": anomalies,
-        },
-    )
+    # v1 的 daily.json 在 7.1 移除（AD-10）：每日全市總量與異常日改在 events.json（export_events）
+    stale = out / "daily.json"
+    if stale.exists():
+        stale.unlink()
 
     meta = {
         "v": CONTRACT_VERSION,
@@ -338,3 +313,15 @@ def export_daily(
         }
         sizes[f"daily/{d.isoformat()}.json"] = _write(out / f"{d.isoformat()}.json", body)
     return {"sizes": sizes, "suppression": stats}
+
+
+# ── events.json（7.1；AD-2、AD-4、AD-10、AD-13、AD-14）──────────────────────────
+# 異常日與「平常」只在 anomaly.py 判定，這裡只負責寫檔。events[]（場館檔期、人工活動）
+# 由 7.2／7.3 填入並配對 anomalies[].eventIds；在那之前一律為空陣列（前端顯示「原因未查證」）。
+
+
+def export_events(agg: MonthAggregate, stations: list[Station], out_root: Path) -> dict:
+    """寫出 ``{month}/events.json``；回傳 ``{"sizes": {...}, "detection": anomaly.Detection}``。"""
+    det = detect_anomalies(agg.days, agg.daily_station, stations)
+    body = {"v": CONTRACT_VERSION, "month": agg.month, **anomalies_json(det), "events": []}
+    return {"sizes": {"events.json": _write(out_root / agg.month / "events.json", body)}, "detection": det}

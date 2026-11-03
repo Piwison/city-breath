@@ -153,6 +153,62 @@ export interface DailyFile {
   venues: VenueArrivals[];
 }
 
+/** events.json 的 days[]：每天一筆，依日期排序（7.1，AD-14）。 */
+export interface EventDay {
+  /** YYYY-MM-DD */
+  date: string;
+  dayType: DayType;
+  /** 當日全市進站總量 */
+  cityEntries: number;
+  /** 對「平常」（同月同星期幾、排除當日的中位數）的倍數；同月沒有其他同星期幾時為 null */
+  cityRatio: number | null;
+}
+
+/**
+ * events.json 的 anomalies[]：管線判定的異常（AD-14），前端只查表、不自己套門檻。
+ * station 為 null＝全市級（全市進站與平常差 ≥ 15%）；否則是站級，值為同月 stations.json 的陣列索引（AD-2）。
+ */
+export interface Anomaly {
+  date: string;
+  station: number | null;
+  /** ratio 與 baseline 指的是進站還是出站；全市級固定 "entries" */
+  measure: "entries" | "exits";
+  /** 當日 ÷ 平常，3 位小數 */
+  ratio: number;
+  /** 平常（排除當日的同星期幾中位數），四捨五入成整數 */
+  baseline: number;
+  /** 對到 events[] 的 id；空陣列＝顯示「原因未查證」 */
+  eventIds: string[];
+}
+
+/** events.json 的 events[]：場館檔期（auto，7.2）與人工活動（manual，7.3）。7.1 起為空陣列。 */
+export interface EventRecord {
+  id: string;
+  /** YYYY-MM-DD，含首尾 */
+  startDate: string;
+  endDate: string;
+  /** pipeline/config/venues.csv 的 venue_id */
+  venue: string;
+  /** stations.json 的陣列索引 */
+  stations: number[];
+  name: string;
+  source: "auto" | "manual";
+  url: string;
+  verified: boolean;
+}
+
+/** events.json：每月一檔（AD-10、AD-14）。 */
+export interface EventsFile {
+  v: number;
+  month: string;
+  /** 判定門檻；provisional=true 表示站級門檻是暫定值（7.2 定案） */
+  thresholds: { city: number; stationRatio: number; stationExtra: number; provisional: boolean };
+  days: EventDay[];
+  /** 依日期、再依站索引排序（全市級在前） */
+  anomalies: Anomaly[];
+  events: EventRecord[];
+}
+
 export interface MonthsFile {
   v: number;
   months: string[];
