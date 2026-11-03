@@ -1,4 +1,4 @@
-// 資料契約 v1 的型別。來源：pipeline/src/city_breath_pipeline/export.py
+// 資料契約 v2 的型別。來源：pipeline/src/city_breath_pipeline/export.py
 // 契約說明：docs/data-contract.md。改這裡就要一起改 pipeline（AD-1）。
 
 export type DayType = "weekday" | "holiday";
@@ -19,6 +19,8 @@ export interface Station {
   lat: number;
   /** 環狀線車站出站人次不在本資料中 */
   exitsRecorded: boolean;
+  /** 所屬行政區的 8 碼代碼（國土測繪中心），對到 districts.json 的 id；前端不得自行推算（AD-9） */
+  district: string;
   /** 車站個性分群；出站未計的站為 null */
   type: number | null;
   weekday: Profile;
@@ -68,11 +70,49 @@ export interface OdShard {
   holidayDepartures: (number | null)[];
 }
 
+/** [lon, lat] */
+export type LonLat = [number, number];
+
+export interface District {
+  /** 國土測繪中心鄉鎮市區 8 碼代碼，例如 "63000050" */
+  id: string;
+  /** 例：中正區 */
+  name: string;
+  /** 臺北市／新北市 */
+  city: string;
+  /** 原始界線的幾何中心 */
+  centroid: LonLat;
+  /** 區內車站：stations.json 的陣列索引 */
+  stations: number[];
+  /** 區內有出站未入檔的環狀線站；顯示「誰來」時要附說明 */
+  inflowPartial: boolean;
+  /** 簡化後的界線，GeoJSON MultiPolygon 座標（經緯度）；經 project() 轉場景座標（AD-12） */
+  polygon: LonLat[][][];
+}
+
+export interface DistrictsFile {
+  v: number;
+  month: string;
+  districts: District[];
+}
+
+export interface DataSource {
+  name: string;
+  publisher: string;
+  url: string;
+  license: string;
+  retrieved: string;
+  sha256: string;
+  dataset?: string;
+}
+
 export interface MetaFile {
   v: number;
   month: string;
   generatedAt: string;
   source: { name: string; publisher: string; url: string; license: string; coordinates: string };
+  /** 每個輸入資料集（AD-1）；資料來源頁只從這裡產生 */
+  sources: DataSource[];
   dayCounts: Record<DayType, number>;
   serviceHours: number[];
   stationCount: number;

@@ -1,0 +1,2 @@
+key,file,name,publisher,url,dataset,license,retrieved,sha256,note
+town_boundary,geo/village_nlsc.xml,全國村里界圖（依鄉鎮市區代碼合併為鄉鎮市區界）,內政部國土測繪中心,"https://wfs.nlsc.gov.tw/WFS?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=WFS:VILLAGE_NLSC&BBOX=121.25,24.60,122.05,25.35",https://data.gov.tw/dataset/7438,政府資料開放授權條款－第1版,2026-11-04,5540651ee42c40eb5ab5d43c20b519f0b7c11c35ac4ea3c20f98ef5aeccd7c03,國土測繪圖資服務雲 WFS；村里界圖(TWD97經緯度)的同一份圖資；依 TOWNCODE 合併後即鄉鎮市區界線(TWD97經緯度)（data.gov.tw 7441，同一機關、同一套 8 碼代碼；7441 的 SHP 放在 tgos.tw，本環境無法下載）。範圍框涵蓋臺北市與新北市全境（另含鄰近縣市，管線只取 63000／65000）。

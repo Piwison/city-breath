@@ -11,6 +11,7 @@ from pathlib import Path
 from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW, TOP_ARCS_PER_HOUR
 from .aggregate import MonthAggregate
 from .cluster import ClusterResult, cluster_stations
+from .districts import DistrictResult
 from .stations import Station
 from .suppress import apply as apply_suppression, od_groups
 
@@ -68,7 +69,13 @@ def suppress_od(
     return apply_suppression(raw, od_groups(origins, recorded, tops, service_hours))
 
 
-def export_month(agg: MonthAggregate, stations: list[Station], out_root: Path) -> dict:
+def export_month(
+    agg: MonthAggregate,
+    stations: list[Station],
+    out_root: Path,
+    districts: DistrictResult,
+    sources: list[dict] | None = None,
+) -> dict:
     out = out_root / agg.month
     index = {s.name: i for i, s in enumerate(stations)}
     by_name = {s.name: s for s in stations}
@@ -151,6 +158,7 @@ def export_month(agg: MonthAggregate, stations: list[Station], out_root: Path) -
                 "lon": s.lon,
                 "lat": s.lat,
                 "exitsRecorded": s.exits_recorded,
+                "district": districts.station_codes[s.name],
                 "type": type_id,
                 "weekday": p["weekday"],
                 "holiday": p["holiday"],
@@ -160,6 +168,12 @@ def export_month(agg: MonthAggregate, stations: list[Station], out_root: Path) -
     sizes["stations.json"] = _write(
         out / "stations.json",
         {"v": CONTRACT_VERSION, "month": agg.month, "stations": st_out, "types": clusters.types},
+    )
+
+    # districts.json：行政區界線與每區車站（AD-9、AD-10；判定在 districts.py）
+    sizes["districts.json"] = _write(
+        out / "districts.json",
+        {"v": CONTRACT_VERSION, "month": agg.month, "districts": districts.districts},
     )
 
     # daily.json：每日每站總量＋城市級異常候選（與同星期幾中位數比較）
@@ -197,6 +211,7 @@ def export_month(agg: MonthAggregate, stations: list[Station], out_root: Path) -
         "month": agg.month,
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "source": SOURCE,
+        "sources": sources or [],
         "dayCounts": agg.day_counts,
         "serviceHours": agg.service_hours,
         "stationCount": len(stations),
@@ -209,6 +224,7 @@ def export_month(agg: MonthAggregate, stations: list[Station], out_root: Path) -
             "起訖人次為進出站配對，不是實際乘車路徑。",
             f"起訖平均人次少於 {SUPPRESS_BELOW} 一律不顯示數字。",
             "若某組起訖只有一格不顯示、可由公開的總量減出，同組最小的一格也會一併不顯示。",
+            "車站所屬行政區依國土測繪中心界線與車站出口平均座標判定，位在區界上的車站可能與一般認知不同。",
         ],
     }
     sizes["meta.json"] = _write(out / "meta.json", meta)
