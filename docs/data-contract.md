@@ -98,13 +98,13 @@ web/public/data/
 | `anomalies[].ratio` | 當日 ÷ 平常，3 位小數 |
 | `anomalies[].baseline` | 平常，四捨五入成整數 |
 | `anomalies[].eventIds` | 對到 `events[].id`，排序、不重複；**空陣列＝畫面顯示「原因未查證」**。全市級一律為空 |
-| `events[]` | 活動，依場館、起日排序：`{ id, startDate, endDate, venue, stations[], name, source, url, verified }`。自動檔期只收配到至少一筆異常的 |
-| `events[].id` | `auto-<venue>-<起日 YYYYMMDD>`，同場館同起日再加 `-2`、`-3` |
-| `events[].startDate / endDate` | `YYYY-MM-DD`，含首尾。小巨蛋、花博是**租用期**（含進場與拆台）；中山堂是同名節目當月最早／最晚的演出日 |
+| `events[]` | 活動，依場館、起日排序：`{ id, startDate, endDate, venue, stations[], name, source, url, verified }`。自動檔期只收配到至少一筆異常的；人工活動全收（沒配到的 `build` 會提醒） |
+| `events[].id` | `<source>-<venue>-<起日 YYYYMMDD>`（例：`auto-taipei-arena-20260907`、`manual-nangang-exhibition-20260902`），同來源同場館同起日再加 `-2`、`-3`。同一天同站可同時配到 auto 與 manual |
+| `events[].startDate / endDate` | `YYYY-MM-DD`，含首尾。小巨蛋、花博是**租用期**（含進場與拆台）；中山堂是同名節目當月最早／最晚的演出日；人工活動照 `events.csv` |
 | `events[].venue` | `pipeline/config/venues.csv` 的 `venue_id` |
 | `events[].stations` | `stations.json` 的陣列索引 |
 | `events[].source` | `"auto"`（臺北市資料大平臺場館檔期，7.2）或 `"manual"`（`pipeline/config/events.csv`，7.3） |
-| `events[].url` / `verified` | 來源網址（auto 為資料集頁 `https://data.taipei/dataset/detail?id=…`）；是否經人工查證（auto 為 `false`） |
+| `events[].url` / `verified` | 來源網址（auto 為資料集頁 `https://data.taipei/dataset/detail?id=…`；manual 為查證用的新聞或官網）；是否經人工查證（auto 為 `false`，manual 照表） |
 
 **演出日與配對（7.2）**：租用期含進場與拆台，不另外輸出演出日。管線把站級異常配給「場館的車站（`venues.csv`）相同、日期是候選日」的檔期：小巨蛋、花博的候選日是租用期每一天，中山堂是實際演出日。所以演出日＝期間內場館站有站級異常、`eventIds` 指向該檔期的日子；前端只查 `eventIds`，不比對日期區間。
 
@@ -118,6 +118,8 @@ web/public/data/
 
   只抓「多」，「少」多半是全市假日，已在全市級。環狀線站（`exitsRecorded: false`）只看進站。
 - 剛好等於門檻也算（管線以分數精確比較）。
+
+**人工活動表（7.3）**：`pipeline/config/events.csv`，欄位 `startDate,endDate,venue_id,name,url,verified`（日期 `YYYY-MM-DD`、`venue_id` 必須在 `venues.csv`、`verified` 為 `true`／`false`）。`build` 驗整份表，**沒有 `http(s)://` 來源網址的列讓 build 失敗**；與當月重疊的列和自動檔期用同一套規則配對（候選日＝起訖間每一天），車站只來自 `venues.csv`。
 
 **場館檔期快照**：`uv run city-breath fetch-events --month YYYY-MM` 從臺北市資料大平臺抓小巨蛋場地租用（每月一個資源，BIG-5）、花博公園展館（年度資源）、中山堂演出（滾動資源）到 `data/raw/events/YYYYMM/`，`sources.json` 記網址、sha256、取得日期；資源尚未發布（例如花博當年度檔）記為 missing，`build` 會印出提醒。用到的快照列進 `meta.json` 的 `sources[]`（`dataset` 為該資源的下載網址）。沒有快照時 `build` 失敗。
 

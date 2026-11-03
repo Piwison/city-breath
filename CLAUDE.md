@@ -73,6 +73,8 @@ npm test
 npm run build
 ```
 
+每月更新（architecture Consistency Conventions）：`fetch` → 補 `pipeline/config/holidays.csv` → `fetch-events` → `build` → 看印出的「原因未查證的站級異常」，查到來源的補進 `pipeline/config/events.csv`（每列必附網址，`verified` 填 `true`；查不到就不補，維持「原因未查證」）→ 再 `build` → 開 PR。
+
 ## 已知狀況
 
 - 環狀線 11 站只有進站紀錄（出站由新北捷運營運、未入檔）；這些站不分群、不能當迄站。

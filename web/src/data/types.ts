@@ -184,6 +184,7 @@ export interface Anomaly {
 /**
  * events.json 的 events[]：場館檔期（auto，7.2）與人工活動（manual，7.3）。
  * auto 只收配到至少一筆異常的檔期；起訖是租用期（含進場拆台），演出日＝eventIds 指向它的異常日。
+ * manual 來自 pipeline/config/events.csv，每筆都有來源網址，沒配到異常也會列出。
  */
 export interface EventRecord {
   id: string;

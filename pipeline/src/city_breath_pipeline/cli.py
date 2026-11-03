@@ -158,8 +158,9 @@ def _districts(stations):
 
 def cmd_build(args) -> None:
     t = time.time()
-    try:  # 場館檔期快照（7.2）先讀：沒抓就早點失敗
+    try:  # 場館檔期快照（7.2）與人工活動表（7.3）先讀：沒抓、或表有錯就早點失敗
         snapshot = sched.load(args.month, _events_dir(args.month))
+        manual = sched.load_manual(args.month, {v.id for v in load_venues(load_aliases())})
     except sched.ScheduleError as e:
         raise SystemExit(str(e)) from e
     raw, agg, stations, venue_stations = _load_month(args)
@@ -192,7 +193,7 @@ def cmd_build(args) -> None:
           f"{max(daily['sizes'].values()) / 1e3:.0f} KB）；場館站 {len(venue_stations)} 站，來源行政區格 "
           f"{dsup['cells']:,}：少於 10 人隱藏 {dsup['primary']:,} 格，次要隱藏 {dsup['secondary']:,} 格")
     result["sizes"].update(daily["sizes"])
-    events = export_events(agg, stations, Path(args.out), snapshot.schedules, venue_stations)
+    events = export_events(agg, stations, Path(args.out), snapshot.schedules + manual, venue_stations)
     _report_anomalies(events["detection"], stations)
     _report_schedules(snapshot, events["linked"], events["detection"], stations)
     result["sizes"].update(events["sizes"])
@@ -222,7 +223,11 @@ def _report_schedules(snapshot, linked, det, stations) -> None:
     for e in linked.events:
         days = sorted(d for (d, i), ids in linked.event_ids.items() if e["id"] in ids)
         print(f"  檔期 {e['startDate']}～{e['endDate']} {e['name']} → 異常日 {'、'.join(f'{d:%m/%d}' for d in days)}")
-    print(f"場館檔期 {len(snapshot.schedules)} 筆，配到異常 {len(linked.events)} 筆，未配到 {len(linked.unmatched)} 筆")
+    auto = [e for e in linked.events if e["source"] == "auto"]
+    print(f"場館檔期 {len(snapshot.schedules)} 筆，配到異常 {len(auto)} 筆；人工活動 {len(linked.events) - len(auto)} 筆")
+    for s in linked.unmatched:
+        if s.source == "manual":
+            print(f"注意：人工活動「{s.name}」（{s.start}～{s.end}，{s.venue}）沒有配到站級異常，仍寫進 events.json")
     left = [a for a in det.stations() if (a.date, a.station) not in linked.event_ids]
     print(f"原因未查證的站級異常 {len(left)} 筆：" + ("、".join(f"{a.date:%m/%d} {stations[a.station].name}" for a in left) or "無"))
 
