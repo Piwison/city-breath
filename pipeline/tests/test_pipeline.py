@@ -4,8 +4,8 @@ import json
 import pytest
 
 from city_breath_pipeline.aggregate import aggregate_month
-from city_breath_pipeline.export import suppress
 from city_breath_pipeline.stations import canonical, station_id
+from city_breath_pipeline.suppress import primary as suppress
 
 CSV = """﻿日期,時段,進站,出站,人次
 2026-09-01,08,景安,大坪林,30
