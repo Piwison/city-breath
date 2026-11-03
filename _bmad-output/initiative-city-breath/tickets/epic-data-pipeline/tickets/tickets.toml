@@ -72,13 +72,24 @@ hitl = true
 risk = "medium"
 
 [[entry]]
+id = 11
+type = "story"
+title = "次要隱藏"
+description = "新增 pipeline/suppress.py：已公開總量等於一組格子之和且組內只有一格 null 時，再隱藏組內最小的已公開格（architecture AD-3）；現有 od 分片改經它輸出。"
+verify = "pytest 逐組檢查：od 分片、行政區起訖、活動日來源行政區，每組都是零格或至少兩格 null。"
+covers = ["R1"]
+after = []
+hitl = false
+risk = "medium"
+
+[[entry]]
 id = 9
 type = "story"
 title = "行政區起訖彙總"
 description = "依站的行政區把起站×迄站×小時×日型加總成行政區×行政區×小時×日型，少於 10 人輸出 null，寫進契約 v2 與 docs/data-contract.md。"
 verify = "永和（頂溪）平日 7–9 點去中山、中正、大安、信義的比例與 2026-09 原型一致，pytest 通過。"
 covers = ["R3"]
-after = [8]
+after = [8, 11]
 hitl = false
 risk = "low"
 
@@ -86,10 +97,10 @@ risk = "low"
 id = 10
 type = "story"
 title = "逐日每站每小時輸出"
-description = "管線多輸出每一天每站每小時進出量（約 120 站 × 24 × 30），停止營運時段為 null，寫進契約 v2。"
+description = "管線多輸出 daily/{YYYY-MM-DD}.json：當日每站每小時進出（當日全市沒有紀錄的小時為 null），以及 venues.csv 列出的場館站之來源行政區×小時；本票建立 pipeline/config/venues.csv（architecture AD-5、AD-10、AD-13）。"
 verify = "2026-09-13 小巨蛋站 16 點出站約 2,642、平常約 730，與先前的查核一致；pytest 通過。"
 covers = ["R4"]
-after = []
+after = [8, 11]
 hitl = false
 risk = "low"
 

@@ -47,12 +47,13 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 
 1. 網站只讀 `web/public/data/` 的 JSON，不讀原始 CSV（AD-1）。改欄位要同時改 `export.py`、`types.ts`、`docs/data-contract.md`。
 2. 站名正規化只在 `pipeline/stations.py` 與 `pipeline/config/`（AD-2）。
-3. 起訖人次 < 10 在管線端輸出 `null`，畫面顯示「少於 10 人」，前端不得反推（AD-3）。
+3. 起訖人次 < 10 在管線端輸出 `null`，畫面顯示「少於 10 人」，前端不得反推；能用總量減出來的格子要再隱藏，只在 `pipeline/suppress.py` 做（AD-3）。
 4. 停止營運時段是 `null` 不是 0（AD-5）。
-5. 顏色只走 `:root` token；Three.js 材質用 `tokenColor('--token')` 從 CSS 讀，不寫死（AD-8）。
+5. 顏色只走 `:root` token；Three.js 材質用 `useTokenColor('--token')` 從 CSS 讀、跟著日夜相位更新，不寫死（AD-8）。
 6. 站屬於哪個行政區只在管線判定（`pipeline/config/station_districts.csv`），前端不得自己推算（AD-9）。
 7. 場景用 Three.js＋React Three Fiber，經緯度一律經 `web/src/scene/projection.ts` 的 `project()` 轉換（AD-11、AD-12）。
-8. 活動日的原因只來自管線輸出的 `events.json`，前端不得自己猜（AD-13）。
+8. 異常日與活動原因只來自管線輸出的 `events.json`，前端只查表（AD-13、AD-14）。
+9. 畫面狀態只在 `web/src/state/`，網址只由 `state/url.ts` 讀寫（AD-16）；分享圖用資料重畫，不截場景（AD-17）。
 
 ## 常用指令
 
@@ -75,6 +76,6 @@ npm run build
 
 - 環狀線 11 站只有進站紀錄（出站由新北捷運營運、未入檔）；這些站不分群、不能當迄站。
 - 原始資料迄站欄位有路線前綴（O景安、G大坪林、O頭前庄），已在別名表處理；新月份若出現新前綴，`build` 會報錯提醒。
-- 假日表 `pipeline/config/holidays.csv` 要每月補；`daily.json` 的 anomalyCandidates 可幫忙找漏列的假日。
+- 假日表 `pipeline/config/holidays.csv` 要每月補；`daily.json` 的 anomalyCandidates（契約 v2 起改在 `events.json` 的全市級異常日）可幫忙找漏列的假日。
 - 骨架目前還用 maplibre-gl＋deck.gl；架構已改成 Three.js（AD-11），在首頁換成場景的那張票（3.5）移除。
 - `web/src/App.tsx` 是驗證資料與效能的開發骨架，不是設計稿。

@@ -47,3 +47,4 @@ risk: medium
 - Proposed stories（refine 時再定）：異常日偵測、平台檔期自動匯入並對上異常日、人工活動表 events.csv、活動日畫面（含分享）。
 - Open question: 大巨蛋賽程與活動的穩定來源。
 - Open question: 小巨蛋租用期含進場與拆台，演出日怎麼判定（期間內人流尖峰或人工確認）。
+- Decision: 2026-11-03 architecture AD-14 定了異常日與 events.json 的形狀，第一張票負責把 events.json 寫進 docs/data-contract.md 並移除 v1 的 daily.json；venues.csv 由 1.10 建立，本 epic 只讀。
