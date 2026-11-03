@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadDaily } from "./load";
+import { loadDaily, loadEvents } from "./load";
 
 const hours = () => Array.from({ length: 24 }, () => 0);
 
@@ -62,5 +62,74 @@ describe("loadDaily", () => {
     const calls = mockFetch({});
     await expect(loadDaily("2031-03", "2031-04-01")).rejects.toThrow("不屬於");
     expect(calls).toEqual([]);
+  });
+});
+
+const events = (month: string, stationRefs: (number | null)[], eventStations: number[] = []) => ({
+  v: 2,
+  month,
+  thresholds: { city: 0.15, stationRatio: 1.5, stationExtra: 1000, provisional: true },
+  days: [{ date: `${month}-01`, dayType: "weekday", cityEntries: 100, cityRatio: null }],
+  anomalies: stationRefs.map((station) => ({
+    date: `${month}-01`,
+    station,
+    measure: "entries",
+    ratio: 2,
+    baseline: 50,
+    eventIds: [],
+  })),
+  events: eventStations.length
+    ? [
+        {
+          id: "e1",
+          startDate: `${month}-01`,
+          endDate: `${month}-01`,
+          venue: "v",
+          stations: eventStations,
+          name: "x",
+          source: "manual",
+          url: "https://example.org",
+          verified: true,
+        },
+      ]
+    : [],
+});
+
+describe("loadEvents", () => {
+  it("載入 events.json 與同月 stations.json；全市級的 station 為 null", async () => {
+    const calls = mockFetch({
+      "2031-05/events.json": events("2031-05", [null, 1]),
+      "2031-05/stations.json": stations("2031-05", 2),
+    });
+    const e = await loadEvents("2031-05");
+    expect(e.anomalies.map((a) => a.station)).toEqual([null, 1]);
+    expect(calls.map((u) => u.replace(/^.*data\//, "")).sort()).toEqual([
+      "2031-05/events.json",
+      "2031-05/stations.json",
+    ]);
+  });
+
+  it("站索引超出同月 stations.json 就報錯", async () => {
+    mockFetch({
+      "2031-06/events.json": events("2031-06", [2]),
+      "2031-06/stations.json": stations("2031-06", 2),
+    });
+    await expect(loadEvents("2031-06")).rejects.toThrow("對不上");
+  });
+
+  it("活動的車站索引也要檢查", async () => {
+    mockFetch({
+      "2031-07/events.json": events("2031-07", [], [0, 5]),
+      "2031-07/stations.json": stations("2031-07", 2),
+    });
+    await expect(loadEvents("2031-07")).rejects.toThrow("對不上");
+  });
+
+  it("月份與 stations.json 不同就報錯", async () => {
+    mockFetch({
+      "2031-08/events.json": events("2031-09", []),
+      "2031-08/stations.json": stations("2031-08", 2),
+    });
+    await expect(loadEvents("2031-08")).rejects.toThrow("對不上");
   });
 });
