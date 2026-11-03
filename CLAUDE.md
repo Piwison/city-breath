@@ -26,7 +26,8 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 
 - **視覺方向與新畫面**：先用 `prototype` 做多個可切換的版本給 Piwi 選；方向定案（2026-11-03 起偏向「微縮城市」：等角視角、發光路線、日夜光影）後照該方向實作。
 - **打磨、稽核、評論**：`impeccable`（audit、polish、critique、animate 等指令）。
-- **`hallmark`**：降為參考，只在 Piwi 指名時使用（2026-11-03 決定）。
+- **`hallmark` 已移除**（2026-11-03 Piwi 決定）：它的規則以一般網頁為前提，跟滿版地圖與 3D 場景衝突。保留的底線規則已寫在上方「工作方式」。
+- `prototype` 與 `review-animations` 只在明確呼叫時執行（例如 `/prototype`），不會自動觸發。
 - **動畫與手感**（Emil Kowalski）：`animate` 做新動畫、`review-animations` 審查、`animation-performance` 守 60fps、`emil-design-eng` 細節打磨、`apple-design` 彈簧與手勢、`mobile-native` 讓網頁在手機上像 app、`prototype` 同一元件做多版切換比較、`animation-vocabulary` 把模糊描述翻成正確術語。
 - **遊戲感**：`game-feel`（回饋、緩動、juice）、`game-ui-ux`（HUD、控制列、狀態流程）。
 - **地圖**（MapLibre 官方）：`maplibre-v6-migration`（含打包後 worker 問題）、`maplibre-cartography`、`maplibre-terrain-rendering`、`maplibre-pmtiles-patterns`（靜態網站自帶底圖）、`maplibre-source-wiring`、`maplibre-tile-sources`、`maplibre-sprites-icons`、`maplibre-fonts-glyphs`。
