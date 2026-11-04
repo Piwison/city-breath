@@ -31,7 +31,8 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 - **動畫與手感**（Emil Kowalski）：`animate` 做新動畫、`review-animations` 審查、`animation-performance` 守 60fps、`emil-design-eng` 細節打磨、`apple-design` 彈簧與手勢、`mobile-native` 讓網頁在手機上像 app、`prototype` 同一元件做多版切換比較、`animation-vocabulary` 把模糊描述翻成正確術語。
 - **遊戲感**：`game-feel`（回饋、緩動、juice）、`game-ui-ux`（HUD、控制列、狀態流程）。
 - **地圖**（MapLibre 官方；渲染已改 Three.js，只在移除骨架或日後需要真地圖時參考）：`maplibre-v6-migration`（含打包後 worker 問題）、`maplibre-cartography`、`maplibre-terrain-rendering`、`maplibre-pmtiles-patterns`（靜態網站自帶底圖）、`maplibre-source-wiring`、`maplibre-tile-sources`、`maplibre-sprites-icons`、`maplibre-fonts-glyphs`。
-- **3D**（2026-11-03 定案走 Three.js＋React Three Fiber，AD-11）：`threejs-*` 十個，`threejs-react-three-fiber` 為主。
+- **微縮城市與遊戲手感**：`diorama-game-juice`（專案自有）。做或改場景、原型、弧線、粒子、鏡頭、點選回饋都先讀它；它把沙盤、呼吸、脈衝流向、落點漣漪、點選聚焦寫成規則，並對齊架構 AD。
+- **3D**（2026-11-03 定案走 Three.js＋React Three Fiber，AD-11）：CloudAI-X 的 `threejs-*` 十一個為主（含 `threejs-textures`）；另從 Impertio 挑了 `threejs-core-raycaster`（點選大量地塊）、`threejs-impl-shadows`（陰影）、`threejs-impl-drei`（drei 元件）三個，它們以 r160 為準，版本衝突時以本專案為準。
 
 ## GitHub 流程
 
