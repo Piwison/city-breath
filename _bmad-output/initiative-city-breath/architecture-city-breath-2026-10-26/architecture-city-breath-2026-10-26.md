@@ -182,7 +182,7 @@ npm／PyPI 2026-11-03 查證；gsap 2026-11-04 查證。
 | @types/three | 0.186.0（與 three 一起升） |
 | @react-three/fiber | 9.8.2 |
 | @react-three/drei | 10.7.9（內建 camera-controls 3.x） |
-| gsap | 3.15.1（標準免費授權） |
+| gsap | 3.15.0（標準免費授權） |
 | Vitest | 5.0.5 |
 | 部署 | Vercel 靜態網站＋Web Analytics [ASSUMPTION] |
 
