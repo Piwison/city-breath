@@ -211,3 +211,94 @@ def test_committed_2026_09_venue_schedules():
         assert len(hit) == 1 and e["id"] in hit[0]["eventIds"]
     meta = json.loads((root / "meta.json").read_text("utf-8"))
     assert any(s["url"] == arena and len(s["sha256"]) == 64 for s in meta["sources"])
+
+
+# ── 人工活動表（7.3） ────────────────────────────────────
+
+VENUE_IDS = {"taipei-arena", "nangang-exhibition", "shilin-night-market"}
+HEADER = "startDate,endDate,venue_id,name,url,verified\n"
+
+
+def _manual(tmp_path, body, month="2026-09"):
+    path = tmp_path / "events.csv"
+    path.write_text(HEADER + body, encoding="utf-8")
+    return S.load_manual(month, VENUE_IDS, path)
+
+
+def test_load_manual_keeps_rows_overlapping_the_month(tmp_path):
+    got = _manual(tmp_path, "2026-09-02,2026-09-04,nangang-exhibition,SEMICON,https://example.org/a,true\n"
+                            "2026-08-30,2026-09-01,taipei-arena,跨月,https://example.org/b,false\n"
+                            "2026-10-01,2026-10-02,taipei-arena,下個月,https://example.org/c,true\n")
+    assert [(s.name, s.start, s.end, s.source, s.verified, s.url) for s in got] == [
+        ("SEMICON", D(2), D(4), "manual", True, "https://example.org/a"),
+        ("跨月", dt.date(2026, 8, 30), D(1), "manual", False, "https://example.org/b"),
+    ]
+
+
+@pytest.mark.parametrize("row, message", [
+    ("2026-09-05,2026-09-06,shilin-night-market,大象來了,,true", "沒有來源網址"),
+    ("2026-09-05,2026-09-06,shilin-night-market,大象來了,nownews.com/6872340,true", "沒有來源網址"),
+    ("2026-09-05,2026-09-06,taipei-dome,大象來了,https://e.org,true", "不在 venues.csv"),
+    ("2026-09-05,2026-09-06,shilin-night-market,大象來了,https://e.org,yes", "verified"),
+    ("2026/09/05,2026-09-06,shilin-night-market,大象來了,https://e.org,true", "YYYY-MM-DD"),
+    ("2026-09-06,2026-09-05,shilin-night-market,大象來了,https://e.org,true", "早於"),
+    ("2026-09-05,2026-09-06,shilin-night-market,,https://e.org,true", "沒有活動名稱"),
+])
+def test_load_manual_rejects_bad_rows(tmp_path, row, message):
+    with pytest.raises(S.ScheduleError, match=message):
+        _manual(tmp_path, row + "\n", month="2026-12")  # 不在當月的列也要驗
+
+
+def test_load_manual_requires_columns(tmp_path):
+    (tmp_path / "events.csv").write_text("startDate,endDate,venue_id,name\n", encoding="utf-8")
+    with pytest.raises(S.ScheduleError, match="缺欄位"):
+        S.load_manual("2026-09", VENUE_IDS, tmp_path / "events.csv")
+
+
+def test_manual_merges_with_auto_and_links():
+    auto = S.parse(ARENA_CSV.encode("cp950"), ARENA, "2026-09")
+    manual = [S.Schedule("nangang-exhibition", D(2), D(4), "SEMICON", "https://e.org/s", source="manual", verified=True),
+              S.Schedule("taipei-arena", D(13), D(13), "IVE 加場（人工）", "https://e.org/i", source="manual",
+                         verified=True),
+              S.Schedule("shilin-night-market", D(12), D(12), "沒配到的", "https://e.org/n", source="manual")]
+    venues = VENUES | {9: ["shilin-night-market"]}
+    got = S.link(auto + manual, [_a(3, 7), _a(4, 7), _a(13, 34)], venues)
+    by_id = {e["id"]: e for e in got.events}
+    assert set(by_id) == {"manual-nangang-exhibition-20260902", "manual-shilin-night-market-20260912",
+                          "auto-taipei-arena-20260907", "manual-taipei-arena-20260913"}
+    assert by_id["manual-nangang-exhibition-20260902"] == {
+        "id": "manual-nangang-exhibition-20260902", "startDate": "2026-09-02", "endDate": "2026-09-04",
+        "venue": "nangang-exhibition", "stations": [7], "name": "SEMICON", "source": "manual",
+        "url": "https://e.org/s", "verified": True}
+    assert got.event_ids[(D(3), 7)] == got.event_ids[(D(4), 7)] == ["manual-nangang-exhibition-20260902"]
+    assert got.event_ids[(D(13), 34)] == ["auto-taipei-arena-20260907", "manual-taipei-arena-20260913"]
+    assert by_id["manual-shilin-night-market-20260912"]["stations"] == [9]  # 人工活動沒配到也輸出
+    assert "沒配到的" in {s.name for s in got.unmatched}
+
+
+def test_committed_manual_events_table_is_valid():
+    from city_breath_pipeline.stations import load_aliases
+    from city_breath_pipeline.venues import load_venues
+
+    rows = S.load_manual("2026-09", {v.id for v in load_venues(load_aliases())})
+    assert {r.name for r in rows} >= {"SEMICON Taiwan 2026 國際半導體展", "2026 臺北藝術節閉幕戶外遊行《大象來了》"}
+
+
+def test_committed_2026_09_manual_events():
+    """7.3 驗收：SEMICON（南港展覽館 9/2–4）與《大象來了》（劍潭 9/5）是 manual 事件並配到異常日。"""
+    root = DATA / "2026-09"
+    if not (root / "events.json").exists():
+        pytest.skip("沒有 2026-09")
+    body = json.loads((root / "events.json").read_text("utf-8"))
+    names = [s["name"] for s in json.loads((root / "stations.json").read_text("utf-8"))["stations"]]
+    events = {e["name"]: e for e in body["events"]}
+    for name, station, days in [
+        ("SEMICON Taiwan 2026 國際半導體展", "南港展覽館", ["2026-09-02", "2026-09-03", "2026-09-04"]),
+        ("2026 臺北藝術節閉幕戶外遊行《大象來了》", "劍潭", ["2026-09-05"]),
+    ]:
+        e = events[name]
+        assert e["source"] == "manual" and e["verified"] is True and e["url"].startswith("https://")
+        for day in days:
+            hit = [a for a in body["anomalies"] if a["date"] == day and a["station"] is not None
+                   and names[a["station"]] == station]
+            assert len(hit) == 1 and e["id"] in hit[0]["eventIds"]

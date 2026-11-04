@@ -1,5 +1,8 @@
 """場館檔期自動匯入（7.2，architecture AD-13）。
 
+另有人工活動表 ``pipeline/config/events.csv``（7.3）：大巨蛋、展覽館、封街活動等不在資料集裡的活動，
+每列必附來源網址，``load_manual()`` 驗證後與自動檔期一起配對（``source: "manual"``）。
+
 臺北市資料大平臺的三個資料集，每月抓一次快照到 ``data/raw/events/{YYYYMM}/``：
 
 - 臺北小巨蛋場地租用資訊：每月一個資源（名稱結尾 ``_YYYYMM``），BIG-5；一列一個租用期（含進場與拆台）。
@@ -25,6 +28,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .anomaly import Anomaly
+from .stations import CONFIG
+
+MANUAL = CONFIG / "events.csv"
+MANUAL_COLUMNS = ["startDate", "endDate", "venue_id", "name", "url", "verified"]
 
 API_VIEW = "https://data.taipei/api/frontstage/tpeod/dataset.view?id={pid}"
 DOWNLOAD = "https://data.taipei/api/dataset/{pid}/resource/{rid}/download"
@@ -65,8 +72,10 @@ class Schedule:
     start: dt.date
     end: dt.date
     name: str
-    url: str  # 資料集頁
+    url: str  # 資料集頁（auto）或人工查證的來源（manual）
     days: frozenset[dt.date] = field(default=frozenset())  # 可能的演出日；空＝起訖間每一天
+    source: str = "auto"  # "auto"｜"manual"
+    verified: bool = False
 
     def candidate_days(self) -> frozenset[dt.date]:
         if self.days:
@@ -236,28 +245,62 @@ def load(month: str, src: Path) -> Snapshot:
     return Snapshot(schedules, sources, missing)
 
 
+# ── 人工活動表（7.3） ────────────────────────────────────
+
+
+def load_manual(month: str, venue_ids: set[str], path: Path = MANUAL) -> list[Schedule]:
+    """讀 ``events.csv``，回傳與當月重疊的列；欄位不對、缺網址、日期或場館錯誤都丟 ``ScheduleError``。
+
+    整份表每列都驗（不只當月），讓錯誤在補表的那個月就被抓到。
+    """
+    first, last = _month_bounds(month)
+    with path.open(encoding="utf-8", newline="") as f:
+        rows = _rows(f.read(), MANUAL_COLUMNS, path.name)
+    out = []
+    for n, row in enumerate(rows, start=2):  # 第 1 列是欄名
+        where = f"{path.name} 第 {n} 列"
+        if not row["name"]:
+            raise ScheduleError(f"{where} 沒有活動名稱")
+        if not re.fullmatch(r"https?://\S+", row["url"]):
+            raise ScheduleError(f"{where}「{row['name']}」沒有來源網址（url 必須是 http(s):// 開頭）")
+        if row["venue_id"] not in venue_ids:
+            raise ScheduleError(f"{where}「{row['name']}」的 venue_id {row['venue_id']!r} 不在 venues.csv")
+        if row["verified"] not in ("true", "false"):
+            raise ScheduleError(f"{where}「{row['name']}」的 verified 只能是 true 或 false")
+        try:
+            start, end = dt.date.fromisoformat(row["startDate"]), dt.date.fromisoformat(row["endDate"])
+        except ValueError as e:
+            raise ScheduleError(f"{where}「{row['name']}」的日期要寫成 YYYY-MM-DD") from e
+        if end < start:
+            raise ScheduleError(f"{where}「{row['name']}」結束日早於起始日")
+        if start <= last and end >= first:
+            out.append(Schedule(row["venue_id"], start, end, row["name"], row["url"],
+                                source="manual", verified=row["verified"] == "true"))
+    return out
+
+
 # ── 配對 ─────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
 class Linked:
-    events: list[dict]  # events.json 的 events[]（只放配到異常的檔期）
+    events: list[dict]  # events.json 的 events[]（自動檔期只放配到異常的；人工活動全放）
     event_ids: dict[tuple[dt.date, int], list[str]]  # (日期, 站索引) → events[].id
     unmatched: list[Schedule]
 
 
-def link(schedules: list[Schedule], anomalies: list[Anomaly], venue_stations: dict[int, list[str]],
-         source: str = "auto", verified: bool = False) -> Linked:
+def link(schedules: list[Schedule], anomalies: list[Anomaly], venue_stations: dict[int, list[str]]) -> Linked:
     """站級異常落在某檔期的候選日、且站是該場館的車站，就連起來。
 
-    ``venue_stations`` 是 ``venues.resolve_venues()`` 的結果（站索引 → venue_id）。
+    ``venue_stations`` 是 ``venues.resolve_venues()`` 的結果（站索引 → venue_id）。自動檔期沒配到異常就不輸出；
+    人工活動（``source == "manual"``）一律輸出，沒配到的也列在 ``unmatched`` 讓 build 提醒。
     """
     stations_of: dict[str, list[int]] = defaultdict(list)
     for idx, vids in venue_stations.items():
         for v in vids:
             stations_of[v].append(idx)
     station_hits = [a for a in anomalies if a.station is not None]
-    ordered = sorted(schedules, key=lambda s: (s.venue, s.start, s.end, s.name))
+    ordered = sorted(schedules, key=lambda s: (s.venue, s.start, s.end, s.source, s.name))
     events, event_ids, unmatched, used = [], defaultdict(list), [], defaultdict(int)
     for s in ordered:
         stations = sorted(stations_of.get(s.venue, []))
@@ -265,12 +308,14 @@ def link(schedules: list[Schedule], anomalies: list[Anomaly], venue_stations: di
         hits = [a for a in station_hits if a.station in stations and a.date in days]
         if not hits:
             unmatched.append(s)
-            continue
-        base = f"{source}-{s.venue}-{s.start:%Y%m%d}"
+            if s.source != "manual":
+                continue
+        base = f"{s.source}-{s.venue}-{s.start:%Y%m%d}"
         used[base] += 1
         eid = base if used[base] == 1 else f"{base}-{used[base]}"
         events.append({"id": eid, "startDate": s.start.isoformat(), "endDate": s.end.isoformat(), "venue": s.venue,
-                       "stations": stations, "name": s.name, "source": source, "url": s.url, "verified": verified})
+                       "stations": stations, "name": s.name, "source": s.source, "url": s.url,
+                       "verified": s.verified})
         for a in hits:
             event_ids[(a.date, a.station)].append(eid)
     return Linked(events, {k: sorted(v) for k, v in event_ids.items()}, unmatched)
