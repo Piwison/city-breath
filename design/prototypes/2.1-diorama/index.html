@@ -3,135 +3,169 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>城市呼吸 2.1 微縮城市</title>
+<title>城市呼吸 2.1 微縮城市 第二輪</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
-/* 2.1 原型：三個方向共用同一套遊戲機關，只差材質、光影與流向表現。所有顏色只在這裡以 token 定義，JS 與 shader 由 getComputedStyle 讀取。
+/* 2.1 原型第二輪：三個版本都從「晨昏」延伸，共用疊圖、線寬圖例與流向畫法，只差日夜光影的做法。
+   所有顏色只在這裡以 token 定義，JS 與 shader 由 getComputedStyle 讀取（AD-8）。
    日夜：token 名稱後綴 -night／-dawn／-day／-dusk，JS 依時刻在相鄰兩組之間內插；沒有後綴的 token 全天共用。 */
 :root {
   --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   --radius: 14px;
-}
-
-/* A 晨昏微縮城：霧面玩具、太陽繞行、柔和陰影、深夜窗光 */
-:root[data-variant="a"] {
-  --sky-top-night: #0e1330;  --sky-bottom-night: #262a55;
-  --sky-top-dawn: #4f61a8;   --sky-bottom-dawn: #f0b49e;
-  --sky-top-day: #9fd0f0;    --sky-bottom-day: #eef6f7;
-  --sky-top-dusk: #5b4590;   --sky-bottom-dusk: #e8956a;
-  --ground-night: #121729; --ground-dawn: #8f957f; --ground-day: #b9c7a8; --ground-dusk: #7d6d60;
-  --plinth-night: #232948; --plinth-dawn: #b3a593; --plinth-day: #cfc2a6; --plinth-dusk: #a98c78;
-  --plinth-side-night: #161a33; --plinth-side-dawn: #85776a; --plinth-side-day: #a8977a; --plinth-side-dusk: #7a6255;
-  --plinth-line: #b8ab92;
-  --district-night: #434b7a; --district-dawn: #e5d3c4; --district-day: #f6f1e6; --district-dusk: #e2c2ab;
-  --prop-night: #343b66; --prop-dawn: #f1e6da; --prop-day: #ffffff; --prop-dusk: #ecd3c0;
-  --window: #ffd27a;
-  --light-night: #8f9cff; --light-dawn: #ffc79a; --light-day: #fff6e6; --light-dusk: #ff9f6e;
-  --hemi-ground: #8a7c6c;
-  --flow-neutral: #ef8f22;
-  --flow-in: #e8642a;
-  --flow-out: #2f86c9;
-  --flow-rail: #ffffff;
-  --ripple: #ffe2a8;
-  --commute: #e5484d;
-  --station: #14182a;
+  /* 捷運路線色：臺北捷運路線資料服務（data.taipei）的 LineColor 欄位 */
+  --line-br: #b57a25;
+  --line-r: #d90023;
+  --line-r3: #ef9298;
+  --line-g: #107547;
+  --line-g3: #d2de1a;
+  --line-o: #f5a818;
+  --line-bl: #0a59ae;
+  /* 環狀線由新北捷運營運，不在臺北捷運的路線資料裡；先用黃色，正式版查新北捷運的官方色碼 */
+  --line-y: #f2c500;
+  --flow-neutral: #e9781e;
+  --flow-in: #e2582b;
+  --flow-out: #2a7fd0;
+  --commute: #d63a48;
+  --ripple: #ffd9a0;
+  --particle-hi: #fffaf0;
+  --shadow: #1c160c;
+  --star: #ffffff;
+  --sun-disc: #fff3cf;
+  --sun-glow: rgba(255, 205, 120, 0.55);
+  --moon-disc: #e9edff;
+  --moon-glow: rgba(190, 205, 255, 0.35);
+  /* HUD：白天亮玻璃、夜晚暗玻璃（data-phase 由 JS 依太陽高度切換） */
   --hud-bg: rgba(255, 252, 246, 0.86);
   --hud-ink: #1b2033;
   --hud-muted: #586079;
   --hud-line: rgba(27, 32, 51, 0.12);
-  --hud-accent: #2f86c9;
+  --hud-accent: #2a7fd0;
   --hud-chip: rgba(27, 32, 51, 0.07);
+  --hud-on: #ffffff;
+}
+:root[data-phase="night"] {
+  --hud-bg: rgba(14, 18, 38, 0.80);
+  --hud-ink: #eef1ff;
+  --hud-muted: #a3acd0;
+  --hud-line: rgba(255, 255, 255, 0.14);
+  --hud-accent: #7fb6ff;
+  --hud-chip: rgba(255, 255, 255, 0.08);
+  --hud-on: #0e1226;
 }
 
-/* B 夜光地景：深色戰術沙盤、局部 bloom、邊緣發光、流動光帶 */
+/* A 天光：材質固定，日夜全靠光——太陽東升西落、陰影跟著轉，夜裡月光、窗光、站燈 */
+:root[data-variant="a"] {
+  --sky-top-night: #0a0f26;  --sky-horizon-night: #1e2a50;
+  --sky-top-dawn: #3a4c8c;   --sky-horizon-dawn: #f7b48f;
+  --sky-top-day: #5aa6e0;    --sky-horizon-day: #d9eeff;
+  --sky-top-dusk: #35306f;   --sky-horizon-dusk: #f2895a;
+  --light-night: #7b8ce0; --light-dawn: #ffb27a; --light-day: #fff2dc; --light-dusk: #ff8f52;
+  --amb-sky-night: #2a3466; --amb-sky-dawn: #b9b6dc; --amb-sky-day: #d3e8ff; --amb-sky-dusk: #bba6d0;
+  --amb-ground-night: #12141f; --amb-ground-dawn: #7a6a66; --amb-ground-day: #b5a58c; --amb-ground-dusk: #76605e;
+  --plinth: #d8c9ac; --plinth-side: #a48d6b; --plinth-line: #b5a382;
+  --tile: #f3ede1; --tile-side: #d6c9b2;
+  --water: #7db3dc; --green: #a8cf8c;
+  --building: #ffffff; --roof: #ebe4d6; --window: #ffcb72;
+  --station: #2b2f3f; --station-glow: #ffe0a0;
+}
+
+/* B 調色：每個時段一組配色＋畫面調色（lift/gain）＋三階卡通光，夜裡窗光與流向發光 */
 :root[data-variant="b"] {
-  --sky-top-night: #03050c;  --sky-bottom-night: #0a1024;
-  --sky-top-dawn: #070a1a;   --sky-bottom-dawn: #1a1636;
-  --sky-top-day: #0a1027;    --sky-bottom-day: #15204a;
-  --sky-top-dusk: #0c0820;   --sky-bottom-dusk: #26123a;
-  --ground: #03050b;
-  --plinth: #0a1022;
-  --plinth-side: #060a17;
-  --plinth-line: #1d3a6e;
-  --district: #0d1428;
-  --district-glow: #1a3f9e;
-  --edge: #6fe0ff;
-  --prop: #16213f;
-  --window: #6fe0ff;
-  --light-night: #5a6cff; --light-dawn: #8a7cff; --light-day: #9fb4ff; --light-dusk: #b47cff;
-  --hemi-ground: #05070f;
-  --flow-neutral: #9b7cff;
-  --flow-in: #ff8a3d;
-  --flow-out: #3dd6ff;
-  --flow-rail: #9b7cff;
-  --spark: #ffffff;
-  --ripple: #6fe0ff;
-  --scan: #3dd6ff;
-  --commute: #ff4f6d;
-  --station: #ffffff;
-  --hud-bg: rgba(7, 11, 26, 0.82);
-  --hud-ink: #e6ecff;
-  --hud-muted: #8d99c2;
-  --hud-line: rgba(111, 224, 255, 0.18);
-  --hud-accent: #3dd6ff;
-  --hud-chip: rgba(111, 224, 255, 0.10);
+  --sky-top-night: #0b0b2e;  --sky-horizon-night: #2b2266;
+  --sky-top-dawn: #5b4aa6;   --sky-horizon-dawn: #ffb3a1;
+  --sky-top-day: #48a8ec;    --sky-horizon-day: #e6f6ff;
+  --sky-top-dusk: #4a2a7a;   --sky-horizon-dusk: #ff9a5c;
+  --light-night: #8c8cff; --light-dawn: #ffb08f; --light-day: #fff6e8; --light-dusk: #ff9a5c;
+  --amb-sky-night: #34307a; --amb-sky-dawn: #e2b5c8; --amb-sky-day: #dff0ff; --amb-sky-dusk: #e3a0a6;
+  --amb-ground-night: #191433; --amb-ground-dawn: #7d5a66; --amb-ground-day: #b9b09a; --amb-ground-dusk: #7a4a52;
+  --plinth-night: #2c2a5e; --plinth-dawn: #d9bfb8; --plinth-day: #e3d6bb; --plinth-dusk: #d6a88c;
+  --plinth-side-night: #1b1a40; --plinth-side-dawn: #a68a86; --plinth-side-day: #b2a07c; --plinth-side-dusk: #a5765e;
+  --plinth-line: #b8a98a;
+  --tile-night: #3b3f7a; --tile-dawn: #f6d6cc; --tile-day: #fcf5e6; --tile-dusk: #f5c09c;
+  --tile-side-night: #2a2c5c; --tile-side-dawn: #d9b3aa; --tile-side-day: #e0d2b8; --tile-side-dusk: #d99a78;
+  --water-night: #233a8a; --water-dawn: #a7b9ee; --water-day: #6fc0f0; --water-dusk: #8d8fd8;
+  --green-night: #2f5a6a; --green-dawn: #b9cf9c; --green-day: #9fd67f; --green-dusk: #b7b27a;
+  --building-night: #4a4f8c; --building-dawn: #fbe9e1; --building-day: #ffffff; --building-dusk: #fbd9c2;
+  --roof-night: #3e4280; --roof-dawn: #efd2c8; --roof-day: #f1ead9; --roof-dusk: #f0c3a4;
+  --window: #ffd27a;
+  --station: #24284a; --station-glow: #ffe6a8;
+  --grade-lift-night: #1a2a7a; --grade-gain-night: #a9b4ff;
+  --grade-lift-dawn: #7a3a62;  --grade-gain-dawn: #ffe2d4;
+  --grade-lift-day: #000000;   --grade-gain-day: #ffffff;
+  --grade-lift-dusk: #6a2448;  --grade-gain-dusk: #ffd2a4;
 }
 
-/* C 紙模型城市：淺色紙工藝、疊層卡紙、繞行檯燈與硬邊長投影、紙緞帶 */
+/* C 移軸：像拍真的微縮模型——低一點的鏡頭、上下景深模糊、暖色主光，夜裡城市燈光微微暈開 */
 :root[data-variant="c"] {
-  --sky-top-night: #2b2621;  --sky-bottom-night: #3d352d;
-  --sky-top-dawn: #e7d6c1;   --sky-bottom-dawn: #f4eadc;
-  --sky-top-day: #f1ebe0;    --sky-bottom-day: #fbf8f2;
-  --sky-top-dusk: #e3c3a2;   --sky-bottom-dusk: #f1dcc3;
-  --ground: #d6c9b6;
-  --plinth: #efe5d3;
-  --plinth-2: #ddcdb2;
-  --plinth-3: #c8b493;
-  --plinth-side: #c2ad8a;
-  --plinth-line: #c9b896;
-  --district: #fbf6ec;
-  --prop: #ffffff;
-  --window: #ffc46b;
-  --light-night: #ffb36b; --light-dawn: #ffd2a1; --light-day: #fff4e0; --light-dusk: #ffbe85;
-  --hemi-ground: #c8b494;
-  --flow-neutral: #c99a2e;
-  --flow-in: #d9603b;
-  --flow-out: #3d7fb0;
-  --flow-rail: #fbf6ec;
-  --ripple: #d9603b;
-  --commute: #b8323a;
-  --station: #2b2622;
-  --hud-bg: rgba(251, 248, 242, 0.92);
-  --hud-ink: #2b2622;
-  --hud-muted: #6f655a;
-  --hud-line: rgba(43, 38, 34, 0.14);
-  --hud-accent: #d9603b;
-  --hud-chip: rgba(43, 38, 34, 0.07);
+  --sky-top-night: #0c1024;  --sky-horizon-night: #26304f;
+  --sky-top-dawn: #44558f;   --sky-horizon-dawn: #f4b995;
+  --sky-top-day: #78b6e2;    --sky-horizon-day: #eaf3f6;
+  --sky-top-dusk: #3f3a74;   --sky-horizon-dusk: #ef9a6a;
+  --light-night: #8293e6; --light-dawn: #ffb886; --light-day: #fff0d6; --light-dusk: #ff9a5e;
+  --amb-sky-night: #283363; --amb-sky-dawn: #bfb6d6; --amb-sky-day: #dbe9f6; --amb-sky-dusk: #c4a8c8;
+  --amb-ground-night: #14151f; --amb-ground-dawn: #7e6a60; --amb-ground-day: #c0ad8e; --amb-ground-dusk: #7a5e58;
+  --plinth: #cdb894; --plinth-side: #8f7656; --plinth-line: #a99572;
+  --tile: #f6eedd; --tile-side: #dccbad;
+  --water: #63a9da; --green: #93cd74;
+  --building: #fffdf7; --roof: #efe3cc; --window: #ffc768;
+  --station: #2b2f3f; --station-glow: #ffdc96;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky-bottom-day, var(--sky-bottom-night)); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky-horizon-day); }
 body { font-family: var(--font); color: var(--hud-ink); -webkit-font-smoothing: antialiased; }
 #stage { position: fixed; inset: 0; }
 .app { position: absolute; inset: 0; }
 .app canvas.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .num { font-variant-numeric: tabular-nums; }
 
+/* 天空：畫在場景後面，顏色由 JS 依時刻寫入 */
+.sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.sky .stars { position: absolute; inset: 0; }
+.sky .stars i { position: absolute; width: 2px; height: 2px; border-radius: 999px; background: var(--star); }
+.sky .sun, .sky .moon { position: absolute; left: 0; top: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 999px; }
+.sky .sun { background: var(--sun-disc); box-shadow: 0 0 0 10px var(--sun-glow), 0 0 60px 30px var(--sun-glow); }
+.sky .moon { width: 26px; height: 26px; margin: -13px 0 0 -13px; background: var(--moon-disc); box-shadow: 0 0 30px 12px var(--moon-glow); }
+
 .hud { position: absolute; color: var(--hud-ink); background: var(--hud-bg);
   -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
-  border: 1px solid var(--hud-line); border-radius: var(--radius); }
+  border: 1px solid var(--hud-line); border-radius: var(--radius);
+  transition: background-color 600ms ease, color 600ms ease, border-color 600ms ease; }
+@media (prefers-reduced-motion: reduce) { .hud { transition: none; } }
 .hud button, .hud select { font: inherit; color: inherit; }
 .hud button:focus-visible, .hud select:focus-visible, .hud input:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: 2px; }
 
 .loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; font-size: 14px; color: var(--hud-muted); pointer-events: none; }
 
-/* 上方：找你的通勤 */
+/* 上方：找你的通勤＋圖層 */
 .commute-pill { top: calc(env(safe-area-inset-top, 0px) + 66px); left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 999px; cursor: pointer; font-size: 14px; font-weight: 500; }
-.commute-pill svg { width: 16px; height: 16px; }
+.commute-pill svg, .layer-btn svg { width: 16px; height: 16px; }
+.layer-btn { top: calc(env(safe-area-inset-top, 0px) + 66px); right: 12px; width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.layer-btn[aria-expanded="true"] { border-color: var(--hud-accent); }
+.layer-panel { top: calc(env(safe-area-inset-top, 0px) + 112px); right: 12px; width: min(260px, calc(100vw - 24px)); padding: 10px; display: grid; gap: 2px; }
+.layer-panel h2 { margin: 2px 6px 6px; font-size: 13px; font-weight: 700; }
+.layer-panel label { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; min-height: 40px; padding: 0 6px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+.layer-panel label:active { background: var(--hud-chip); }
+.layer-panel .sw { width: 18px; height: 18px; border-radius: 6px; }
+.layer-panel .sw.rail { background: linear-gradient(135deg, var(--line-r) 0 25%, var(--line-bl) 25% 50%, var(--line-g) 50% 75%, var(--line-o) 75%); }
+.layer-panel .sw.flow { background: var(--flow-neutral); }
+.layer-panel .sw.station { background: var(--station); border-radius: 999px; transform: scale(0.6); }
+.layer-panel .sw.water { background: var(--water, var(--water-day)); }
+.layer-panel .sw.green { background: var(--green, var(--green-day)); }
+.layer-panel .sw.building { background: var(--roof, var(--roof-day)); border: 1px solid var(--hud-line); }
+.layer-panel .sw.label { background: none; border: 1px solid var(--hud-muted); font-size: 10px; display: grid; place-items: center; color: var(--hud-muted); }
+.layer-panel small { color: var(--hud-muted); font-size: 11px; }
+.layer-panel input { appearance: none; -webkit-appearance: none; width: 36px; height: 22px; border-radius: 999px; background: var(--hud-chip); border: 1px solid var(--hud-line); position: relative; margin: 0; cursor: pointer; }
+.layer-panel input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: var(--hud-muted); transition: transform 160ms ease, background-color 160ms ease; }
+.layer-panel input:checked { background: var(--hud-accent); border-color: transparent; }
+.layer-panel input:checked::after { transform: translateX(14px); background: var(--hud-on); }
+@media (prefers-reduced-motion: reduce) { .layer-panel input::after { transition: none; } }
+.layer-panel .src { margin: 6px 6px 2px; font-size: 11px; line-height: 1.5; color: var(--hud-muted); }
+
 .commute-panel { top: calc(env(safe-area-inset-top, 0px) + 114px); left: 50%; transform: translateX(-50%);
   width: min(420px, calc(100vw - 32px)); padding: 14px; display: grid; gap: 10px; }
 .commute-panel h2 { margin: 0; font-size: 15px; }
@@ -141,27 +175,38 @@ body { font-family: var(--font); color: var(--hud-ink); -webkit-font-smoothing: 
 .commute-panel .actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 .btn { height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--hud-line); background: var(--hud-chip); cursor: pointer; font-size: 13px; }
-.btn.primary { background: var(--hud-accent); border-color: transparent; color: var(--hud-bg); font-weight: 700; }
-.btn:active { transform: scale(0.97); }
+.btn.primary { background: var(--hud-accent); border-color: transparent; color: var(--hud-on); font-weight: 700; }
+.btn:active, .layer-btn:active, .commute-pill:active { transform: scale(0.97); }
+.commute-pill:active { transform: translateX(-50%) scale(0.97); }
 
-/* 下方：時間軸 */
+/* 下方：時間軸＋圖例 */
 .dock { left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); max-width: 640px; margin: 0 auto;
   padding: 10px 12px; display: grid; gap: 8px; }
 .dock .top { display: flex; align-items: center; gap: 10px; }
-.play { width: 40px; height: 40px; border-radius: 999px; border: 0; background: var(--hud-accent); color: var(--hud-bg); display: grid; place-items: center; cursor: pointer; flex: none; }
+.play { width: 40px; height: 40px; border-radius: 999px; border: 0; background: var(--hud-accent); color: var(--hud-on); display: grid; place-items: center; cursor: pointer; flex: none; }
 .play svg { width: 16px; height: 16px; }
 .clock { display: grid; gap: 1px; min-width: 0; flex: 1; }
-.clock .time { font-size: 22px; font-weight: 700; line-height: 1; letter-spacing: 0.01em; }
+.clock .time { font-size: 22px; font-weight: 700; line-height: 1; letter-spacing: 0.01em; display: flex; align-items: center; gap: 8px; }
+.clock .orb { width: 14px; height: 14px; border-radius: 999px; flex: none; }
+.clock .orb.sun { background: var(--sun-disc); box-shadow: 0 0 0 3px var(--sun-glow); }
+.clock .orb.moon { background: transparent; box-shadow: inset -4px 2px 0 0 var(--moon-disc); }
 .clock .phase { font-size: 12px; color: var(--hud-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seg { display: flex; padding: 2px; border-radius: 10px; background: var(--hud-chip); flex: none; }
 .seg button { height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 12px; color: var(--hud-muted); }
 .seg button[aria-pressed="true"] { background: var(--hud-bg); color: var(--hud-ink); font-weight: 700; }
 .dock .bottom { display: flex; align-items: center; gap: 10px; }
-.scrub { flex: 1; accent-color: var(--hud-accent); height: 28px; }
+.scrub { flex: 1; height: 22px; margin: 0; border-radius: 999px; -webkit-appearance: none; appearance: none; border: 1px solid var(--hud-line); cursor: pointer; }
+.scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 999px; background: var(--hud-bg); border: 2px solid var(--hud-ink); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.scrub::-moz-range-thumb { width: 18px; height: 18px; border-radius: 999px; background: var(--hud-bg); border: 2px solid var(--hud-ink); }
 .mini { height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--hud-line); background: transparent; cursor: pointer; font-size: 12px; color: var(--hud-muted); flex: none; }
 .mini[aria-pressed="true"] { color: var(--hud-ink); border-color: var(--hud-accent); }
+.legend { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--hud-muted); line-height: 1; min-height: 16px; }
+.legend .bar { display: inline-block; width: 22px; border-radius: 999px; background: var(--flow-neutral); vertical-align: middle; }
+.legend .item { display: inline-flex; align-items: center; gap: 4px; }
+.legend .dotk { width: 6px; height: 6px; border-radius: 999px; background: var(--flow-neutral); box-shadow: 0 0 0 2px var(--hud-chip); }
+.legend .sep { width: 1px; height: 10px; background: var(--hud-line); }
 
-/* 下方：行政區小卡、通勤結果（取代時間軸位置） */
+/* 下方：行政區小卡、流向小卡、通勤結果（取代時間軸位置） */
 .sheet { left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); max-width: 640px; margin: 0 auto;
   max-height: 34vh; overflow: auto; padding: 12px 14px 14px; display: grid; gap: 10px; }
 .sheet header { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
@@ -184,12 +229,15 @@ body { font-family: var(--font); color: var(--hud-ink); -webkit-font-smoothing: 
 .big b { font-size: 40px; line-height: 1; }
 .big span { font-size: 14px; }
 
-/* 浮在選中行政區上方的名牌 */
-.badge { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); pointer-events: none;
-  padding: 6px 10px; border-radius: 999px; background: var(--hud-bg); border: 1px solid var(--hud-line); color: var(--hud-ink);
-  font-size: 13px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); }
+/* 場景上的文字：選中區名牌、前三大流向數字、區名 */
+.badge, .flabel, .dlabel { position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap; }
+.badge { transform: translate(-50%, -100%); padding: 6px 10px; border-radius: 999px; background: var(--hud-bg); border: 1px solid var(--hud-line); color: var(--hud-ink); font-size: 13px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); }
 .badge b { font-weight: 700; }
 .badge span { color: var(--hud-muted); margin-left: 6px; }
+.flabel { transform: translate(-50%, -100%); padding: 3px 8px; border-radius: 8px; background: var(--hud-bg); border: 1px solid var(--hud-line); color: var(--hud-ink); font-size: 11px; line-height: 1.35; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12); }
+.flabel b { font-size: 13px; }
+.flabel .k { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+.dlabel { transform: translate(-50%, -50%); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--hud-ink); text-shadow: 0 0 3px var(--hud-bg), 0 0 6px var(--hud-bg); opacity: 0.85; }
 
 @media (max-width: 420px) {
   .seg button { padding: 0 8px; }
@@ -287,9 +335,9 @@ body { font-family: var(--font); color: var(--hud-ink); -webkit-font-smoothing: 
 
 <nav class="proto-picker" data-position="top" aria-label="Prototype variants">
   <span class="proto-picker-highlight" aria-hidden="true"></span>
-  <button class="proto-picker-item" data-active aria-current="true">晨昏</button>
-  <button class="proto-picker-item">夜光</button>
-  <button class="proto-picker-item">紙藝</button>
+  <button class="proto-picker-item" data-active aria-current="true">天光</button>
+  <button class="proto-picker-item">調色</button>
+  <button class="proto-picker-item">移軸</button>
 </nav>
 
 <script type="importmap">
@@ -308,55 +356,61 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { Line2 } from 'three/addons/lines/Line2.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltShiftShader.js';
+import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { gsap } from 'gsap';
 import CameraControls from 'camera-controls';
 
 CameraControls.install({ THREE });
 
 // ───────────────────────── 資料 ─────────────────────────
-// 原型直接讀網站的資料契約（AD-1）。從 repo 根目錄起本機伺服器時路徑相同；發布頁面時這些檔案放在同樣的相對路徑。
+// 原型直接讀網站的資料契約（AD-1）；疊圖（捷運路線、河川、綠地）是原型自帶的 layers.json，由 tools/build_layers.py 產生，正式版改由管線輸出。
 const MONTH = '2026-09';
-// repo 裡從 design/prototypes/2.1-diorama/ 讀網站的資料；發布成頁面時資料放在同層的 data/
 const BASE = location.pathname.includes('/design/prototypes/')
   ? new URL(`../../../web/public/data/${MONTH}/`, location.href)
   : new URL(`data/${MONTH}/`, location.href);
+const LAYERS_URL = new URL('layers.json', location.href);
 let DATA = null;
 
 async function loadData() {
   if (DATA) return DATA;
-  const get = (n) => fetch(new URL(n, BASE)).then((r) => { if (!r.ok) throw new Error(n); return r.json(); });
-  const [districts, flows, stations] = await Promise.all([get('districts.json'), get('district-flows.json'), get('stations.json')]);
+  const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(u).split('/').pop()); return r.json(); });
+  const [districts, flows, stations, layers] = await Promise.all([
+    get(new URL('districts.json', BASE)), get(new URL('district-flows.json', BASE)), get(new URL('stations.json', BASE)),
+    get(LAYERS_URL).catch(() => null),
+  ]);
   const byId = new Map(districts.districts.map((d) => [d.id, d]));
   const D = flows.districts.map((id, i) => ({ i, id, ...byId.get(id) }));
   const dIndex = new Map(D.map((d) => [d.id, d.i]));
   const S = stations.stations.map((s, i) => ({ i, ...s, di: dIndex.get(s.district) }));
-  // 每區每小時的真實進出人數（站層級總量，不受少於 10 人限制，AD-3）
-  const act = {}, ent = {}, ext = {};
+  // 每區、每站每小時的真實進出人數（站層級總量，不受少於 10 人限制，AD-3）
+  const act = {}, ent = {}, ext = {}, stAct = {};
   for (const day of ['weekday', 'holiday']) {
-    act[day] = []; ent[day] = []; ext[day] = [];
+    act[day] = []; ent[day] = []; ext[day] = []; stAct[day] = [];
     for (let h = 0; h < 24; h++) {
-      const a = new Array(D.length).fill(0), e = new Array(D.length).fill(0), x = new Array(D.length).fill(0);
+      const a = new Array(D.length).fill(0), e = new Array(D.length).fill(0), x = new Array(D.length).fill(0), sa = new Array(S.length).fill(0);
       for (const s of S) {
-        if (s.di === undefined) continue;
         const en = s[day].entries[h] || 0, ex = s[day].exits[h] || 0;
+        sa[s.i] = en + ex;
+        if (s.di === undefined) continue;
         e[s.di] += en; x[s.di] += ex; a[s.di] += en + ex;
       }
-      act[day].push(a); ent[day].push(e); ext[day].push(x);
+      act[day].push(a); ent[day].push(e); ext[day].push(x); stAct[day].push(sa);
     }
   }
-  let maxAct = 1, maxFlow = 1;
+  let maxAct = 1, maxFlow = 1, maxSt = 1;
   for (const day of ['weekday', 'holiday']) for (let h = 0; h < 24; h++) {
     for (const v of act[day][h]) maxAct = Math.max(maxAct, v);
+    for (const v of stAct[day][h]) maxSt = Math.max(maxSt, v);
     const M = flows[day][h]; if (!M) continue;
     M.forEach((row, i) => row.forEach((v, j) => { if (i !== j && v) maxFlow = Math.max(maxFlow, v); }));
   }
   const dayTotal = D.map((_, i) => act.weekday.reduce((s, a) => s + a[i], 0));
-  const maxDay = Math.max(...dayTotal);
+  const stDay = S.map((_, i) => stAct.weekday.reduce((s, a) => s + a[i], 0));
   // 投影：以這 21 區的範圍定原點與比例（AD-12 的 project()；正式版常數寫死在 projection.ts）
   let lo0 = Infinity, lo1 = -Infinity, la0 = Infinity, la1 = -Infinity;
   for (const d of D) for (const poly of d.polygon) for (const ring of poly) for (const [lo, la] of ring) {
@@ -365,7 +419,7 @@ async function loadData() {
   const lon0 = (lo0 + lo1) / 2, lat0 = (la0 + la1) / 2, kx = Math.cos(lat0 * Math.PI / 180);
   const scale = 100 / Math.max((lo1 - lo0) * kx, la1 - la0);
   const project = (lon, lat) => [(lon - lon0) * kx * scale, -(lat - lat0) * scale];
-  DATA = { D, S, flows, act, ent, ext, maxAct, maxFlow, dayTotal, maxDay, project, extent: [(lo1 - lo0) * kx * scale, (la1 - la0) * scale] };
+  DATA = { D, S, flows, layers, act, ent, ext, stAct, maxAct, maxFlow, maxSt, dayTotal, stDay, project, extent: [(lo1 - lo0) * kx * scale, (la1 - la0) * scale] };
   return DATA;
 }
 
@@ -374,18 +428,33 @@ const fmt = (n) => Math.round(n).toLocaleString('zh-TW');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const fract = (v) => v - Math.floor(v);
+const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const RUSH = (h) => (h >= 7 && h < 10) || (h >= 17 && h < 20);
+const shortName = (n) => n.replace(/區$/, '');
+// 太陽：2026 年 9 月臺北約 5:40 日出、18:00 日落（取整數小時附近即可，原型不追求天文精度）
+const RISE = 5.7, SET = 18.0;
+function sunState(h) {
+  const t = (h - RISE) / (SET - RISE);
+  const elev = Math.sin(Math.PI * t);                      // 白天為正，午夜接近 -1
+  const az = Math.PI * clamp(t, 0, 1);                     // 0＝東、π/2＝南、π＝西
+  const day = smooth(-0.08, 0.32, elev);
+  const night = 1 - smooth(-0.3, 0.06, elev);
+  const golden = clamp(1 - Math.abs(elev - 0.1) / 0.3, 0, 1) * (elev > -0.15 ? 1 : 0);
+  const twilight = clamp(1 - Math.abs(elev) / 0.32, 0, 1);
+  // 月亮：日落後從東邊升起，畫在天空另一段弧
+  const tn = fract((h - SET) / (24 - (SET - RISE)));
+  return { t, elev, az, day, night, golden, twilight, tn, isDay: elev > 0 };
+}
 
 function makeTokens() {
   const cs = getComputedStyle(document.documentElement);
   const cache = new Map();
   const raw = (name) => cs.getPropertyValue(name).trim();
   const color = (name) => {
-    if (!cache.has(name)) { const v = raw(name); cache.set(name, v ? new THREE.Color(v) : null); }
+    if (!cache.has(name)) { const v = raw(name); cache.set(name, v && !v.startsWith('rgba') ? new THREE.Color(v) : null); }
     return cache.get(name);
   };
-  const KEYS = [[0, 'night'], [5, 'night'], [6.5, 'dawn'], [9, 'day'], [16, 'day'], [18, 'dusk'], [19.5, 'night'], [24, 'night']];
-  // 依時刻在相鄰兩組 token 之間內插；沒有分時段的 token 全天共用
+  const KEYS = [[0, 'night'], [4.8, 'night'], [5.7, 'dawn'], [6.6, 'dawn'], [7.6, 'day'], [16.6, 'day'], [17.6, 'dusk'], [18.4, 'dusk'], [19.3, 'night'], [24, 'night']];
   const at = (name, h, out = new THREE.Color()) => {
     const plain = color(`--${name}`);
     let k = 0; while (k < KEYS.length - 2 && h >= KEYS[k + 1][0]) k++;
@@ -399,8 +468,7 @@ function makeTokens() {
 
 function hourTitle(data, day, h) {
   const hh = Math.floor(h) % 24;
-  if (!data.flows[day][hh]) return '停止營運';
-  if (hh === 5) return '第一班車';
+  if (!data.flows[day][hh] || hh === 5) return hh === 5 ? '第一班車前後' : '停止營運';
   if (hh === 6) return '城市醒來';
   if (hh >= 7 && hh < 10) return day === 'weekday' ? '早晨通勤尖峰' : '假日早晨';
   if (hh >= 10 && hh < 12) return '上午';
@@ -416,16 +484,28 @@ const ICON = {
   pause: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor"/></svg>',
   close: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
   route: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="12.5" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12.5" cy="3.5" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.3 11.4C8 9.5 6 6.5 10.7 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  layers: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8L14.5 5 8 8.2 1.5 5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M1.5 8L8 11.2 14.5 8M1.5 11L8 14.2 14.5 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>',
 };
 
-// ───────────────────────── 三個方向 ─────────────────────────
+// ───────────────────────── 三個版本 ─────────────────────────
+// 共用：疊圖、線寬圖例、流向（等比例線寬＋箭頭＋前三名數字）。差別只在日夜怎麼表現。
 const VARIANTS = [
-  { key: 'a', name: '晨昏微縮城', bloom: false, shadow: 'soft', pop: 'elastic.out(1.1, 0.4)', popDur: 0.7 },
-  { key: 'b', name: '夜光地景', bloom: true, shadow: 'none', pop: 'elastic.out(1.1, 0.4)', popDur: 0.7 },
-  { key: 'c', name: '紙模型城市', bloom: false, shadow: 'hard', pop: 'back.out(2)', popDur: 0.5 },
+  { key: 'a', name: '天光', toon: false, tone: THREE.NeutralToneMapping, exposure: [0.78, 1.0], bloom: 0, grade: false, tilt: false, cam: 'normal', shadowRadius: 5, sun: 2.4, hemi: [0.32, 1.05], moon: 0.55, winNight: 2.2 },
+  { key: 'b', name: '調色', toon: true, tone: THREE.NoToneMapping, exposure: [1, 1], bloom: 0.85, grade: true, tilt: false, cam: 'normal', shadowRadius: 2, sun: 1.5, hemi: [0.75, 1.1], moon: 0.6, winNight: 1.8 },
+  { key: 'c', name: '移軸', toon: false, tone: THREE.NeutralToneMapping, exposure: [0.8, 1.02], bloom: 0.55, grade: false, tilt: true, cam: 'low', shadowRadius: 7, sun: 2.6, hemi: [0.3, 0.95], moon: 0.5, winNight: 2.4 },
 ];
+const LAYER_DEFS = [
+  ['flow', '流向', '線寬依人數'],
+  ['rail', '捷運路線', ''],
+  ['station', '車站', '高度依進出人數'],
+  ['water', '河川', '僅臺北市'],
+  ['green', '公園綠地', '僅臺北市'],
+  ['building', '建築', '示意'],
+  ['label', '區名', ''],
+];
+const layerState = Object.fromEntries(LAYER_DEFS.map(([k]) => [k, true]));
 
-// ───────────────────────── 一個方向的完整場景與 HUD ─────────────────────────
+// ───────────────────────── 一個版本的完整場景與 HUD ─────────────────────────
 function startApp(stage, vi) {
   const V = VARIANTS[vi];
   document.documentElement.dataset.variant = V.key;
@@ -437,15 +517,24 @@ function startApp(stage, vi) {
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // 畫面狀態集中在這裡（正式版是 web/src/state/，AD-16）；動畫只改畫面
-  const S = { day: 'weekday', hour: 8, playing: !reduced, speed: 1, still: reduced, sel: -1, commute: null, focusArc: null, idleAt: 0 };
+  // 自動播放從清晨開始，前幾秒就看得到日出；減少動態時不播放，停在早上 8 點
+  const S = { day: 'weekday', hour: reduced ? 8 : 5.2, playing: !reduced, speed: 1, still: reduced, sel: -1, commute: null, focusArc: null, idleAt: 0 };
 
   const root = document.createElement('div');
   root.className = 'app';
   root.innerHTML = `
+    <div class="sky" aria-hidden="true"><div class="stars"></div><div class="sun"></div><div class="moon"></div></div>
     <canvas class="scene" aria-label="臺北捷運 ${MONTH} 各行政區之間的人潮流動"></canvas>
     <p class="loading">載入 ${MONTH} 資料中</p>
+    <div class="labels"></div>
     <div class="badge" hidden></div>
     <button class="hud commute-pill" type="button" aria-expanded="false">${ICON.route}找你的通勤</button>
+    <button class="hud layer-btn" type="button" aria-expanded="false" aria-label="圖層">${ICON.layers}</button>
+    <div class="hud layer-panel" hidden role="group" aria-label="圖層">
+      <h2>圖層</h2>
+      ${LAYER_DEFS.map(([k, n, sub]) => `<label><span class="sw ${k}">${k === 'label' ? '字' : ''}</span><span>${n}${sub ? ` <small>${sub}</small>` : ''}</span><input type="checkbox" data-layer="${k}" ${layerState[k] ? 'checked' : ''}></label>`).join('')}
+      <p class="src">捷運路線：臺北市政府捷運局路網圖。河川、綠地：臺北市政府工務局（新北各區尚未收錄）。建築為示意，位置貼近車站、數量依該區人數，不是真實建物。</p>
+    </div>
     <form class="hud commute-panel" hidden>
       <h2>你平常從哪站到哪站？</h2>
       <div class="row">
@@ -461,7 +550,7 @@ function startApp(stage, vi) {
     <section class="hud dock" aria-label="時間軸">
       <div class="top">
         <button class="play" type="button"></button>
-        <div class="clock"><span class="time num"></span><span class="phase"></span></div>
+        <div class="clock"><span class="time num"><i class="orb sun" aria-hidden="true"></i><span class="hm"></span></span><span class="phase"></span></div>
         <div class="seg" role="group" aria-label="日子"><button type="button" data-day="weekday">平日</button><button type="button" data-day="holiday">假日</button></div>
       </div>
       <div class="bottom">
@@ -469,6 +558,7 @@ function startApp(stage, vi) {
         <button class="mini" type="button" data-speed aria-label="播放速度">1x</button>
         <button class="mini" type="button" data-still aria-pressed="false">靜態模式</button>
       </div>
+      <div class="legend" aria-label="流向圖例"></div>
     </section>
     <section class="hud sheet" hidden aria-live="polite"></section>`;
   stage.appendChild(root);
@@ -483,60 +573,82 @@ function startApp(stage, vi) {
     $('.loading').remove();
     const T = makeTokens();
     const { D, S: ST, flows, project } = data;
+    const LY = data.layers?.districts || {};
 
     // ── renderer、相機 ──
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = V.bloom ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
-    if (V.shadow !== 'none') {
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
-    }
+    renderer.toneMapping = V.tone;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 900);
     const controls = new CameraControls(camera, canvas);
     controls.minDistance = 25; controls.maxDistance = 260; controls.maxPolarAngle = 1.32; controls.smoothTime = 0.35;
     const HOME = () => {
       const narrow = innerWidth / innerHeight < 0.8;
-      const d = narrow ? 190 : 150;
-      return [0, d * 0.64, d * 0.76, 0, 0, narrow ? 12 : 6];
+      const d = (narrow ? 208 : 172) * (V.cam === 'low' ? 0.92 : 1);
+      const [py, pz] = V.cam === 'low' ? [0.5, 0.87] : [0.64, 0.76];
+      return [0, d * py, d * pz, 0, 0, narrow ? 12 : 6];
     };
     controls.setLookAt(...HOME(), false);
 
-    let composer = null, bloom = null;
-    if (V.bloom) {
+    // ── 後製：B 調色、C 移軸 ──
+    let composer = null, bloom = null, grade = null, hTilt = null, vTilt = null;
+    if (V.grade || V.tilt || V.bloom) {
       composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
-      bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 1.05, 0.55, 0.62);
+      bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0, 0.5, 0.78);
       composer.addPass(bloom);
       composer.addPass(new OutputPass());
+      if (V.grade) {
+        grade = new ShaderPass({
+          uniforms: { tDiffuse: { value: null }, uLift: { value: new THREE.Color() }, uGain: { value: new THREE.Color(1, 1, 1) }, uSat: { value: 1 }, uVig: { value: 0.3 } },
+          vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+          fragmentShader: `uniform sampler2D tDiffuse; uniform vec3 uLift; uniform vec3 uGain; uniform float uSat; uniform float uVig; varying vec2 vUv;
+            void main(){
+              vec4 src = texture2D(tDiffuse, vUv);
+              vec3 c = src.rgb;
+              c = uGain * (c + uLift * 0.16 * (1.0 - c));
+              float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+              c = mix(vec3(l), c, uSat);
+              float d = distance(vUv, vec2(0.5));
+              c *= mix(1.0, smoothstep(0.95, 0.3, d), uVig);
+              gl_FragColor = vec4(c, src.a);
+            }`,
+        });
+        composer.addPass(grade);
+      }
+      if (V.tilt) {
+        hTilt = new ShaderPass(HorizontalTiltShiftShader); vTilt = new ShaderPass(VerticalTiltShiftShader);
+        hTilt.uniforms.r.value = vTilt.uniforms.r.value = 0.5;
+        composer.addPass(hTilt); composer.addPass(vTilt);
+      }
     }
 
-    // ── 光 ──
+    // ── 光：太陽（白天）／月亮（夜裡）共用一盞會投影的平行光，加天空半球光 ──
     const hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 1);
     const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-    sun.castShadow = V.shadow !== 'none';
-    sun.shadow.mapSize.set(V.shadow === 'hard' ? 2048 : 1024, V.shadow === 'hard' ? 2048 : 1024);
-    Object.assign(sun.shadow.camera, { left: -80, right: 80, top: 80, bottom: -80, near: 1, far: 400 });
-    sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
-    if (V.shadow === 'soft') sun.shadow.radius = 4;
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -78, right: 78, top: 78, bottom: -78, near: 1, far: 420 });
+    sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03; sun.shadow.radius = V.shadowRadius;
+    sun.shadow.camera.updateProjectionMatrix();
     scene.add(hemi, sun, sun.target);
 
-    // ── 紙張顆粒（C）：灰階噪點貼圖，顏色仍由材質的 token 決定 ──
-    let paperTex = null;
-    if (V.key === 'c') {
-      const cv = document.createElement('canvas'); cv.width = cv.height = 128;
-      const g = cv.getContext('2d'); const img = g.createImageData(128, 128);
-      for (let i = 0; i < img.data.length; i += 4) { const n = 225 + Math.random() * 30; img.data[i] = img.data[i + 1] = img.data[i + 2] = n; img.data[i + 3] = 255; }
-      g.putImageData(img, 0, 0);
-      paperTex = new THREE.CanvasTexture(cv); paperTex.wrapS = paperTex.wrapT = THREE.RepeatWrapping; paperTex.repeat.set(0.08, 0.08);
-      paperTex.colorSpace = THREE.SRGBColorSpace;
+    // 三階卡通光（B）
+    let ramp = null;
+    if (V.toon) {
+      ramp = new THREE.DataTexture(new Uint8Array([90, 170, 255]), 3, 1, THREE.RedFormat);
+      ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
     }
-    const mat = (opts = {}) => {
-      if (V.key === 'c') return new THREE.MeshLambertMaterial({ map: paperTex, ...opts });
-      return new THREE.MeshStandardMaterial({ roughness: V.key === 'a' ? 0.92 : 0.55, metalness: V.key === 'b' ? 0.15 : 0, ...opts });
-    };
+    const surf = (opts = {}) => V.toon
+      ? new THREE.MeshToonMaterial({ gradientMap: ramp, ...opts })
+      : new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...opts });
+    const phased = [];   // [material, 'color'|'emissive', token]
+    const tok = (m, token, prop = 'color') => { phased.push([m, prop, token]); return m; };
 
     // ── 沙盤底座 ──
     const [ex, ez] = data.extent;
@@ -545,126 +657,143 @@ function startApp(stage, vi) {
       s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r);
       s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
       s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
-    const plinth = new THREE.Group(); scene.add(plinth);
-    const plinthMats = [];
-    const layer = (w, d, t, y, colorToken, sideToken) => {
-      const g = new THREE.ExtrudeGeometry(rr(w, d, 5), { depth: t, bevelEnabled: true, bevelThickness: 0.6, bevelSize: 0.6, bevelSegments: 3, curveSegments: 10 });
-      g.rotateX(-Math.PI / 2); g.translate(0, y - t - 0.6, 0);
-      const top = mat({ color: T.at(colorToken, 8) }), side = mat({ color: T.at(sideToken, 8) });
-      const m = new THREE.Mesh(g, [top, side]); m.receiveShadow = true; m.castShadow = V.shadow === 'hard';
-      plinthMats.push([top, colorToken], [side, sideToken]); plinth.add(m); return m;
-    };
-    if (V.key === 'c') {
-      layer(PW + 8, PD + 8, 1.6, -3.4, 'plinth-3', 'plinth-side');
-      layer(PW + 4, PD + 4, 1.6, -1.7, 'plinth-2', 'plinth-side');
-      layer(PW, PD, 1.6, 0, 'plinth', 'plinth-side');
-    } else layer(PW, PD, PT, 0, 'plinth', 'plinth-side');
-    // 底座頂面的細刻度：畫在貼圖上，顏色取 token
     {
-      const cv = document.createElement('canvas'); cv.width = cv.height = 512; const g = cv.getContext('2d');
-      g.strokeStyle = T.css('--plinth-line'); g.globalAlpha = V.key === 'b' ? 0.9 : 0.55; g.lineWidth = 1;
-      for (let i = 0; i <= 512; i += 32) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 512); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(512, i); g.stroke(); }
+      const g = new THREE.ExtrudeGeometry(rr(PW, PD, 5), { depth: PT, bevelEnabled: true, bevelThickness: 0.6, bevelSize: 0.6, bevelSegments: 3, curveSegments: 10 });
+      g.rotateX(-Math.PI / 2); g.translate(0, -PT - 0.6, 0);
+      const m = new THREE.Mesh(g, [tok(surf(), 'plinth'), tok(surf(), 'plinth-side')]); m.receiveShadow = true; scene.add(m);
+      const cv = document.createElement('canvas'); cv.width = cv.height = 512; const c2 = cv.getContext('2d');
+      c2.strokeStyle = T.css('--plinth-line'); c2.globalAlpha = 0.6; c2.lineWidth = 1;
+      for (let i = 0; i <= 512; i += 32) { c2.beginPath(); c2.moveTo(i, 0); c2.lineTo(i, 512); c2.stroke(); c2.beginPath(); c2.moveTo(0, i); c2.lineTo(512, i); c2.stroke(); }
       const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-      const grid = new THREE.Mesh(new THREE.PlaneGeometry(PW - 2, PD - 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: V.key === 'b' ? 0.35 : 0.22, depthWrite: false }));
-      grid.rotation.x = -Math.PI / 2; grid.position.y = 0.02; grid.renderOrder = 1; plinth.add(grid);
+      const grid = new THREE.Mesh(new THREE.PlaneGeometry(PW - 2, PD - 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.22, depthWrite: false }));
+      grid.rotation.x = -Math.PI / 2; grid.position.y = 0.02; grid.renderOrder = 1; scene.add(grid);
     }
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(400, 64), mat({ color: T.at('ground', 8) }));
-    ground.rotation.x = -Math.PI / 2; ground.position.y = V.key === 'c' ? -6.25 : -(PT + 1.25); ground.receiveShadow = true; scene.add(ground);
+    // 底座下的柔影（沙盤浮在天空前，不再鋪一整片地面擋住天色）
+    const blob = (() => {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
+      const gr = g.createRadialGradient(64, 64, 10, 64, 64, 64); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(PW * 1.5, PD * 1.5), new THREE.MeshBasicMaterial({ color: T.color('--shadow'), alphaMap: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, opacity: 0.4 }));
+      m.rotation.x = -Math.PI / 2; m.position.y = -PT - 3; scene.add(m); return m;
+    })();
 
-    // ── 行政區地塊 ──
-    const sk = Math.max(...D.map((d) => data.dayTotal[d.i]));
+    // ── 窗戶貼圖：只當發光貼圖，牆面顏色仍由 token 決定 ──
+    const winTex = (() => {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d');
+      g.fillStyle = '#000'; g.fillRect(0, 0, 64, 64);
+      for (let y = 6; y < 60; y += 10) for (let x = 6; x < 60; x += 10) if (Math.random() < 0.62) { g.fillStyle = '#fff'; g.fillRect(x, y, 5, 6); }
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+
+    // ── 行政區：薄地塊＋這區的河川、綠地、捷運路線、建築都放在同一個 group，點選時一起彈起 ──
+    const TILE_TOP = 1.16;
+    const inside = (p, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const a = poly[i], b = poly[j]; if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) c = !c; } return c; };
+    const toV2 = (ring) => ring.map(([lo, la]) => { const [x, z] = project(lo, la); return new THREE.Vector2(x, -z); });
+    const shapeOf = (poly) => { const s = new THREE.Shape(toV2(poly[0])); for (const h of poly.slice(1)) s.holes.push(new THREE.Path(toV2(h))); return s; };
+    const stByD = D.map((d) => ST.filter((s) => s.di === d.i));
+    const maxDay = Math.max(...data.dayTotal);
     const DIST = D.map((d) => {
-      const shapes = [];
       const [cx, cz] = project(...d.centroid);
-      for (const poly of d.polygon) {
-        const ring = (r) => r.map(([lo, la]) => { const [x, z] = project(lo, la); return new THREE.Vector2(cx + (x - cx) * 0.982, -(cz + (z - cz) * 0.982)); });
-        const sh = new THREE.Shape(ring(poly[0]));
-        for (const hole of poly.slice(1)) sh.holes.push(new THREE.Path(ring(hole)));
-        shapes.push(sh);
-      }
-      const geo = new THREE.ExtrudeGeometry(shapes, { depth: 1, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.12, bevelSegments: 2, curveSegments: 2 });
+      const group = new THREE.Group(); scene.add(group);
+      const shapes = d.polygon.map((poly) => {
+        const ring = (r) => r.map(([lo, la]) => { const [x, z] = project(lo, la); return new THREE.Vector2(cx + (x - cx) * 0.992, -(cz + (z - cz) * 0.992)); });
+        const sh = new THREE.Shape(ring(poly[0])); for (const hole of poly.slice(1)) sh.holes.push(new THREE.Path(ring(hole))); return sh;
+      });
+      const geo = new THREE.ExtrudeGeometry(shapes, { depth: 1, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.1, bevelSegments: 2, curveSegments: 2 });
       geo.rotateX(-Math.PI / 2); geo.translate(0, 0.08, 0);
-      const m = mat({ color: T.at('district', 8), transparent: true, opacity: 1 });
-      if (V.key === 'b') { m.emissive = T.color('--district-glow'); m.emissiveIntensity = 0; }
-      const mesh = new THREE.Mesh(geo, m); mesh.castShadow = V.shadow !== 'none'; mesh.receiveShadow = true;
-      const group = new THREE.Group(); group.add(mesh); scene.add(group);
-      mesh.userData.di = d.i;
-      let edge = null;
-      if (V.key === 'b') {
-        const eg = new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(geo, 35));
-        edge = new LineSegments2(eg, new LineMaterial({ color: T.color('--edge'), linewidth: 1.4, transparent: true, opacity: 0.9 }));
-        mesh.add(edge);
+      const mats = [];
+      const M = (m) => { mats.push(m); return m; };
+      const tileTop = M(tok(surf(), 'tile')), tileSide = M(tok(surf(), 'tile-side'));
+      const mesh = new THREE.Mesh(geo, [tileTop, tileSide]); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.di = d.i;
+      group.add(mesh);
+      const L = LY[d.id] || { water: [], green: [], rail: [] };
+      const flat = (polys, token, y, off) => {
+        if (!polys.length) return null;
+        const g = new THREE.ShapeGeometry(polys.map(shapeOf), 1); g.rotateX(-Math.PI / 2); g.translate(0, y, 0);
+        const m = M(tok(surf({ polygonOffset: true, polygonOffsetFactor: off, polygonOffsetUnits: off }), token));
+        const ms = new THREE.Mesh(g, m); ms.receiveShadow = true; group.add(ms); return ms;
+      };
+      const water = flat(L.water, 'water', TILE_TOP + 0.004, -2);
+      const green = flat(L.green, 'green', TILE_TOP + 0.008, -3);
+      let rail = null;
+      if (L.rail.length) {
+        const pos = [], col = [], c = new THREE.Color();
+        for (const r of L.rail) {
+          c.copy(T.color(`--line-${r.line.toLowerCase().replace('-', '')}`));
+          for (let k = 0; k < r.coords.length - 1; k++) {
+            const [x0, z0] = project(...r.coords[k]), [x1, z1] = project(...r.coords[k + 1]);
+            pos.push(x0, TILE_TOP + 0.09, z0, x1, TILE_TOP + 0.09, z1); col.push(c.r, c.g, c.b, c.r, c.g, c.b);
+          }
+        }
+        const g = new LineSegmentsGeometry(); g.setPositions(pos); g.setColors(col);
+        const m = new LineMaterial({ vertexColors: true, linewidth: 0.34, worldUnits: true, transparent: true, opacity: 1 });
+        rail = new LineSegments2(g, m); group.add(rail);
       }
-      // 地標積木：只是裝飾，高度不代表真實建築；密度隨該區全日人數
-      const outer = shapes[0].getPoints(); const bb = new THREE.Box2().setFromPoints(outer);
-      const nProps = 3 + Math.round(15 * Math.sqrt(data.dayTotal[d.i] / sk));
-      let pg;
-      if (V.key === 'c') { pg = new THREE.ConeGeometry(0.55, 1, 3); pg.translate(0, 0.5, 0); }
-      else { pg = new THREE.BoxGeometry(1, 1, 1); pg.translate(0, 0.5, 0); }
-      const pm = mat({ color: T.at('prop', 8) });
-      if (V.key !== 'c') { pm.emissive = T.color('--window'); pm.emissiveIntensity = 0; }
-      const props = new THREE.InstancedMesh(pg, pm, nProps); props.castShadow = V.shadow !== 'none'; props.receiveShadow = true;
+      // 建築（示意）：貼近這區的真實車站位置、數量依全日人數；高度跟著當下進出人數起伏（整區同一倍率）
+      const outer = shapes[0].getPoints();
+      const waterRings = L.water.map((p) => toV2(p[0]));
+      const nB = 8 + Math.round(46 * Math.sqrt(data.dayTotal[d.i] / maxDay));
+      const bGeo = new THREE.BoxGeometry(1, 1, 1); bGeo.translate(0, 0.5, 0);
+      const wall = M(tok(tok(surf({ emissiveMap: winTex, emissive: 0xffffff, emissiveIntensity: 0 }), 'building'), 'window', 'emissive'));
+      const roof = M(tok(surf(), 'roof'));
+      const bld = new THREE.InstancedMesh(bGeo, [wall, wall, roof, roof, wall, wall], nB); bld.castShadow = true; bld.receiveShadow = true;
       const dummy = new THREE.Object3D(); let placed = 0, tries = 0;
-      const inside = (p, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        const a = poly[i], b = poly[j]; if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) c = !c; } return c; };
-      // 地標偏向區的中心（多數車站在那附近），不在山區邊緣
-      while (placed < nProps && tries < 600) {
+      const sts = stByD[d.i]; const wsum = sts.reduce((s, x) => s + data.stDay[x.i] + 1, 0);
+      const bb = new THREE.Box2().setFromPoints(outer);
+      while (placed < nB && tries < 1500) {
         tries++;
-        const r = Math.sqrt(Math.random()) * 0.45;
-        const ang = Math.random() * Math.PI * 2;
-        const p = new THREE.Vector2(cx + Math.cos(ang) * r * (bb.max.x - bb.min.x), -cz + Math.sin(ang) * r * (bb.max.y - bb.min.y));
-        if (!inside(p, outer)) continue;
-        const w = 0.5 + Math.random() * 0.7, h = 0.4 + Math.random() * 1.3;
-        dummy.position.set(p.x, 0, -p.y); dummy.scale.set(w, h, w); dummy.rotation.y = Math.random() * Math.PI; dummy.updateMatrix();
-        props.setMatrixAt(placed++, dummy.matrix);
+        let px, pz;
+        if (sts.length) {
+          let r = Math.random() * wsum, s = sts[0]; for (const x of sts) { r -= data.stDay[x.i] + 1; if (r <= 0) { s = x; break; } }
+          const [sx, sz] = project(+s.lon, +s.lat); const rad = 0.6 + Math.abs(Math.random() + Math.random() - 1) * 2.6, ang = Math.random() * Math.PI * 2;
+          px = sx + Math.cos(ang) * rad; pz = sz + Math.sin(ang) * rad;
+        } else { px = bb.min.x + Math.random() * (bb.max.x - bb.min.x); pz = -(bb.min.y + Math.random() * (bb.max.y - bb.min.y)); }
+        const p = new THREE.Vector2(px, -pz);
+        if (!inside(p, outer) || waterRings.some((w) => inside(p, w))) continue;
+        const w = 0.42 + Math.random() * 0.42, h = 0.35 + Math.random() * Math.random() * 1.7;
+        dummy.position.set(px, 0, pz); dummy.scale.set(w, h, w * (0.8 + Math.random() * 0.5)); dummy.rotation.y = Math.random() * Math.PI; dummy.updateMatrix();
+        bld.setMatrixAt(placed++, dummy.matrix);
       }
-      props.count = placed; scene.add(props);
-      return { d, group, mesh, mat: m, edge, props, propMat: pm, cx, cz, height: 1, lift: 0, fade: 1, rise: reduced ? 1 : 0, top: 1 };
+      bld.count = placed; bld.position.y = TILE_TOP; group.add(bld);
+      return { d, group, mesh, mats, water, green, rail, bld, cx, cz, lift: 0, liftTo: 0, fade: 1, rise: reduced ? 1 : 0 };
     });
+    // 進場：地塊與建築依序長出來
+    if (!reduced) DIST.forEach((x, k) => tw(gsap.to(x, { rise: 1, duration: 0.9, delay: 0.15 + k * 0.035, ease: 'power3.out' })));
 
-    // 進場：地塊依序長出來（replay 會重跑）
-    if (!reduced) DIST.forEach((x, k) => tw(gsap.to(x, { rise: 1, duration: 0.9, delay: 0.15 + k * 0.035, ease: V.key === 'c' ? 'back.out(2)' : 'power3.out' })));
-
-    // ── 車站（選了行政區或通勤時才浮出）──
-    const stGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.5, 14); stGeo.translate(0, 0.25, 0);
-    const stations = new THREE.InstancedMesh(stGeo, new THREE.MeshBasicMaterial({ color: T.color('--station') }), ST.length);
-    stations.frustumCulled = false; scene.add(stations);
+    // ── 車站：高度依這一小時的真實進出人數，夜裡發光 ──
+    const stGeo = new THREE.CylinderGeometry(0.26, 0.26, 1, 12); stGeo.translate(0, 0.5, 0);
+    const stMat = tok(tok(surf({ emissive: 0xffffff, emissiveIntensity: 0 }), 'station'), 'station-glow', 'emissive');
+    const stations = new THREE.InstancedMesh(stGeo, stMat, ST.length);
+    stations.frustumCulled = false; stations.castShadow = true; scene.add(stations);
     const stPos = ST.map((s) => project(+s.lon, +s.lat));
 
-    // ── 流向：弧線、粒子、落點漣漪 ──
-    const arcGroup = new THREE.Group(); scene.add(arcGroup);
+    // ── 流向：等比例線寬的緞帶＋箭頭、粒子、落點漣漪 ──
+    const flowGroup = new THREE.Group(); scene.add(flowGroup);
     let arcs = [];
     const CAP = 2600;
-    let pGeo;
-    if (V.key === 'a') { pGeo = new THREE.CapsuleGeometry(0.16, 0.5, 3, 8); pGeo.rotateX(Math.PI / 2); }
-    else if (V.key === 'b') pGeo = new THREE.SphereGeometry(0.2, 10, 8);
-    else {
-      pGeo = new THREE.BufferGeometry();
-      pGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.55, -0.42, 0, -0.42, 0, 0.02, -0.25, 0, 0, 0.55, 0, 0.02, -0.25, 0.42, 0, -0.42, 0, 0, 0.55, 0, -0.16, -0.38, 0, 0.02, -0.25], 3));
-      pGeo.computeVertexNormals();
-    }
-    const pMat = V.key === 'b'
-      ? new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
-      : V.key === 'a' ? new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, emissive: 0xffffff, emissiveIntensity: 0.25 })
-      : new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-    const particles = new THREE.InstancedMesh(pGeo, pMat, CAP);
-    particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage); particles.frustumCulled = false;
-    particles.castShadow = V.key === 'c';
-    particles.setColorAt(0, new THREE.Color()); scene.add(particles);
+    const W_MIN = 0.28, W_MAX = 2.9;
+    const widthOf = (v) => W_MIN + (W_MAX - W_MIN) * clamp(v / data.maxFlow, 0, 1);   // 線寬與人數成正比（加最小寬度讓小流向看得到）
+    // 緞帶上的雪佛龍紋：基底 0.78 灰、箭紋全亮，乘上流向顏色；捲動表示方向
+    const chevTex = (() => {
+      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 32; const g = cv.getContext('2d');
+      g.fillStyle = 'rgb(199,199,199)'; g.fillRect(0, 0, 64, 32); g.fillStyle = '#fff';
+      g.beginPath(); g.moveTo(10, 3); g.lineTo(28, 16); g.lineTo(10, 29); g.lineTo(18, 16); g.closePath(); g.fill();
+      const t = new THREE.CanvasTexture(cv); t.wrapS = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const pGeo = new THREE.CapsuleGeometry(0.14, 0.42, 3, 8); pGeo.rotateX(Math.PI / 2);
+    const particleHi = T.color('--particle-hi');
+    const particles = new THREE.InstancedMesh(pGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), CAP);
+    particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage); particles.frustumCulled = false; particles.renderOrder = 6;
+    particles.setColorAt(0, new THREE.Color()); flowGroup.add(particles);
     const ringGeo = new THREE.RingGeometry(0.75, 1, 40); ringGeo.rotateX(-Math.PI / 2);
     const rings = Array.from({ length: 16 }, () => {
-      const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: T.color('--ripple'), transparent: true, depthWrite: false, blending: V.key === 'b' ? THREE.AdditiveBlending : THREE.NormalBlending }));
-      r.renderOrder = 3; r.visible = false; scene.add(r); return r;
+      const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: T.color('--ripple'), transparent: true, depthWrite: false }));
+      r.renderOrder = 3; r.visible = false; flowGroup.add(r); return r;
     });
-    let scan = null;
-    if (V.key === 'b') {
-      scan = new THREE.Mesh(new THREE.RingGeometry(0.96, 1, 96).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ color: T.color('--scan'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-      scan.position.y = 0.05; scene.add(scan);
-    }
 
-    const topOf = (di) => { const x = DIST[di]; return x.group.position.y + 1.16 * x.mesh.scale.y; };
-    const P = new THREE.Vector3(), TAN = new THREE.Vector3(), tmpC = new THREE.Color(), tmpC2 = new THREE.Color();
+    const topOf = (di, useTarget = false) => (useTarget ? DIST[di].liftTo : DIST[di].group.position.y) + TILE_TOP;
+    const P = new THREE.Vector3(), TAN = new THREE.Vector3(), SIDE = new THREE.Vector3(), Q = new THREE.Vector3(), tmpC = new THREE.Color(), tmpC2 = new THREE.Color();
     const bez = (a, u, out) => {
       const v = 1 - u;
       return out.set(v * v * a.p0.x + 2 * v * u * a.p1.x + u * u * a.p2.x, v * v * a.p0.y + 2 * v * u * a.p1.y + u * u * a.p2.y, v * v * a.p0.z + 2 * v * u * a.p1.z + u * u * a.p2.z);
@@ -674,36 +803,62 @@ function startApp(stage, vi) {
       2 * (1 - u) * (a.p1.y - a.p0.y) + 2 * u * (a.p2.y - a.p1.y),
       2 * (1 - u) * (a.p1.z - a.p0.z) + 2 * u * (a.p2.z - a.p1.z)).normalize();
 
-    // 目前要畫的流向：沒選區時取全城前 28 組；選了區只留這區前 5 個去哪、前 5 個誰來
+    // 目前要畫的流向：沒選區時取全城前 12 組；選了區只留這區前 5 個去哪、前 5 個誰來；點過的那條一定畫
+    function allPairs(hh) {
+      const M = flows[S.day][hh], all = [];
+      if (M) M.forEach((row, i) => row.forEach((v, j) => { if (i !== j && v) all.push({ key: `${i}>${j}`, from: i, to: j, v }); }));
+      return all.sort((a, b) => b.v - a.v);
+    }
     function activeFlows() {
+      if (S.commute) return [{ ...S.commute.arc, kind: 'commute' }];
       const hh = Math.floor(S.hour) % 24, M = flows[S.day][hh];
       const list = [];
-      if (M) {
-        if (S.sel >= 0) {
-          const i = S.sel;
-          const out = M[i].map((v, j) => [j, v]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]).slice(0, 5);
-          const inn = M.map((row, j) => [j, row[i]]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]).slice(0, 5);
-          out.forEach(([j, v]) => list.push({ key: `${i}>${j}`, from: i, to: j, v, kind: 'out' }));
-          inn.forEach(([j, v]) => list.push({ key: `${j}>${i}`, from: j, to: i, v, kind: 'in' }));
-        } else {
-          const all = [];
-          M.forEach((row, i) => row.forEach((v, j) => { if (i !== j && v) all.push({ key: `${i}>${j}`, from: i, to: j, v, kind: 'neutral' }); }));
-          all.sort((a, b) => b.v - a.v); list.push(...all.slice(0, 28));
-        }
+      if (!M) return list;
+      if (S.sel >= 0) {
+        const i = S.sel;
+        const out = M[i].map((v, j) => [j, v]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const inn = M.map((row, j) => [j, row[i]]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        out.forEach(([j, v]) => list.push({ key: `${i}>${j}`, from: i, to: j, v, kind: 'out' }));
+        inn.forEach(([j, v]) => list.push({ key: `${j}>${i}`, from: j, to: i, v, kind: 'in' }));
+      } else {
+        list.push(...allPairs(hh).slice(0, 12).map((f) => ({ ...f, kind: 'neutral' })));
       }
-      if (S.commute) return [{ ...S.commute.arc, kind: 'commute' }];
+      if (S.focusArc && !list.some((a) => a.key === S.focusArc)) {
+        const [i, j] = S.focusArc.split('>').map(Number); const v = M[i]?.[j];
+        if (v) list.push({ key: S.focusArc, from: i, to: j, v, kind: 'neutral' });
+      }
       return list;
     }
-
-    function disposeArc(a) { if (!a.obj) return; arcGroup.remove(a.obj); a.obj.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); }); }
-    const widthOf = (v) => {
-      if (S.still) { const t = v / data.maxFlow; return t > 0.35 ? 0.85 : t > 0.12 ? 0.5 : 0.25; }
-      return 0.12 + 0.6 * Math.sqrt(v / data.maxFlow);
-    };
     const kindColor = (k) => T.color(k === 'in' ? '--flow-in' : k === 'out' ? '--flow-out' : k === 'commute' ? '--commute' : '--flow-neutral');
+    function disposeArc(a) { if (!a.obj) return; flowGroup.remove(a.obj); a.obj.geometry.dispose(); a.mats.forEach((m) => m.dispose()); }
 
-    // 每到整點、換日子、選區或通勤時重建弧線（端點跟著地塊高度）
-    let arcSig = '';
+    // 緞帶：水平攤平、寬度＝widthOf(人數)，尾端接一個放大的箭頭（細流向的箭頭也看得到）
+    function ribbonGeometry(a) {
+      const N = 44, u0 = 0.05, u1 = 0.84, u2 = 0.955;
+      const pos = [], uv = [], idx = [];
+      let acc = 0; const prev = new THREE.Vector3(); const lastSide = new THREE.Vector3(1, 0, 0);
+      const sideAt = (u) => { bezTan(a, u, TAN); SIDE.set(-TAN.z, 0, TAN.x); if (SIDE.lengthSq() < 1e-6) SIDE.copy(lastSide); SIDE.normalize(); lastSide.copy(SIDE); return SIDE; };
+      const period = a.w * 2.4 + 0.8;
+      for (let k = 0; k <= N; k++) {
+        const u = u0 + (u1 - u0) * (k / N); bez(a, u, P); sideAt(u);
+        if (k) acc += P.distanceTo(prev); prev.copy(P);
+        const hw = a.w / 2;
+        pos.push(P.x + SIDE.x * hw, P.y, P.z + SIDE.z * hw, P.x - SIDE.x * hw, P.y, P.z - SIDE.z * hw);
+        uv.push(acc / period, 0, acc / period, 1);
+        if (k < N) { const b = k * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+      }
+      const g = new THREE.BufferGeometry();
+      const base = pos.length / 3; bez(a, u1, P); sideAt(u1); const hh = a.w * 0.95 + 0.38; bez(a, u2, Q);
+      pos.push(P.x + SIDE.x * hh, P.y, P.z + SIDE.z * hh, P.x - SIDE.x * hh, P.y, P.z - SIDE.z * hh, Q.x, Q.y, Q.z);
+      uv.push(0, 0, 0, 1, 0, 0.5);
+      const bodyCount = idx.length; idx.push(base, base + 1, base + 2);
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+      g.addGroup(0, bodyCount, 0); g.addGroup(bodyCount, 3, 1);
+      g.computeBoundingSphere();
+      return g;
+    }
+
+    let arcSig = '', PPL = 50, legendVals = [];
     function rebuildArcs() {
       arcs.forEach(disposeArc);
       const list = activeFlows();
@@ -711,116 +866,109 @@ function startApp(stage, vi) {
         const a = { ...f };
         if (f.kind === 'commute') {
           const [ox, oz] = stPos[f.o], [dx, dz] = stPos[f.d];
-          a.p0 = new THREE.Vector3(ox, topOf(ST[f.o].di) + 0.5, oz); a.p2 = new THREE.Vector3(dx, topOf(ST[f.d].di) + 0.5, dz);
+          a.p0 = new THREE.Vector3(ox, topOf(ST[f.o].di, true) + 0.6, oz); a.p2 = new THREE.Vector3(dx, topOf(ST[f.d].di, true) + 0.6, dz);
         } else {
-          a.p0 = new THREE.Vector3(DIST[f.from].cx, topOf(f.from) + 0.2, DIST[f.from].cz);
-          a.p2 = new THREE.Vector3(DIST[f.to].cx, topOf(f.to) + 0.2, DIST[f.to].cz);
+          a.p0 = new THREE.Vector3(DIST[f.from].cx, topOf(f.from, true) + 0.3, DIST[f.from].cz);
+          a.p2 = new THREE.Vector3(DIST[f.to].cx, topOf(f.to, true) + 0.3, DIST[f.to].cz);
         }
         const dist = a.p0.distanceTo(a.p2);
-        a.p1 = a.p0.clone().lerp(a.p2, 0.5); a.p1.y = Math.max(a.p0.y, a.p2.y) + 3 + dist * 0.33;
-        a.w = f.kind === 'commute' ? 0.7 : widthOf(f.v);
+        a.len = dist * 1.15 + 1;
+        a.p1 = a.p0.clone().lerp(a.p2, 0.5); a.p1.y = Math.max(a.p0.y, a.p2.y) + 2.5 + dist * 0.32;
+        a.w = widthOf(f.v);
         a.color = kindColor(f.kind);
-        a.phase = ((f.from ?? 0) * 0.137 + (f.to ?? 0) * 0.291) % 1;
-        a.speedJit = 0.85 + ((f.from ?? 3) * 7 + (f.to ?? 5) * 13) % 10 * 0.03;
-        const curve = new THREE.QuadraticBezierCurve3(a.p0, a.p1, a.p2);
+        a.phase = ((f.from ?? f.o ?? 0) * 0.137 + (f.to ?? f.d ?? 0) * 0.291) % 1;
         const dimmed = S.focusArc && S.focusArc !== a.key && a.kind !== 'commute';
-        if (V.key === 'b') {
-          const geo = new THREE.TubeGeometry(curve, 48, a.w * 0.45, 6, false);
-          const m = new THREE.ShaderMaterial({
-            transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-            uniforms: { uTime: { value: 0 }, uColor: { value: a.color }, uSpeed: { value: 0.6 }, uAlpha: { value: dimmed ? 0.25 : 1 }, uStill: { value: S.still ? 1 : 0 } },
-            vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-            fragmentShader: `uniform float uTime; uniform vec3 uColor; uniform float uSpeed; uniform float uAlpha; uniform float uStill; varying vec2 vUv;
-              void main(){
-                float ends = smoothstep(0.0, 0.08, vUv.x) * smoothstep(1.0, 0.9, vUv.x);
-                float wave = pow(fract(vUv.x * 3.0 - uTime * uSpeed), 3.0);
-                float a = mix(0.18 + 0.82 * wave, 0.55, uStill) * ends * uAlpha;
-                gl_FragColor = vec4(uColor * (0.6 + 1.4 * wave * (1.0 - uStill)), a);
-              }`,
-          });
-          a.obj = new THREE.Mesh(geo, m); a.shader = m;
-        } else if (V.key === 'c') {
-          // 紙緞帶：沿弧線的扁平帶子，表面的壓紋箭頭隨流向捲動
-          const N = 40, pos = [], uv = [], idx = [];
-          for (let k = 0; k <= N; k++) {
-            const u = k / N; const p = curve.getPoint(u), t = curve.getTangent(u);
-            const side = new THREE.Vector3(-t.z, 0, t.x).normalize().multiplyScalar(a.w * 0.6);
-            pos.push(p.x + side.x, p.y + 0.02, p.z + side.z, p.x - side.x, p.y - 0.02, p.z - side.z);
-            uv.push(u * dist / 3, 0, u * dist / 3, 1);
-            if (k < N) { const b = k * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
-          }
-          const geo = new THREE.BufferGeometry();
-          geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-          geo.setIndex(idx); geo.computeVertexNormals();
-          const m = new THREE.MeshLambertMaterial({ color: a.color, map: arrowTex, side: THREE.DoubleSide, transparent: true, opacity: dimmed ? 0.3 : 1 });
-          const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; mesh.receiveShadow = true; a.obj = mesh; a.ribbon = m;
-        } else {
-          const pts = curve.getPoints(40).flatMap((p) => [p.x, p.y, p.z]);
-          const g = new LineGeometry(); g.setPositions(pts);
-          const m = new LineMaterial({ color: a.kind === 'neutral' ? T.color('--flow-rail') : a.color, linewidth: a.w * 0.55, worldUnits: true, transparent: true,
-            opacity: dimmed ? 0.12 : S.still ? 0.85 : a.kind === 'neutral' ? 0.35 : 0.55, depthWrite: false });
-          a.obj = new Line2(g, m); a.obj.computeLineDistances(); a.line = m;
-        }
-        arcGroup.add(a.obj);
+        const op = dimmed ? 0.22 : 0.92;
+        const body = new THREE.MeshBasicMaterial({ color: a.color, map: chevTex, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false });
+        const head = new THREE.MeshBasicMaterial({ color: a.color, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false });
+        a.mats = [body, head];
+        a.obj = new THREE.Mesh(ribbonGeometry(a), a.mats); a.obj.userData.arc = a;
+        a.obj.renderOrder = 4 + (1 - a.w / W_MAX);   // 粗的先畫、細的疊在上面
+        flowGroup.add(a.obj);
         return a;
       });
-      // 粒子分配：同時最多 CAP 顆，依人數分到各弧線
-      const tot = arcs.reduce((s, a) => s + a.v, 0) || 1;
-      let left = CAP;
-      for (const a of arcs) { a.n = clamp(Math.round((a.v / tot) * CAP * 0.85), 3, 90); a.n = Math.min(a.n, left); left -= a.n; }
+      // 粒子：一顆＝PPL 人（同時最多 CAP 顆；超過就把每顆代表的人數調大，圖例跟著改）
+      const tot = arcs.reduce((s, a) => s + a.v, 0);
+      PPL = 50; while (tot / PPL > CAP * 0.9) PPL *= 2;
+      for (const a of arcs) a.n = Math.max(1, Math.round(a.v / PPL));
+      // 前三名的數字標籤
+      const top = [...arcs].filter((a) => !S.focusArc || a.key === S.focusArc).sort((a, b) => b.v - a.v).slice(0, S.commute ? 0 : 3);
+      labelEls.forEach((el, k) => {
+        const a = top[k]; el.hidden = !a || !layerState.flow; el.arc = a || null; if (!a) return;
+        const name = (i) => shortName(D[i].name);
+        el.innerHTML = `<span class="k" style="background:#${a.color.getHexString()}"></span>${esc(name(a.from))} → ${esc(name(a.to))}<br><b class="num">${fmt(a.v)}</b> 人`;
+        el._w = el.offsetWidth; el._h = el.offsetHeight;
+      });
+      renderLegend();
     }
-    // C 的壓紋箭頭貼圖（顏色由弧線的材質 token 乘上去）
-    let arrowTex = null;
-    if (V.key === 'c') {
-      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 32; const g = cv.getContext('2d');
-      g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 32); g.fillStyle = 'rgba(0,0,0,0.14)';
-      g.beginPath(); g.moveTo(14, 4); g.lineTo(34, 16); g.lineTo(14, 28); g.lineTo(22, 16); g.closePath(); g.fill();
-      arrowTex = new THREE.CanvasTexture(cv); arrowTex.wrapS = THREE.RepeatWrapping; arrowTex.colorSpace = THREE.SRGBColorSpace;
+    const labelEls = Array.from({ length: 3 }, () => { const el = document.createElement('div'); el.className = 'flabel'; el.hidden = true; $('.labels').appendChild(el); return el; });
+
+    // ── 圖例：圖例裡的線寬和畫面上一樣（依目前鏡頭換算像素），數值取當月最大流向的整數倍 ──
+    const legend = $('.legend');
+    {
+      const m = data.maxFlow; const p = Math.pow(10, Math.floor(Math.log10(m))); const top = Math.floor(m / p) * p;
+      legendVals = [Math.round(top / 6 / 100) * 100 || 100, Math.round(top / 2 / 100) * 100, top];
+    }
+    let pxPerUnit = 4;
+    function measurePx() {
+      P.set(0, TILE_TOP + 3, 0).project(camera); Q.set(1, TILE_TOP + 3, 0).project(camera);
+      pxPerUnit = Math.abs(Q.x - P.x) * 0.5 * innerWidth;
+    }
+    function renderLegend() {
+      if (!layerState.flow) { legend.innerHTML = '<span>流向已關閉，可從右上角「圖層」打開</span>'; return; }
+      const bars = legendVals.map((v) => `<span class="item"><i class="bar" style="height:${clamp(widthOf(v) * pxPerUnit, 1.5, 16).toFixed(1)}px"></i><span class="num">${v >= 1000 ? `${v / 1000} 千` : v}</span></span>`).join('');
+      legend.innerHTML = `<span>線寬＝每小時人次</span>${bars}<span class="sep"></span><span class="item"><i class="dotk"></i>一顆光點＝${PPL} 人</span>`;
     }
 
-    const paperPlane = T.color('--flow-rail');
-
-    // ── 點選 ──
+    const ease = (name) => (S.still ? 'power2.out' : name);
+    // ── 點選：先看有沒有點到流向，再看行政區 ──
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
     let downAt = null;
-    on(canvas, 'pointerdown', (e) => { downAt = [e.clientX, e.clientY]; S.idleAt = performance.now(); if (S.playing) setPlaying(false); });
+    on(canvas, 'pointerdown', (e) => { downAt = [e.clientX, e.clientY]; S.idleAt = performance.now(); if (S.playing) setPlaying(false); closeLayers(); });
     on(canvas, 'pointerup', (e) => {
       if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) { downAt = null; return; }
       downAt = null;
       const r = canvas.getBoundingClientRect();
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
+      if (layerState.flow && !S.commute) {
+        const hitA = ray.intersectObjects(arcs.map((a) => a.obj), false)[0];
+        if (hitA) { focusFlow(hitA.object.userData.arc.key); return; }
+      }
       const hit = ray.intersectObjects(DIST.map((x) => x.mesh), false)[0];
-      if (hit) selectDistrict(hit.object.userData.di); else if (S.sel >= 0) selectDistrict(-1);
+      if (hit) selectDistrict(hit.object.userData.di); else if (S.sel >= 0 || S.focusArc) { S.focusArc = null; selectDistrict(-1); }
     });
 
-    const ease = (name) => (S.still ? 'power2.out' : name);
     function selectDistrict(i) {
       S.sel = i; S.focusArc = null; S.commute = null; closePanel();
       DIST.forEach((x, k) => {
         const chosen = k === i, any = i >= 0;
-        tw(gsap.to(x, { lift: chosen ? 2.2 : any ? -0.35 : 0, duration: chosen ? V.popDur : 0.45, ease: chosen ? ease(V.pop) : 'power2.out', overwrite: 'auto' }));
-        tw(gsap.to(x, { fade: !any || chosen ? 1 : 0.35, duration: 0.35, ease: 'power2.out', overwrite: 'auto' }));
+        x.liftTo = chosen ? 1.8 : any ? -0.3 : 0;
+        tw(gsap.to(x, { lift: x.liftTo, duration: chosen ? 0.7 : 0.45, ease: chosen ? ease('elastic.out(1.1, 0.4)') : 'power2.out', overwrite: 'auto' }));
+        tw(gsap.to(x, { fade: !any || chosen ? 1 : 0.4, duration: 0.35, ease: 'power2.out', overwrite: 'auto' }));
       });
       if (i >= 0) {
         const x = DIST[i], narrow = innerWidth / innerHeight < 0.8;
         const bb = new THREE.Box3().setFromObject(x.mesh), size = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z);
         const d = (size * 1.9 + 34) * (narrow ? 1.45 : 1), tz = x.cz + d * (narrow ? 0.2 : 0.1);
         controls.setLookAt(x.cx, d * 0.72, tz + d * 0.7, x.cx, 0, tz, !S.still);
-        controls.setFocalOffset(0, 0, 0, !S.still);
         renderDistrictCard();
       } else {
-        controls.setLookAt(...HOME(), !S.still); controls.setFocalOffset(0, 0, 0, !S.still);
+        controls.setLookAt(...HOME(), !S.still);
         showSheet(null);
       }
       arcSig = '';
+    }
+    function focusFlow(key) {
+      S.focusArc = key; arcSig = ''; rebuildIfNeeded(true);
+      const a = arcs.find((x) => x.key === key); flyToArc(a);
+      if (S.sel < 0) renderFlowCard();
     }
     function flyToArc(a) {
       if (!a) return;
       const mid = a.p0.clone().lerp(a.p2, 0.5), span = a.p0.distanceTo(a.p2), narrow = innerWidth / innerHeight < 0.8;
       const d = Math.max(80, span * 2.1) * (narrow ? 1.35 : 1), tz = mid.z + d * (narrow ? 0.18 : 0.08);
       controls.setLookAt(mid.x, d * 0.72, tz + d * 0.7, mid.x, 0, tz, !S.still);
-      controls.setFocalOffset(0, 0, 0, !S.still);
     }
 
     // ── HUD：時間軸 ──
@@ -830,31 +978,78 @@ function startApp(stage, vi) {
       playBtn.setAttribute('aria-label', p ? '暫停' : '播放一整天');
     }
     function setDay(day) { S.day = day; for (const b of root.querySelectorAll('[data-day]')) b.setAttribute('aria-pressed', String(b.dataset.day === day)); arcSig = ''; if (S.sel >= 0) renderDistrictCard(); }
-    function setStill(v) {
-      S.still = v; $('[data-still]').setAttribute('aria-pressed', String(v)); arcSig = '';
-      if (v) setPlaying(false);
-    }
+    function setStill(v) { S.still = v; $('[data-still]').setAttribute('aria-pressed', String(v)); arcSig = ''; if (v) setPlaying(false); }
     on(playBtn, 'click', () => setPlaying(!S.playing));
     on(scrub, 'input', () => { S.hour = +scrub.value; setPlaying(false); });
     root.querySelectorAll('[data-day]').forEach((b) => on(b, 'click', () => setDay(b.dataset.day)));
     on($('[data-speed]'), 'click', (e) => { S.speed = S.speed === 1 ? 2 : 1; e.currentTarget.textContent = `${S.speed}x`; });
     on($('[data-still]'), 'click', () => setStill(!S.still));
     setPlaying(S.playing); setDay('weekday'); setStill(S.still);
-
-    function updateClock() {
+    // 時間軸的底色就是一整天的天色（同一組 token）
+    {
+      const stops = []; const a = new THREE.Color(), b = new THREE.Color();
+      for (let k = 0; k <= 48; k++) { const h = k / 2; T.at('sky-top', h, a); T.at('sky-horizon', h, b); stops.push(`#${a.lerp(b, 0.45).getHexString()} ${(k / 48 * 100).toFixed(1)}%`); }
+      scrub.style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+    }
+    const orb = $('.orb');
+    function updateClock(sunS) {
       const hh = Math.floor(S.hour) % 24, mm = Math.floor((S.hour - Math.floor(S.hour)) * 60 / 10) * 10;
-      $('.time').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      $('.hm').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
       $('.phase').textContent = `${S.day === 'weekday' ? '平日' : '假日'}平均・${hourTitle(data, S.day, S.hour)}`;
+      orb.className = `orb ${sunS.isDay ? 'sun' : 'moon'}`;
       if (document.activeElement !== scrub) scrub.value = S.hour.toFixed(2);
     }
 
-    // ── HUD：行政區小卡 ──
+    // ── HUD：圖層 ──
+    const layerBtn = $('.layer-btn'), layerPanel = $('.layer-panel');
+    function closeLayers() { layerPanel.hidden = true; layerBtn.setAttribute('aria-expanded', 'false'); }
+    on(layerBtn, 'click', () => { const open = layerPanel.hidden; layerPanel.hidden = !open; layerBtn.setAttribute('aria-expanded', String(open));
+      if (open && !S.still) tw(gsap.fromTo(layerPanel, { y: -6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: 'power3.out' })); });
+    layerPanel.querySelectorAll('[data-layer]').forEach((inp) => on(inp, 'change', () => { layerState[inp.dataset.layer] = inp.checked; applyLayers(); }));
+    function applyLayers() {
+      flowGroup.visible = layerState.flow;
+      stations.visible = layerState.station;
+      DIST.forEach((x) => {
+        if (x.rail) x.rail.visible = layerState.rail;
+        if (x.water) x.water.visible = layerState.water;
+        if (x.green) x.green.visible = layerState.green;
+        x.bld.visible = layerState.building;
+      });
+      dLabels.forEach((el) => { el.hidden = !layerState.label; });
+      arcSig = '';
+    }
+
+    // ── 區名 ──
+    const dLabels = D.map((d) => { const el = document.createElement('div'); el.className = 'dlabel'; el.textContent = shortName(d.name); $('.labels').appendChild(el); return el; });
+    const dOrder = [...D.keys()].sort((a, b) => data.dayTotal[b] - data.dayTotal[a]);
+    function updateDLabels(taken) {
+      if (!layerState.label) return;
+      const placed = taken.map(([x0, y0, x1, y1]) => [(x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0]);
+      for (const i of dOrder) {
+        const el = dLabels[i], x = DIST[i];
+        if (i === S.sel) { el.hidden = true; continue; }
+        P.set(x.cx, topOf(i) + 0.3, x.cz).project(camera);
+        const sx = (P.x * 0.5 + 0.5) * innerWidth, sy = (-P.y * 0.5 + 0.5) * innerHeight, w = el.textContent.length * 12 + 6;
+        const clash = P.z > 1 || placed.some(([px, py, pw, ph]) => Math.abs(px - sx) < (pw + w) / 2 && Math.abs(py - sy) < (ph + 14) / 2);
+        el.hidden = clash; if (clash) continue;
+        placed.push([sx, sy, w, 14]);
+        el.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -50%)`;
+        el.style.opacity = String(0.85 * x.fade);
+      }
+    }
+
+    // ── HUD：小卡 ──
     const sheet = $('.sheet'), dock = $('.dock');
     function showSheet(html) {
       if (!html) { sheet.hidden = true; dock.hidden = false; return; }
+      const wasHidden = sheet.hidden;
       sheet.innerHTML = html; sheet.hidden = false; dock.hidden = true;
-      if (!S.still) tw(gsap.fromTo(sheet, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.32, ease: 'power3.out' }));
-      on(sheet.querySelector('.close'), 'click', () => { S.commute ? clearCommute() : selectDistrict(-1); });
+      if (!S.still && wasHidden) tw(gsap.fromTo(sheet, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.32, ease: 'power3.out' }));
+      on(sheet.querySelector('.close'), 'click', () => {
+        if (S.commute) clearCommute();
+        else if (S.sel >= 0) selectDistrict(-1);
+        else { S.focusArc = null; arcSig = ''; controls.setLookAt(...HOME(), !S.still); showSheet(null); }
+      });
     }
     function netRank(hh) {
       const e = data.ent[S.day][hh], x = data.ext[S.day][hh];
@@ -868,10 +1063,11 @@ function startApp(stage, vi) {
       if (net[i] >= 0) return `此刻淨流入第 ${order.indexOf(i) + 1}（+${fmt(net[i])} 人）`;
       return `此刻淨流出第 ${D.length - order.indexOf(i)}（${fmt(net[i])} 人）`;
     }
+    const dayLabel = () => (S.day === 'weekday' ? '平日' : '假日');
     function renderDistrictCard() {
       const i = S.sel; if (i < 0) return;
       const hh = Math.floor(S.hour) % 24, M = flows[S.day][hh], d = D[i];
-      const label = `${S.day === 'weekday' ? '平日' : '假日'} ${hh} 點出發`;
+      const label = `${dayLabel()} ${hh} 點出發`;
       if (!M) { showSheet(`<header><h2>${esc(d.name)}</h2><span class="sub">${label}</span><button class="close" aria-label="關閉">${ICON.close}</button></header><p class="note">這個時段停止營運。</p>`); return; }
       const outRow = M[i].map((v, j) => [j, v]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]);
       const inCol = M.map((row, j) => [j, row[i]]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]);
@@ -889,10 +1085,14 @@ function startApp(stage, vi) {
           <div><h3><span class="dot" style="background:var(--flow-in)"></span>誰來這裡</h3>${list(inCol, 'in')}</div>
         </div>
         <p class="note">每小時平均人次，比例以公開的格子加總為分母；少於 10 人的方向不列出。${d.inflowPartial ? '這區有環狀線車站，出站未入檔，「誰來」會少算。' : ''}</p>`);
-      sheet.querySelectorAll('[data-arc]').forEach((b) => on(b, 'click', () => {
-        S.focusArc = b.dataset.arc; arcSig = ''; rebuildIfNeeded(true);
-        flyToArc(arcs.find((a) => a.key === S.focusArc));
-      }));
+      sheet.querySelectorAll('[data-arc]').forEach((b) => on(b, 'click', () => { S.focusArc = b.dataset.arc; arcSig = ''; rebuildIfNeeded(true); flyToArc(arcs.find((a) => a.key === S.focusArc)); }));
+    }
+    function renderFlowCard() {
+      const [i, j] = S.focusArc.split('>').map(Number), hh = Math.floor(S.hour) % 24;
+      const all = allPairs(hh), k = all.findIndex((f) => f.key === S.focusArc), v = k >= 0 ? all[k].v : null;
+      showSheet(`<header><h2>${esc(D[i].name)} → ${esc(D[j].name)}</h2><span class="sub">${dayLabel()} ${hh} 點出發</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
+        <div class="big">${v ? `<b class="num">${fmt(v)}</b><span>人／小時</span>` : '<b>少於 10 人</b>'}</div>
+        <p class="note">${v ? `此刻全市第 ${k + 1} 大的區對區流向（共 ${all.length} 組有公開人數）。` : ''}線寬和人數成正比，圖例在時間軸下方。${MONTH.replace('-', ' 年 ')} 月${dayLabel()}平均。</p>`);
     }
 
     // ── HUD：找你的通勤（站對站）──
@@ -908,7 +1108,7 @@ function startApp(stage, vi) {
       pick(panel.o, '板橋（板南線）'); pick(panel.d, '市政府');
       panel.h.innerHTML = Array.from({ length: 24 }, (_, h) => h).filter((h) => flows.weekday[h]).map((h) => `<option value="${h}" ${h === 8 ? 'selected' : ''}>${h} 點</option>`).join('');
     }
-    function openPanel() { panel.hidden = false; pill.setAttribute('aria-expanded', 'true'); panel.day.value = S.day;
+    function openPanel() { panel.hidden = false; pill.setAttribute('aria-expanded', 'true'); panel.day.value = S.day; closeLayers();
       if (!S.still) tw(gsap.fromTo(panel, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: 'power3.out' })); panel.o.focus(); }
     function closePanel() { panel.hidden = true; pill.setAttribute('aria-expanded', 'false'); }
     on(pill, 'click', () => (panel.hidden ? openPanel() : closePanel()));
@@ -925,21 +1125,22 @@ function startApp(stage, vi) {
       const v = row[dd];
       const ranked = row.map((x, j) => [j, x]).filter(([j, x]) => x && j !== o).sort((a, b) => b[1] - a[1]);
       const rank = v ? ranked.findIndex(([j]) => j === dd) + 1 : null;
-      if (S.sel >= 0) { S.sel = -1; DIST.forEach((x) => tw(gsap.to(x, { lift: 0, fade: 1, duration: 0.4, ease: 'power2.out' }))); }
+      if (S.sel >= 0) { S.sel = -1; DIST.forEach((x) => { x.liftTo = 0; tw(gsap.to(x, { lift: 0, fade: 1, duration: 0.4, ease: 'power2.out' })); }); }
+      S.focusArc = null;
       setDay(day); S.hour = h + 0.5; setPlaying(false);
       S.commute = { o, d: dd, h, day, v, rank, total: ranked.length, dep: shard[`${day}Departures`][h], arc: { key: `s${o}>s${dd}`, o, d: dd, v: v || 10 } };
       arcSig = ''; rebuildIfNeeded(true);
       flyToArc(arcs.find((a) => a.kind === 'commute'));
       renderCommuteCard();
     });
-    function clearCommute() { S.commute = null; arcSig = ''; controls.setLookAt(...HOME(), !S.still); controls.setFocalOffset(0, 0, 0, !S.still); showSheet(null); }
+    function clearCommute() { S.commute = null; arcSig = ''; controls.setLookAt(...HOME(), !S.still); showSheet(null); }
     function renderCommuteCard() {
       const c = S.commute, o = ST[c.o], d = ST[c.d];
-      const dayLabel = c.day === 'weekday' ? '平日' : '假日';
+      const dl = c.day === 'weekday' ? '平日' : '假日';
       const big = c.v ? `<b class="num" data-count="${c.v}">0</b><span>人跟你同一小時出發、同一站下車</span>` : '<b>少於 10 人</b><span>跟你同路</span>';
-      showSheet(`<header><h2>${esc(o.display)} → ${esc(d.display)}</h2><span class="sub">${dayLabel} ${c.h} 點出發</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
+      showSheet(`<header><h2>${esc(o.display)} → ${esc(d.display)}</h2><span class="sub">${dl} ${c.h} 點出發</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
         <div class="big">${big}</div>
-        <p class="note">${c.rank ? `在 ${esc(o.display)} ${c.h} 點出發的人裡，${esc(d.display)} 是第 ${c.rank} 熱門的目的地（共 ${c.total} 個方向有公開人數）。` : ''}這一小時從 ${esc(o.display)} 出發的共 <span class="num">${fmt(c.dep)}</span> 人。${MONTH.replace('-', ' 年 ')} 月${dayLabel}平均，資料：臺北捷運公司 OD 開放資料。</p>`);
+        <p class="note">${c.rank ? `在 ${esc(o.display)} ${c.h} 點出發的人裡，${esc(d.display)} 是第 ${c.rank} 熱門的目的地（共 ${c.total} 個方向有公開人數）。` : ''}這一小時從 ${esc(o.display)} 出發的共 <span class="num">${fmt(c.dep)}</span> 人。${MONTH.replace('-', ' 年 ')} 月${dl}平均，資料：臺北捷運公司 OD 開放資料。</p>`);
       const el = sheet.querySelector('[data-count]');
       if (el) {
         if (S.still) el.textContent = fmt(c.v);
@@ -951,7 +1152,7 @@ function startApp(stage, vi) {
     const badge = $('.badge');
     function updateBadge() {
       if (S.sel < 0 || S.commute) { badge.hidden = true; return; }
-      const x = DIST[S.sel]; P.set(x.cx, topOf(S.sel) + 2.2, x.cz).project(camera);
+      const x = DIST[S.sel]; P.set(x.cx, topOf(S.sel) + 3.2, x.cz).project(camera);
       if (P.z > 1) { badge.hidden = true; return; }
       badge.hidden = false;
       const html = `<b>${esc(x.d.name)}</b><span>${esc(titleOf(S.sel).replace(/（.*）/, ''))}</span>`;
@@ -959,115 +1160,135 @@ function startApp(stage, vi) {
       badge.style.left = `${(P.x * 0.5 + 0.5) * innerWidth}px`; badge.style.top = `${(-P.y * 0.5 + 0.5) * innerHeight}px`;
     }
 
+    // ── 天空：星星、太陽、月亮（CSS 圖層，顏色來自 token） ──
+    const sky = $('.sky'), sunEl = $('.sky .sun'), moonEl = $('.sky .moon'), starsEl = $('.sky .stars');
+    starsEl.innerHTML = Array.from({ length: 70 }, () => `<i style="left:${(Math.random() * 100).toFixed(2)}%;top:${(Math.random() * 42).toFixed(2)}%;opacity:${(0.35 + Math.random() * 0.65).toFixed(2)}"></i>`).join('');
+    const skyTop = new THREE.Color(), skyHor = new THREE.Color(), skyLow = new THREE.Color();
+    function updateSky(h, s) {
+      T.at('sky-top', h, skyTop); T.at('sky-horizon', h, skyHor);
+      P.set(0, 0, -PD / 2).project(camera);
+      const horizon = clamp((-P.y * 0.5 + 0.5) * innerHeight, 80, innerHeight * 0.6);
+      skyLow.copy(skyHor).lerp(hemi.groundColor, 0.45);
+      sky.style.background = `linear-gradient(180deg, #${skyTop.getHexString()} 0px, #${skyHor.getHexString()} ${horizon.toFixed(0)}px, #${skyLow.getHexString()} 100%)`;
+      const arcH = Math.max(40, horizon - 70);
+      // 鏡頭朝北：東在右、西在左，太陽從右邊升起、左邊落下
+      const sx = 88 - 76 * clamp(s.t, -0.05, 1.05), sy = horizon - Math.sin(Math.PI * clamp(s.t, 0, 1)) * arcH * 0.85 + (s.elev < 0 ? -s.elev * 60 : 0);
+      sunEl.style.transform = `translate(${(sx / 100 * innerWidth).toFixed(1)}px, ${sy.toFixed(1)}px)`;
+      sunEl.style.opacity = String(smooth(-0.12, 0.05, s.elev));
+      const mx = 88 - 76 * s.tn, my = horizon - Math.sin(Math.PI * s.tn) * arcH * 0.7;
+      moonEl.style.transform = `translate(${(mx / 100 * innerWidth).toFixed(1)}px, ${my.toFixed(1)}px)`;
+      moonEl.style.opacity = String(s.night);
+      starsEl.style.opacity = String(s.night * 0.9);
+      document.documentElement.dataset.phase = s.night > 0.55 ? 'night' : 'day';
+    }
+
     // ── 尺寸 ──
     function resize() {
       const w = innerWidth, h = innerHeight;
       renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
       composer?.setSize(w, h); bloom?.setSize(w * 0.5, h * 0.5);
-      DIST.forEach((x) => x.edge?.material.resolution.set(w, h));
-      arcs.forEach((a) => a.line?.resolution.set(w, h));
+      if (hTilt) { hTilt.uniforms.h.value = 3.2 / w; vTilt.uniforms.v.value = 3.2 / h; }
+      DIST.forEach((x) => x.rail?.material.resolution.set(w, h));
     }
     on(window, 'resize', resize); resize();
 
     function rebuildIfNeeded(force = false) {
       const hh = Math.floor(S.hour) % 24;
-      const sig = `${S.day}|${hh}|${S.sel}|${S.focusArc}|${S.commute?.arc.key}|${S.still}`;
-      if (force || sig !== arcSig) { arcSig = sig; rebuildArcs(); arcs.forEach((a) => a.line?.resolution.set(innerWidth, innerHeight)); }
+      const sig = `${S.day}|${hh}|${S.sel}|${S.focusArc}|${S.commute?.arc.key}|${S.still}|${layerState.flow}`;
+      if (force || sig !== arcSig) { arcSig = sig; rebuildArcs(); }
     }
+    applyLayers();
 
     // ── 每一格 ──
     const timer = new THREE.Timer(); timer.connect(document);
     const dummy = new THREE.Object3D();
-    const skyTop = new THREE.Color(), skyBottom = new THREE.Color();
-    let t = 0, lastHourInt = -1;
+    let t = 0, lastHourInt = -1, frameNo = 0;
     function frame() {
       raf = requestAnimationFrame(frame);
       timer.update(); const dt = Math.min(timer.getDelta(), 0.1);
-      t += dt;
+      t += dt; frameNo++;
       if (S.playing && !S.still) S.hour = (S.hour + dt * 0.5 * S.speed) % 24;   // 48 秒一天
       const h = S.hour, hh = Math.floor(h) % 24, h2 = (hh + 1) % 24, f = h - Math.floor(h);
-      if (hh !== lastHourInt) { lastHourInt = hh; if (S.sel >= 0 && !sheet.hidden && !S.commute) renderDistrictCard(); }
-      updateClock();
+      const sunS = sunState(h);
+      if (hh !== lastHourInt) {
+        lastHourInt = hh;
+        if (!S.commute && !sheet.hidden) { if (S.sel >= 0) renderDistrictCard(); else if (S.focusArc) renderFlowCard(); }
+      }
+      updateClock(sunS);
+      updateSky(h, sunS);
 
-      // 日夜：天色、光、材質都從 token 內插
-      T.at('sky-top', h, skyTop); T.at('sky-bottom', h, skyBottom);
-      root.style.background = `linear-gradient(180deg, #${skyTop.getHexString()} 0%, #${skyBottom.getHexString()} 100%)`;
-      const sunAng = ((h - 6) / 24) * Math.PI * 2;                  // 6 點東升、18 點西落
-      const elev = Math.sin(((h - 6) / 12) * Math.PI);             // 白天為正
-      const night = clamp(-elev * 2 + 0.15, 0, 1);
-      const lightPos = V.key === 'c'
-        ? [Math.cos(sunAng) * 110, 38 + Math.max(elev, 0) * 40, Math.sin(sunAng) * 110 + 30]   // 繞桌面的檯燈，壓低角度拉長投影
-        : elev > 0 ? [Math.cos(sunAng) * 120, 30 + elev * 110, 50 + Math.sin(sunAng) * 30] : [-Math.cos(sunAng) * 90, 60, -40];
-      sun.position.set(...lightPos);
+      // 光：太陽依方位角繞過南方，月亮固定從東北高處；兩者交接時亮度都接近 0，切換看不出來
+      if (sunS.elev > 0) {
+        const e = sunS.elev * 1.1, R = 160;
+        sun.position.set(Math.cos(sunS.az) * Math.cos(e) * R, Math.sin(e) * R + 8, Math.sin(sunS.az) * Math.cos(e) * R * 0.85);
+        sun.intensity = V.sun * (0.38 + 0.62 * smooth(0, 0.35, sunS.elev));   // 清晨傍晚的低角度斜陽也要夠亮，才拉得出長影
+      } else {
+        sun.position.set(-70, 120, -60);
+        sun.intensity = V.moon * sunS.night;
+      }
       T.at('light', h, sun.color);
-      sun.intensity = V.key === 'b' ? 0.55 : V.key === 'c' ? 1.15 + Math.max(elev, 0) * 1.1 : (elev > 0 ? 0.6 + elev * 1.6 : 0.35);
-      hemi.color.copy(skyBottom); T.at('hemi-ground', h, hemi.groundColor);
-      hemi.intensity = V.key === 'b' ? 0.45 : V.key === 'c' ? 0.85 - night * 0.45 : 0.55 + Math.max(elev, 0) * 0.6;
-      for (const [m, tok] of plinthMats) T.at(tok, h, m.color);
-      T.at('ground', h, ground.material.color);
-      if (scan) {
-        const total = data.act[S.day][hh].reduce((s, v) => s + v, 0) / (data.maxAct * D.length * 0.35);
-        const sf = S.still ? 0.6 : fract(t * (0.12 + total * 0.4));
-        scan.scale.setScalar(4 + sf * Math.max(PW, PD) * 0.7); scan.material.opacity = (1 - sf) * 0.5;
+      T.at('amb-sky', h, hemi.color); T.at('amb-ground', h, hemi.groundColor);
+      const lit = Math.max(sunS.day, sunS.twilight * 0.62);   // 日出前、日落後的藍調時刻仍有天光
+      hemi.intensity = V.hemi[0] + (V.hemi[1] - V.hemi[0]) * lit;
+      renderer.toneMappingExposure = V.exposure[0] + (V.exposure[1] - V.exposure[0]) * lit;
+      blob.material.opacity = 0.18 + 0.3 * sunS.day;
+      for (const [m, prop, token] of phased) T.at(token, h, m[prop]);
+      if (bloom) { bloom.strength = V.bloom * (0.25 + 0.75 * sunS.night); bloom.enabled = bloom.strength > 0.02; }
+      if (grade) {
+        T.at('grade-lift', h, grade.uniforms.uLift.value); T.at('grade-gain', h, grade.uniforms.uGain.value);
+        grade.uniforms.uSat.value = 1.08 + 0.14 * sunS.golden - 0.12 * sunS.night;
+        grade.uniforms.uVig.value = 0.22 + 0.3 * sunS.night;
       }
 
-      // 行政區呼吸：高度＝當下（相鄰兩個整點內插）的真實進出人數
+      // 行政區呼吸：建築高度＝當下（相鄰兩個整點內插）的真實進出人數；窗光入夜亮起
       const A0 = data.act[S.day][hh], A1 = data.act[S.day][h2];
+      const win = V.winNight * smooth(0.25, 0.9, sunS.night) + 0.15 * sunS.golden;
       DIST.forEach((x, k) => {
         const a = A0[k] * (1 - f) + A1[k] * f;
-        const target = 0.6 + 6 * Math.sqrt(a / data.maxAct);
-        const idle = S.still ? 0 : Math.sin(t * 1.6 + k * 0.9) * 0.04;
-        x.height = target;
-        x.mesh.scale.y = Math.max(0.02, (target + idle) * x.rise);
+        const idle = S.still ? 0 : Math.sin(t * 1.6 + k * 0.9) * 0.03;
         x.group.position.y = x.lift;
-        x.top = topOf(k);
-        T.at('district', h, x.mat.color);
-        x.mat.opacity = x.fade;
-        if (V.key === 'b') x.mat.emissiveIntensity = 0.04 + 0.5 * Math.sqrt(a / data.maxAct);
-        if (x.edge) x.edge.material.opacity = 0.25 + 0.75 * x.fade;
-        x.props.position.y = x.top - 0.05; x.props.scale.y = x.rise;
-        T.at('prop', h, x.propMat.color); x.propMat.transparent = x.fade < 1; x.propMat.opacity = x.fade;
-        if (x.propMat.emissive) x.propMat.emissiveIntensity = V.key === 'b' ? 0.18 : night * 0.9;
+        x.group.scale.y = Math.max(0.03, x.rise);
+        x.bld.scale.y = Math.max(0.02, 0.35 + 1.35 * Math.sqrt(a / data.maxAct) + idle);
+        x.bld.material[0].emissiveIntensity = win;
+        for (const m of x.mats) { m.transparent = x.fade < 0.999; m.opacity = x.fade; }
+        if (x.rail) x.rail.material.opacity = 0.25 + 0.75 * x.fade;
       });
 
-      // 車站：選了的區展開；通勤顯示兩端
+      // 車站：高度依此刻進出人數
+      const SA0 = data.stAct[S.day][hh], SA1 = data.stAct[S.day][h2];
       for (let i = 0; i < ST.length; i++) {
-        const s = ST[i], show = s.di !== undefined && ((S.sel >= 0 && s.di === S.sel) || (S.commute && (i === S.commute.o || i === S.commute.d)));
-        dummy.position.set(stPos[i][0], show ? DIST[s.di].top : -50, stPos[i][1]);
-        dummy.scale.setScalar(show ? 1 : 0.0001); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
-        stations.setMatrixAt(i, dummy.matrix);
+        const s = ST[i];
+        if (s.di === undefined) { dummy.scale.setScalar(0.0001); dummy.position.set(0, -50, 0); }
+        else {
+          const a = SA0[i] * (1 - f) + SA1[i] * f, chosen = S.sel === s.di || (S.commute && (i === S.commute.o || i === S.commute.d));
+          dummy.position.set(stPos[i][0], topOf(s.di), stPos[i][1]);
+          const r = chosen ? 1.5 : 1;
+          dummy.scale.set(r, (0.18 + 2.4 * Math.sqrt(a / data.maxSt)) * DIST[s.di].rise, r);
+        }
+        dummy.rotation.set(0, 0, 0); dummy.updateMatrix(); stations.setMatrixAt(i, dummy.matrix);
       }
       stations.instanceMatrix.needsUpdate = true;
-      T.at('station', h, stations.material.color);
+      stMat.emissiveIntensity = 0.15 + 1.4 * sunS.night;
 
       rebuildIfNeeded();
-      // 端點跟著地塊高度走
-      for (const a of arcs) {
-        if (a.kind === 'commute') { a.p0.y = DIST[ST[a.o].di].top + 0.5; a.p2.y = DIST[ST[a.d].di].top + 0.5; }
-        else { a.p0.y = DIST[a.from].top + 0.2; a.p2.y = DIST[a.to].top + 0.2; }
-        if (a.shader) { a.shader.uniforms.uTime.value = t; a.shader.uniforms.uStill.value = S.still ? 1 : 0; a.shader.uniforms.uSpeed.value = RUSH(hh) ? 1.1 : 0.6; }
-        if (a.ribbon && !S.still) a.ribbon.map.offset.x = -t * (RUSH(hh) ? 0.9 : 0.5);
-      }
+      if (!S.still) chevTex.offset.x = -t * (RUSH(hh) ? 1.3 : 0.7);
 
-      // 粒子：一波波湧出，頭亮尾淡；尖峰更快
+      // 粒子：一顆＝PPL 人，沿弧線等速前進，一波波發亮；尖峰更快
       let n = 0;
-      const show = !S.still;
-      particles.visible = show;
-      if (show) {
-        const rush = RUSH(hh) ? 1.8 : 1, speed = 0.07 * rush, rate = 0.55 * rush;
+      const showP = !S.still && layerState.flow;
+      particles.visible = showP;
+      if (showP) {
+        const rush = RUSH(hh) ? 1.6 : 1, speed = 7 * rush, rate = 0.55 * rush, hi = particleHi;
         for (const a of arcs) {
           if (S.focusArc && S.focusArc !== a.key && a.kind !== 'commute') continue;
-          const bright = V.key === 'c' ? paperPlane.clone().lerp(a.color, 0.35) : a.color;
-          const dim = V.key === 'c' ? paperPlane : tmpC2.copy(a.color).multiplyScalar(V.key === 'b' ? 0.25 : 0.55);
           for (let i = 0; i < a.n && n < CAP; i++) {
-            const u = fract(i / a.n + t * speed * a.speedJit + a.phase);
+            const u = 0.05 + 0.9 * fract(i / a.n + t * speed / a.len + a.phase);
             const pulse = Math.pow(fract(t * rate - u * 1.6 + a.phase), 3.0);
             bez(a, u, P); bezTan(a, u, TAN);
-            dummy.position.copy(P); dummy.lookAt(P.x + TAN.x, P.y + TAN.y, P.z + TAN.z);
-            const s = (V.key === 'c' ? 1.0 : V.key === 'a' ? 1.0 : 0.75) * (0.45 + 1.15 * pulse) * (0.7 + a.w);
-            dummy.scale.setScalar(s); dummy.updateMatrix();
+            dummy.position.set(P.x, P.y + 0.12, P.z); dummy.lookAt(P.x + TAN.x, P.y + 0.12 + TAN.y, P.z + TAN.z);
+            dummy.scale.setScalar(0.75 + 0.6 * pulse); dummy.updateMatrix();
             particles.setMatrixAt(n, dummy.matrix);
-            particles.setColorAt(n, tmpC.copy(dim).lerp(bright, pulse));
+            particles.setColorAt(n, tmpC.copy(a.color).lerp(hi, 0.35 + 0.65 * pulse));
             n++;
           }
         }
@@ -1084,14 +1305,30 @@ function startApp(stage, vi) {
       rings.forEach((r, k) => {
         const a = dests[k];
         if (!a || S.still) { r.visible = false; return; }
-        const rf = fract(t * 0.55 * (RUSH(hh) ? 1.8 : 1) + a.phase);
-        r.visible = true; r.position.set(a.p2.x, a.p2.y + 0.06, a.p2.z);
-        r.scale.setScalar(0.6 + rf * (2.5 + a.w * 4)); r.material.opacity = (1 - rf) * (1 - rf) * 0.8;
+        const rf = fract(t * 0.55 * (RUSH(hh) ? 1.6 : 1) + a.phase);
+        r.visible = true; r.position.set(a.p2.x, a.p2.y - 0.2, a.p2.z);
+        r.scale.setScalar(0.6 + rf * (2.5 + a.w * 2.2)); r.material.opacity = (1 - rf) * (1 - rf) * 0.75;
       });
 
       // 待機：很小的鏡頭搖擺
       if (S.playing && !S.still && S.sel < 0 && !S.commute && performance.now() - S.idleAt > 3000) controls.rotate(Math.sin(t * 0.25) * 0.00025, 0, false);
       controls.update(dt);
+      if (frameNo % 6 === 1) { const before = pxPerUnit; measurePx(); if (Math.abs(before - pxPerUnit) > 0.15) renderLegend(); }
+      // 前三名的數字標籤：放在弧頂；和名次較前的標籤重疊就往上或往下挪，挪不開就先不顯示
+      const taken = [];
+      for (const el of labelEls) {
+        if (!el.arc || !layerState.flow) { el.hidden = true; continue; }
+        bez(el.arc, 0.5, P); P.y += 0.6; P.project(camera);
+        const x = (P.x * 0.5 + 0.5) * innerWidth, y0 = (-P.y * 0.5 + 0.5) * innerHeight, w = el._w || 90, hgt = el._h || 34;
+        let y = null;
+        for (const cand of [y0, y0 - hgt - 4, y0 + hgt + 4]) {
+          const r = [x - w / 2, cand - hgt, x + w / 2, cand];
+          if (!taken.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1])) { y = cand; taken.push(r); break; }
+        }
+        el.hidden = y === null || P.z > 1; if (el.hidden) continue;
+        el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+      }
+      updateDLabels(taken);
       updateBadge();
       if (composer) composer.render(); else renderer.render(scene, camera);
     }
