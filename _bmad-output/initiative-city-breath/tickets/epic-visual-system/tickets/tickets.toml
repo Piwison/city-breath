@@ -4,7 +4,7 @@
 id = 1
 type = "story"
 title = "微縮城市方向定案"
-description = "用 prototype 以 design/prototypes 的微縮城市為基礎做幾個版本（日夜色票、路線光、流向粒子），Piwi 選定一版並記在 DESIGN.md。"
+description = "Piwi 用 design/briefs/2.1-prototype-prompt.md 的指令跑 /prototype，依 diorama-game-juice 的規則做三個版本（晨昏微縮城、夜光地景、紙模型城市），選定一版並記在 DESIGN.md。"
 verify = "DESIGN.md 記下 Piwi 選定的版本與日夜色票。"
 covers = ["R1"]
 after = []

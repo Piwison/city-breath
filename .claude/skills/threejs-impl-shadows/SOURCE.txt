@@ -1,0 +1,2 @@
+source: https://github.com/Impertio-Studio/Three.js-Claude-Skill-Package @ 6c190f0 (MIT, OpenAEC Foundation)
+註：以 three r160 為準；版本與本專案（0.186.1）衝突時，以 architecture AD-11 與 threejs-* (CloudAI-X) 為準。

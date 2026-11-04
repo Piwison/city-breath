@@ -7,7 +7,7 @@ paradigm: pipes-and-filters（離線批次）＋靜態資料契約＋純前端 S
 scope: 城市呼吸第一版：月度彙總管線、靜態資料契約 v2、微縮城市網站
 status: final
 created: 2026-10-26
-updated: 2026-11-03
+updated: 2026-11-04
 binds: [R1, R2, R3, R4, R5, R10, R11, R12, R13]
 sources: [../initiative-city-breath.md, ../prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, ../user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md]
 companions: [../../../docs/data-contract.md]
@@ -108,7 +108,7 @@ flowchart LR
 ### AD-11 — 場景用 Three.js
 - **Binds:** 首頁、活動日、站點展開、任何地圖式畫面
 - **Prevents:** 各畫面用不同的渲染技術、渲染器或後製，接不起來
-- **Rule:** 場景用 Three.js＋React Three Fiber，renderer 用 `WebGLRenderer`（R3F 預設）。後製用 `three/addons` 的 EffectComposer＋RenderPass＋UnrealBloomPass＋OutputPass，由單一 `useFrame(..., 1)` 接手渲染。站點與粒子用 `InstancedMesh`。不使用 maplibre-gl 與 deck.gl，不載外部底圖圖磚。WebGL 不可用時顯示靜態說明與通勤入口。
+- **Rule:** 場景用 Three.js＋React Three Fiber，renderer 用 `WebGLRenderer`（R3F 預設）。後製用 `three/addons` 的 EffectComposer＋RenderPass＋UnrealBloomPass＋OutputPass，由單一 `useFrame(..., 1)` 接手渲染。站點、粒子、光膠囊與地標積木用 `InstancedMesh`，少量重點弧線才用 Tube 或 Line2。鏡頭用 drei 的 `<CameraControls>`。一次性動作（點選彈跳、抽屜、數字跳動）只用 GSAP，播放由 AD-16 的 clock 推進；動畫只改畫面、不存狀態，狀態改變時打斷重來。手感細則見專案 skill `diorama-game-juice`。不使用 maplibre-gl、deck.gl 與 pmndrs/postprocessing，不載外部底圖圖磚。WebGL 不可用時顯示靜態說明與通勤入口。
 
 ### AD-12 — 場景座標只有一個投影
 - **Binds:** 所有場景圖層與地理資產
@@ -168,7 +168,7 @@ flowchart LR
 
 ## Stack
 
-npm／PyPI 2026-11-03 查證。
+npm／PyPI 2026-11-03 查證；gsap 2026-11-04 查證。
 
 | Name | Version |
 | --- | --- |
@@ -181,7 +181,8 @@ npm／PyPI 2026-11-03 查證。
 | three | 0.186.1（0.187.0 於 2026-10-30 才發布，暫不升） |
 | @types/three | 0.186.0（與 three 一起升） |
 | @react-three/fiber | 9.8.2 |
-| @react-three/drei | 10.7.9 |
+| @react-three/drei | 10.7.9（內建 camera-controls 3.x） |
+| gsap | 3.15.1（標準免費授權） |
 | Vitest | 5.0.5 |
 | 部署 | Vercel 靜態網站＋Web Analytics [ASSUMPTION] |
 
