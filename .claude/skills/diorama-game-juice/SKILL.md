@@ -17,7 +17,7 @@ description: 城市呼吸的微縮城市場景與遊戲手感規則。做或改�
 | 套件來源 | jsDelivr，版本寫死 | npm，版本照 architecture Stack |
 | three | `https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js`，addons 用 `…/three@0.186.1/examples/jsm/` | `three` 0.186.1＋`@react-three/fiber`＋`@react-three/drei` |
 | 鏡頭 | `camera-controls@3.1.2`（`CameraControls.install({ THREE })`） | drei 的 `<CameraControls makeDefault />`（內建 camera-controls 3.x） |
-| 一次性動作 | `gsap@3.15.1` | `gsap`（同版本），在事件處理裡呼叫 |
+| 一次性動作 | `gsap@3.15.0` | `gsap`（同版本），在事件處理裡呼叫 |
 | 顏色 | `tokenColor('--x')`：`getComputedStyle` 讀 `:root` 轉 `THREE.Color` | `useTokenColor('--x')`（AD-8，會跟日夜相位重讀） |
 
 不要用 esm.sh（發布頁面的 CSP 會擋），不要用 three 0.170 等舊版範例的 API。
