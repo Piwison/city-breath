@@ -3,7 +3,12 @@
 「平常」＝同月同星期幾、排除當日本身的中位數；全市級與站級用同一個 ``normal()``。
 
 - 全市級：當日全市進站與平常差 ≥ 15%（多或少都算）。AD-4 的假日檢查也看這一層。
-- 站級（暫定，7.2 定案後寫回 AD-14）：某站當日進站或出站 ≥ 平常 × 1.5，且多出 ≥ 1,000 人。
+- 站級（7.2 定案）：某站當日進站或出站同時滿足
+  1. ≥ 平常 × 1.3（多三成）；
+  2. 多出 ≥ 1,000 人（擋住小站的小人數）；
+  3. modified z-score ≥ 3.5（Iglewicz & Hoaglin 1993）：把該站該方向整月每天的「當日 ÷ 平常」倍數
+     當成一組，M = 0.6745 × (倍數 − 中位數) ÷ MAD。整月本來就大起大落的站（例如開學讓同星期幾的
+     中位數混進放假日的輔大）不會因此被當成異常；MAD 為 0（每天都一樣）時這條視為通過。
   只抓「多」：站的「少」多半是全市假日，已由全市級呈現。
 
 人次是當日總量，小時歸在進站時段（AD-15）；站的參照是 ``stations.json`` 的陣列索引（AD-2）。
@@ -19,15 +24,18 @@ from fractions import Fraction
 
 from .stations import Station
 
-# 門檻用分數做精確比較：剛好 15%、剛好 1.5 倍都算（浮點的 1.15 − 1 會略小於 0.15）
+# 門檻用分數做精確比較：剛好 15%、剛好 1.3 倍、剛好 z = 3.5 都算（浮點的 1.15 − 1 會略小於 0.15）
 CITY_MIN_CHANGE = Fraction(15, 100)
-STATION_MIN_RATIO = Fraction(3, 2)
+STATION_MIN_RATIO = Fraction(13, 10)
 STATION_MIN_EXTRA = 1000
+STATION_MIN_Z = Fraction(7, 2)
+MAD_SCALE = Fraction(6745, 10000)  # 常態分布下 MAD ≈ 0.6745σ
 THRESHOLDS = {
     "city": float(CITY_MIN_CHANGE),
     "stationRatio": float(STATION_MIN_RATIO),
     "stationExtra": STATION_MIN_EXTRA,
-    "provisional": True,  # 站級門檻待 7.2 定案
+    "stationZ": float(STATION_MIN_Z),
+    "provisional": False,  # 7.2 定案
 }
 
 
@@ -80,11 +88,30 @@ def is_city_anomaly(value: int, baseline: float | None) -> bool:
     return abs(value - base) >= CITY_MIN_CHANGE * base
 
 
-def is_station_anomaly(value: int, baseline: float | None) -> bool:
+def is_station_anomaly(value: int, baseline: float | None, z: Fraction | None = None) -> bool:
+    """倍數與人數兩條；``z`` 是 ``station_z()`` 的結果（``None``＝MAD 為 0，該條視為通過）。"""
     if not baseline:
         return False
     base = Fraction(baseline)
-    return value >= STATION_MIN_RATIO * base and value - base >= STATION_MIN_EXTRA
+    big = value >= STATION_MIN_RATIO * base and value - base >= STATION_MIN_EXTRA
+    return big and (z is None or z >= STATION_MIN_Z)
+
+
+def station_z(series: dict[dt.date, int]) -> dict[dt.date, Fraction | None]:
+    """整月每天「當日 ÷ 平常」倍數的 modified z-score；沒有基準的日子不在結果裡。
+
+    值為 ``None`` 表示該站該方向的 MAD 為 0（倍數每天都一樣），任何偏離都算突出。
+    """
+    ratios = {}
+    for d, v in series.items():
+        base = normal(series, d)
+        if base:
+            ratios[d] = Fraction(v) / Fraction(base)
+    if not ratios:
+        return {}
+    med = statistics.median(sorted(ratios.values()))
+    mad = statistics.median(sorted(abs(r - med) for r in ratios.values()))
+    return {d: (MAD_SCALE * (r - med) / mad if mad else None) for d, r in ratios.items()}
 
 
 def detect(
@@ -120,11 +147,12 @@ def detect(
         measures = [("entries", entries.get(i, zero))]
         if s.exits_recorded:  # 環狀線站的出站不在資料中（AD-10 已知狀況）
             measures.append(("exits", exits.get(i, zero)))
+        zs = {measure: station_z(series) for measure, series in measures}
         for d in dates:
             hits = []
             for measure, series in measures:
                 base = normal(series, d)
-                if is_station_anomaly(series[d], base):
+                if d in zs[measure] and is_station_anomaly(series[d], base, zs[measure][d]):
                     hits.append(Anomaly(d, i, measure, series[d], base))
             if hits:  # 同站同日進、出都過門檻時取倍數大的一邊（同倍數取進站）
                 found.append(max(hits, key=lambda a: (a.ratio, a.measure == "entries")))
@@ -133,8 +161,12 @@ def detect(
     return Detection(out_days, found)
 
 
-def to_json(det: Detection) -> dict:
-    """``events.json`` 的 ``days``、``anomalies`` 與 ``thresholds``（``events`` 由呼叫端加，7.2／7.3 填）。"""
+def to_json(det: Detection, event_ids: dict[tuple[dt.date, int], list[str]] | None = None) -> dict:
+    """``events.json`` 的 ``days``、``anomalies`` 與 ``thresholds``（``events`` 由呼叫端加）。
+
+    ``event_ids``：(日期, 站索引) → ``events[].id``，由 ``schedules.link()`` 配對（7.2）。
+    """
+    event_ids = event_ids or {}
     return {
         "thresholds": THRESHOLDS,
         "days": [
@@ -153,7 +185,7 @@ def to_json(det: Detection) -> dict:
                 "measure": a.measure,
                 "ratio": round(a.ratio, 3),
                 "baseline": round(a.baseline),
-                "eventIds": [],
+                "eventIds": [] if a.station is None else list(event_ids.get((a.date, a.station), [])),
             }
             for a in det.anomalies
         ],

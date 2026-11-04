@@ -181,10 +181,13 @@ export interface Anomaly {
   eventIds: string[];
 }
 
-/** events.json 的 events[]：場館檔期（auto，7.2）與人工活動（manual，7.3）。7.1 起為空陣列。 */
+/**
+ * events.json 的 events[]：場館檔期（auto，7.2）與人工活動（manual，7.3）。
+ * auto 只收配到至少一筆異常的檔期；起訖是租用期（含進場拆台），演出日＝eventIds 指向它的異常日。
+ */
 export interface EventRecord {
   id: string;
-  /** YYYY-MM-DD，含首尾 */
+  /** YYYY-MM-DD，含首尾；小巨蛋、花博為租用期 */
   startDate: string;
   endDate: string;
   /** pipeline/config/venues.csv 的 venue_id */
@@ -201,8 +204,8 @@ export interface EventRecord {
 export interface EventsFile {
   v: number;
   month: string;
-  /** 判定門檻；provisional=true 表示站級門檻是暫定值（7.2 定案） */
-  thresholds: { city: number; stationRatio: number; stationExtra: number; provisional: boolean };
+  /** 判定門檻（站級：倍數、多出人數、modified z-score 三條同時滿足）；7.2 起 provisional=false */
+  thresholds: { city: number; stationRatio: number; stationExtra: number; stationZ: number; provisional: boolean };
   days: EventDay[];
   /** 依日期、再依站索引排序（全市級在前） */
   anomalies: Anomaly[];

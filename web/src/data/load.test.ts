@@ -68,7 +68,7 @@ describe("loadDaily", () => {
 const events = (month: string, stationRefs: (number | null)[], eventStations: number[] = []) => ({
   v: 2,
   month,
-  thresholds: { city: 0.15, stationRatio: 1.5, stationExtra: 1000, provisional: true },
+  thresholds: { city: 0.15, stationRatio: 1.3, stationExtra: 1000, stationZ: 3.5, provisional: false },
   days: [{ date: `${month}-01`, dayType: "weekday", cityEntries: 100, cityRatio: null }],
   anomalies: stationRefs.map((station) => ({
     date: `${month}-01`,

@@ -2,6 +2,7 @@
 
 import datetime as dt
 import json
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -52,11 +53,50 @@ def test_city_threshold_both_directions_inclusive():
 
 
 def test_station_threshold_needs_ratio_and_extra():
-    assert anomaly.is_station_anomaly(3000, 2000)  # 1.5 倍、多 1,000
-    assert not anomaly.is_station_anomaly(2999, 2000)  # 倍數不足
+    assert anomaly.is_station_anomaly(13_000, 10_000)  # 剛好 1.3 倍、多 3,000
+    assert not anomaly.is_station_anomaly(12_999, 10_000)  # 倍數不足
+    assert anomaly.is_station_anomaly(4_333, 3_333)  # 1.3 倍、剛好多 1,000
     assert not anomaly.is_station_anomaly(925, 600)  # 1.54 倍但只多 325 人
     assert not anomaly.is_station_anomaly(1000, 3000)  # 只抓多，不抓少
     assert not anomaly.is_station_anomaly(5000, None) and not anomaly.is_station_anomaly(5000, 0)
+
+
+def test_station_threshold_needs_z():
+    assert anomaly.is_station_anomaly(15_000, 10_000, Fraction(7, 2))  # 剛好 z = 3.5
+    assert not anomaly.is_station_anomaly(15_000, 10_000, Fraction(349, 100))
+    assert anomaly.is_station_anomaly(15_000, 10_000, None)  # MAD 為 0：這條視為通過
+    assert not anomaly.is_station_anomaly(12_000, 10_000, Fraction(10))  # z 再高，倍數不足也不算
+
+
+SEPT = [dt.date(2026, 9, d) for d in range(1, 31)]
+
+
+def test_station_z_is_modified_z_of_daily_ratios():
+    series = {d: 10_000 + (d.day % 3) * 100 for d in SEPT} | {SEPT[19]: 14_000}  # 9/20 多四成
+    z = anomaly.station_z(series)
+    assert set(z) == set(SEPT) and z[SEPT[19]] > 10
+    assert all(abs(v) < 3.5 for d, v in z.items() if d != SEPT[19])
+    assert anomaly.station_z({d: 500 for d in SEPT}) == {d: None for d in SEPT}  # 每天都一樣：MAD 為 0
+
+
+# 2026-09 實際的每日進站：輔大（9/14 前後開學，月底連假）與台北小巨蛋（9/13 IVE、9/20 漢斯季默）
+FU_JEN = [7363, 7635, 7357, 7236, 5894, 4538, 8309, 8495, 8660, 8715, 10701, 7371, 6087, 13805, 14022, 13699,
+          13796, 14456, 7930, 5889, 13466, 13722, 13742, 14425, 4907, 5142, 4771, 4318, 13466, 13502]
+ARENA_EXITS = [24148, 24918, 24929, 25235, 21818, 11426, 22552, 23472, 23708, 23923, 32521, 26562, 22343, 25108,
+               25778, 25486, 23683, 28394, 20455, 15902, 22914, 23530, 24212, 23954, 9549, 16912, 9895, 9652,
+               23358, 24048]
+
+
+def test_level_shift_is_not_an_anomaly_but_a_spike_is():
+    """開學造成的水位變化：倍數與人數都過門檻，但整月本來就大起大落（z 低）；小巨蛋 9/20 只有 1.39 倍但很突出。"""
+    fu = dict(zip(SEPT, FU_JEN))
+    arena = dict(zip(SEPT, ARENA_EXITS))
+    rows = [(d, "輔大", fu[d], 0) for d in SEPT] + [(d, "小巨蛋", 0, arena[d]) for d in SEPT]
+    det = detect([(d, "weekday") for d in SEPT], rows, [_station("輔大"), _station("小巨蛋")])
+    assert sum(anomaly.is_station_anomaly(fu[d], normal(fu, d)) for d in SEPT) >= 5  # 只看倍數與人數會誤判
+    assert [(a.date.day, a.station, a.measure) for a in det.stations()] == [(13, 1, "exits"), (20, 1, "exits")]
+    z = anomaly.station_z(arena)
+    assert float(z[SEPT[19]]) == pytest.approx(4.5, abs=0.1) and float(z[SEPT[11]]) < 3.5  # 9/12 差一點
 
 
 # ── detect ──────────────────────────────────────────────
@@ -144,7 +184,8 @@ def test_events_json_shape(tmp_path):
     body = json.loads((tmp_path / "2026-09" / "events.json").read_text("utf-8"))
     assert list(body) == ["v", "month", "thresholds", "days", "anomalies", "events"]
     assert (body["v"], body["month"], body["events"]) == (2, "2026-09", [])
-    assert body["thresholds"] == {"city": 0.15, "stationRatio": 1.5, "stationExtra": 1000, "provisional": True}
+    assert body["thresholds"] == {"city": 0.15, "stationRatio": 1.3, "stationExtra": 1000, "stationZ": 3.5,
+                                  "provisional": False}
     assert body["days"][0] == {"date": "2026-09-01", "dayType": "weekday", "cityEntries": 110_000, "cityRatio": None}
     assert body["anomalies"] == [
         {"date": "2026-09-21", "station": 0, "measure": "exits", "ratio": 2.234, "baseline": 10000, "eventIds": []},
@@ -177,13 +218,21 @@ def test_committed_events_shape(month):
     assert len(body["days"]) == sum(meta["dayCounts"].values())
     assert [d["date"] for d in body["days"]] == sorted(d["date"] for d in body["days"])
     dates = {d["date"]: d for d in body["days"]}
+    assert body["thresholds"]["provisional"] is False
+    ratio = body["thresholds"]["stationRatio"]
+    ids = {e["id"]: e for e in body["events"]}
+    assert len(ids) == len(body["events"])
     for a in body["anomalies"]:
-        assert a["date"] in dates and a["eventIds"] == [] and a["baseline"] > 0
+        assert a["date"] in dates and a["baseline"] > 0
+        assert a["eventIds"] == sorted(set(a["eventIds"])) and all(i in ids for i in a["eventIds"])
         if a["station"] is None:
             assert abs(a["ratio"] - 1) >= 0.15 - 1e-9 and a["ratio"] == dates[a["date"]]["cityRatio"]
         else:
-            assert 0 <= a["station"] < len(stations) and a["ratio"] >= 1.5
+            assert 0 <= a["station"] < len(stations) and a["ratio"] >= ratio - 5e-4
             assert a["measure"] == "entries" or stations[a["station"]]["exitsRecorded"]
+        for i in a["eventIds"]:  # 配到的活動：站是該活動的車站、日期在起訖內
+            e = ids[i]
+            assert a["station"] in e["stations"] and e["startDate"] <= a["date"] <= e["endDate"]
 
 
 def test_committed_2026_09_acceptance():
