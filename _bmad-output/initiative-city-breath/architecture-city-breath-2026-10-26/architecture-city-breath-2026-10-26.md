@@ -123,7 +123,7 @@ flowchart LR
 ### AD-14 — 異常日與「平常」只有一個擁有者
 - **Binds:** R5、AD-4、AD-13
 - **Prevents:** 不同畫面對同一天是否異常、和平常差多少給出不同答案
-- **Rule:** `pipeline/anomaly.py` 是唯一判定異常日與計算「平常」的地方。「平常」＝同月同星期幾、排除當日的中位數，站級與全市級同一定義。異常分兩層：全市級（全市進站差 ≥ 15%，也供假日檢查）與站級（門檻由活動匯入那張票定 [ASSUMPTION]）。結果只輸出在 `events.json`：`days[]`（`date`、`dayType`、`cityEntries`、`cityRatio`）、`anomalies[]`（`date`、`station`（全市級為 `null`）、`measure`（`entries` 或 `exits`）、`ratio`、`baseline`、`eventIds[]`，空陣列即「原因未查證」）、`events[]`（`id`、`startDate`、`endDate`、`venue`、`stations[]`、`name`、`source`、`url`、`verified`）。頂層 `thresholds` 記錄當次使用的門檻（站級標 `provisional` 直到 7.2 定案）。前端只查表，不比對日期區間。
+- **Rule:** `pipeline/anomaly.py` 是唯一判定異常日與計算「平常」的地方。「平常」＝同月同星期幾、排除當日的中位數，站級與全市級同一定義。異常分兩層：全市級（全市進站差 ≥ 15%，也供假日檢查）與站級（進站或出站 ≥ 平常的 1.3 倍、多出 ≥ 1,000 人，且該站整月「當日÷平常」的 modified z-score ≥ 3.5；z 條件排除開學等整段偏移）。結果只輸出在 `events.json`：`days[]`（`date`、`dayType`、`cityEntries`、`cityRatio`）、`anomalies[]`（`date`、`station`（全市級為 `null`）、`measure`（`entries` 或 `exits`）、`ratio`、`baseline`、`eventIds[]`，空陣列即「原因未查證」）、`events[]`（`id`、`startDate`、`endDate`、`venue`、`stations[]`、`name`、`source`、`url`、`verified`）。頂層 `thresholds` 記錄當次使用的門檻。前端只查表，不比對日期區間。
 
 ### AD-15 — 小時一律是進站時段
 - **Binds:** 所有小時陣列與時間軸
@@ -226,4 +226,3 @@ city-breath/
 - 每月更新的自動化（GitHub Actions 排程）：先照 Conventions 手動，連續三個月穩定後再做。
 - 資料量與 git 歷史：每月約 3–4 MB 進 git；12 個月後評估改用 Git LFS 或部署時下載。
 - 河流與城市底座幾何的來源與簡化程度：2.1 定案視覺時決定，受 AD-12 約束。
-- 站級異常門檻：epic-event-days 的活動匯入票決定，寫回 AD-14。
