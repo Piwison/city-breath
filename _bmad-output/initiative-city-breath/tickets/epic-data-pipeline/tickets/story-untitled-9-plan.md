@@ -81,6 +81,7 @@ context: []
 - 永和區只有頂溪一站（永安市場在中和區）。平日 7+8 點（分母＝頂溪 entries 11,400）：中正 20.8%、中山 18.0%、大安 13.9%、信義 9.3%；原型同時段為中山 19.2%、中正 17.6%、大安 15.0%、信義 10.6%。差異來自 1.8 改區：忠孝新生（大安→中正）、公館（中正→大安）、中山與雙連（中山→大同）、國父紀念館（信義→大安）、西門（萬華→中正）、台電大樓（大安→中正）、圓山（大同→中山）、中山國中（松山→中山）。
 - 骨架：App.tsx 不再載入 flows、CityMap 拿掉 ArcLayer；`--flow-arc` token 暫留（3.5 換場景時一起清）。
 - 開 PR 後 1.10（PR #9）先合併：rebase 到 3904202，export.py／suppress.py／load.ts／data-contract.md 的衝突兩邊都保留（`venue_origin_groups` 與 `district_groups` 並列、`loadDaily` 與 `loadDistrictFlows` 並列）；重建 2026-09 後 1.9 的數字不變、daily/ 與 main 逐位元相同，pytest 66 過、npm test 7 過。
+- 接著 7.1（PR #11）合併：再 rebase 到 9ed2c97。daily.json 由 7.1 移除（本票對它的鍵排序修正隨之作廢），export.py 保留 `export_events` 與 `suppression_summary`，契約檔列兩邊的新檔。重建後 1.9 的數字不變，events.json、daily/ 與 main 相同；pytest 83 過、npm test 11 過。
 - 留給 Piwi（未處理）：逐日檔環狀線站 `exits` 為 null、stations.json 為 0，兩者不一致，本票沒有動 stations.json 的 exits；逐日場館來源格的同日型加總 ×天數 ＝ od 區塊（起區→場館站）×天數，是跨檔的另一種總量關係（進位誤差 × 天數會變大），目前兩邊各自保護、沒有放在同一組。
 
 ## Plan Change Log
