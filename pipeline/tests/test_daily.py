@@ -209,7 +209,9 @@ def test_committed_daily_shape(month):
                 assert len(ext) == 24 and {h for h in range(24) if ext[h] is None} == closed
             else:
                 assert ext is None
-        assert {2, 3, 4} <= closed
+        # 全月都停駛的小時（meta.serviceHours 以外）每天都停駛；個別日子可以多開
+        # （例：2025-11-01 白晝之夜凌晨 2 點仍有進站，但當月其他天 2 點停駛）
+        assert set(range(24)) - set(meta["serviceHours"]) <= closed and closed
 
 
 @pytest.mark.parametrize("month", MONTHS)

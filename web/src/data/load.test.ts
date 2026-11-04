@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadDaily, loadEvents } from "./load";
+import { loadDaily, loadEvents, loadOdShard } from "./load";
 
 const hours = () => Array.from({ length: 24 }, () => 0);
 
@@ -131,5 +131,46 @@ describe("loadEvents", () => {
       "2031-08/stations.json": stations("2031-08", 2),
     });
     await expect(loadEvents("2031-08")).rejects.toThrow("對不上");
+  });
+});
+
+const shard = (month: string, origin: string, n: number) => ({
+  v: 2,
+  month,
+  origin,
+  weekday: [null, Array.from({ length: n }, () => null)],
+  holiday: [null, Array.from({ length: n }, () => 10)],
+  weekdayDepartures: [null, 0],
+  holidayDepartures: [null, 0],
+});
+
+describe("loadOdShard", () => {
+  it("載入起站分片與同月 stations.json", async () => {
+    const calls = mockFetch({
+      "2031-10/od/s1.json": shard("2031-10", "s1", 2),
+      "2031-10/stations.json": stations("2031-10", 2),
+    });
+    const s = await loadOdShard("2031-10", "s1");
+    expect(s.origin).toBe("s1");
+    expect(calls.map((u) => u.replace(/^.*data\//, "")).sort()).toEqual([
+      "2031-10/od/s1.json",
+      "2031-10/stations.json",
+    ]);
+  });
+
+  it("列長與同月站數不同就報錯（各月站數可能不同，索引不可跨月使用）", async () => {
+    mockFetch({
+      "2031-11/od/s1.json": shard("2031-11", "s1", 3),
+      "2031-11/stations.json": stations("2031-11", 2),
+    });
+    await expect(loadOdShard("2031-11", "s1")).rejects.toThrow("對不上");
+  });
+
+  it("月份或起站不符就報錯", async () => {
+    mockFetch({
+      "2031-12/od/s1.json": shard("2031-11", "s2", 2),
+      "2031-12/stations.json": stations("2031-12", 2),
+    });
+    await expect(loadOdShard("2031-12", "s1")).rejects.toThrow("對不上");
   });
 });

@@ -65,6 +65,19 @@ export async function loadEvents(month: string): Promise<EventsFile> {
   }
   return events;
 }
-/** 只有使用者選了起站才載入（約 25 KB） */
-export const loadOdShard = (month: string, stationId: string) =>
-  getJson<OdShard>(`${month}/od/${stationId}.json`);
+/**
+ * 只有使用者選了起站才載入（約 25 KB）。迄站是同月 stations.json 的索引，各月份站數可能不同
+ * （例：2025-10 沒有廣慈/奉天宮），所以一併取得同月 stations.json 並檢查 month 與列長（AD-2）。
+ */
+export async function loadOdShard(month: string, stationId: string): Promise<OdShard> {
+  const [shard, stations] = await Promise.all([
+    getJson<OdShard>(`${month}/od/${stationId}.json`),
+    loadStations(month),
+  ]);
+  const n = stations.stations.length;
+  const rows = [...shard.weekday, ...shard.holiday].filter((r): r is (number | null)[] => r !== null);
+  if (shard.month !== stations.month || shard.origin !== stationId || !rows.every((r) => r.length === n)) {
+    throw new Error(`${month} 的起訖分片 ${stationId} 與 stations.json 對不上`);
+  }
+  return shard;
+}

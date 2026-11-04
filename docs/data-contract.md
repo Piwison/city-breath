@@ -6,8 +6,8 @@ v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `so
 
 ```text
 web/public/data/
-  months.json                 # { months: ["2026-09"], latest }
-  2026-09/
+  months.json                 # { v, months: ["2025-10", …, "2026-09"], latest }：依序列出每個月份資料夾
+  2026-09/                    # 每個月一個資料夾（1.7 起近 12 個月），形狀相同
     meta.json                 # 來源、授權、日數、營運時段、限制說明
     stations.json   ~109 KB   # 車站、24 小時曲線、前 5 目的地、分群、行政區
     districts.json  ~66 KB    # 行政區：代碼、名稱、中心點、簡化界線、區內車站
@@ -22,6 +22,8 @@ web/public/data/
 - 每檔有 `v`（契約版本）與 `month`。
 - 小時陣列長度 24；停止營運的時段為 `null`（目前 2–4 點）。
 - 檔內以 `stations.json` 的陣列索引指涉車站；跨檔與網址用站 ID（`s` + sha1(正規站名) 前 8 碼）。
+- **索引只在同一個月份資料夾內有效**（AD-2）：各月的車站集合可能不同（例：2025-10 的 OD 月檔沒有廣慈/奉天宮，該月 119 站），同一站在不同月份的索引可能不同；站 ID 由站名決定，跨月份不變。`loadDaily`、`loadEvents`、`loadOdShard` 都會一併取同月 `stations.json` 檢查。
+- 所有月份同一個契約版本（AD-18）；`months.json` 列出的月份與資料夾一一對應（`pipeline/tests/test_months.py` 檢查）。月份資料夾上線後不可變。
 - 平均 = 該月該日型總人次 ÷ 該日型天數；`weekday`／`holiday` 定義見 AD-4。
 - **起訖平均四捨五入後少於 10 → `null`**，畫面顯示「少於 10 人」（AD-3）。
 - **次要隱藏**（AD-3）：若某個已公開的總量等於一組起訖格子的和，而這組只有一格 `null`，管線會再把組內最小的已公開格也改成 `null`，重複到每組都是零格或至少兩格 `null`。前端照樣顯示「少於 10 人」，不得用總量反推。只在 `pipeline/src/city_breath_pipeline/suppress.py` 實作。目前檢查的組：
