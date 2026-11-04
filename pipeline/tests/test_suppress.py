@@ -5,7 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from city_breath_pipeline.suppress import apply, od_groups, primary, secondary, unprotected
+from city_breath_pipeline.suppress import (
+    apply,
+    district_groups,
+    od_groups,
+    primary,
+    secondary,
+    unprotected,
+)
 
 DATA = Path(__file__).resolve().parents[2] / "web" / "public" / "data"
 MONTHS = sorted(p.name for p in DATA.iterdir() if p.is_dir() and (p / "od").is_dir()) if DATA.is_dir() else []
@@ -81,6 +88,30 @@ def test_apply_counts_raw_none_as_null_but_not_primary():
     assert sorted(res.secondary_hidden) == ["c", "d"]
 
 
+def test_district_groups_shapes():
+    # 站 0、1 在區 0，站 2 在區 1；站 1 出站未入檔
+    groups = district_groups(
+        n_districts=2, dest=[0, 1], origins=[0, 1, 2], recorded=[0, 2],
+        station_district=[0, 0, 1], service_hours=[8],
+    )
+    # 每日型每小時：2 列組 + 2 欄組 + 4 站區塊組
+    assert len(groups) == 2 * (2 + 2 + 4)
+    assert [("D", 0, 0, "weekday", 8), ("D", 0, 1, "weekday", 8)] in groups  # 列
+    assert [("D", 0, 1, "weekday", 8), ("D", 1, 1, "weekday", 8)] in groups  # 欄
+    # 站區塊：區 0→區 1 ＝ od(0→2) + od(1→2)；迄站只含出站有紀錄的站
+    assert [("D", 0, 1, "weekday", 8), (0, 2, "weekday", 8), (1, 2, "weekday", 8)] in groups
+    assert [("D", 0, 0, "weekday", 8), (0, 0, "weekday", 8), (1, 0, "weekday", 8)] in groups
+
+
+def test_district_block_protects_od_cell():
+    """行政區格公開、區塊只剩一格 od null → 再藏一格 od；行政區格是唯一 null → 也要藏 od。"""
+    groups = [[("D", 0, 1, "weekday", 8), (0, 2, "weekday", 8), (1, 2, "weekday", 8)]]
+    res = apply({("D", 0, 1, "weekday", 8): 45.0, (0, 2, "weekday", 8): 40.0, (1, 2, "weekday", 8): 5.0}, groups)
+    assert res.values[(0, 2, "weekday", 8)] is None and res.values[("D", 0, 1, "weekday", 8)] == 45
+    _, hidden = secondary({("D", 0, 1, "weekday", 8): None, (0, 2, "weekday", 8): 30, (1, 2, "weekday", 8): 20}, groups)
+    assert hidden == [(1, 2, "weekday", 8)]
+
+
 def test_od_groups_shapes():
     groups = od_groups(origins=[0, 1], recorded=[0, 2], top_dests={(0, "weekday"): [2]}, service_hours=[7, 8])
     # 每日型每小時：2 列組 + 2 欄組；weekday 另有 1 個全日組
@@ -101,7 +132,7 @@ def _load(month: str):
     for p in sorted((root / "od").glob("*.json")):
         j = json.loads(p.read_text("utf-8"))
         shards[idx[j["origin"]]] = j
-    flows = json.loads((root / "flows.json").read_text("utf-8"))
+    flows = json.loads((root / "district-flows.json").read_text("utf-8"))
     return stations, shards, flows
 
 
@@ -154,10 +185,58 @@ def test_unrecorded_destinations_stay_null(month):
                     assert all(row[d] is None for d in unrecorded)
 
 
+def test_flows_json_removed():
+    """AD-10：v2 不再輸出前 200 組站弧線。"""
+    assert not any(DATA.glob("*/flows.json"))
+
+
 @pytest.mark.parametrize("month", MONTHS)
-def test_flows_only_show_published_cells(month):
-    _, shards, flows = _load(month)
+def test_district_flows_every_group_has_zero_or_two_nulls(month):
+    """攻擊者的視角：行政區列、欄，以及「行政區格＋整塊 od 格」都要是零格或至少兩格 null。"""
+    stations, shards, flows = _load(month)
+    pos = {code: i for i, code in enumerate(flows["districts"])}
+    of = [pos[s["district"]] for s in stations]
+    n = len(pos)
+    recorded = [i for i, s in enumerate(stations) if s["exitsRecorded"]]
+    dest = sorted({of[i] for i in recorded})
+    bad = []
+    checked = 0
     for t in ("weekday", "holiday"):
-        for h, arcs in enumerate(flows[t]):
-            for o, d, v in arcs:
-                assert shards[o][t][h][d] == v
+        for h, m in enumerate(flows[t]):
+            if m is None:
+                continue
+            for a in range(n):
+                checked += 1
+                if sum(m[a][b] is None for b in dest) == 1:
+                    bad.append(("row", a, t, h))
+                for b in dest:
+                    block = [shards[o][t][h][d] for o in shards if of[o] == a for d in recorded if of[d] == b]
+                    checked += 1
+                    if [m[a][b], *block].count(None) == 1:
+                        bad.append(("block", a, b, t, h))
+            for b in dest:
+                checked += 1
+                if sum(m[a][b] is None for a in range(n)) == 1:
+                    bad.append(("col", b, t, h))
+    assert checked > 0
+    assert bad == []
+
+
+@pytest.mark.parametrize("month", MONTHS)
+def test_district_flows_rows_add_up_to_station_entries(month):
+    """AD-7：完全公開的一列，和等於區內各站 entries 之和（只差每格四捨五入）。"""
+    stations, _, flows = _load(month)
+    pos = {code: i for i, code in enumerate(flows["districts"])}
+    full = 0
+    for t in ("weekday", "holiday"):
+        for h, m in enumerate(flows[t]):
+            if m is None:
+                continue
+            for code, a in pos.items():
+                if any(v is None for v in m[a]):
+                    continue
+                members = [s for s in stations if s["district"] == code]
+                entries = sum(s[t]["entries"][h] for s in members)
+                assert abs(sum(m[a]) - entries) <= (len(m[a]) + len(members)) / 2, (code, t, h)
+                full += 1
+    assert full > 0

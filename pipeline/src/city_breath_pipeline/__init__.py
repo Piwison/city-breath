@@ -5,6 +5,5 @@
 
 CONTRACT_VERSION = 2
 SUPPRESS_BELOW = 10  # 起訖人次低於此值一律不輸出數字（PRD：少於 10 人）
-TOP_ARCS_PER_HOUR = 200
 HOURS = list(range(24))
 DAY_TYPES = ("weekday", "holiday")

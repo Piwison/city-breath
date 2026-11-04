@@ -1,6 +1,4 @@
-import type { DistrictsFile, FlowsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
-import type { DailyFile } from "./types";
-import type { EventsFile } from "./types";
+import type { DailyFile, DistrictFlowsFile, DistrictsFile, EventsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
 
 export const CONTRACT_VERSION = 2;
 const BASE = `${import.meta.env.BASE_URL}data`;
@@ -28,7 +26,8 @@ export const loadMonths = () => getJson<MonthsFile>("months.json");
 export const loadMeta = (month: string) => getJson<MetaFile>(`${month}/meta.json`);
 export const loadStations = (month: string) => getJson<StationsFile>(`${month}/stations.json`);
 export const loadDistricts = (month: string) => getJson<DistrictsFile>(`${month}/districts.json`);
-export const loadFlows = (month: string) => getJson<FlowsFile>(`${month}/flows.json`);
+/** 行政區×行政區×小時×日型（約 72 KB），首頁與行政區展開用 */
+export const loadDistrictFlows = (month: string) => getJson<DistrictFlowsFile>(`${month}/district-flows.json`);
 /**
  * 逐日檔：只有進入某一天才載入（約 40 KB，AD-6）。站索引只在同月有效，
  * 所以一併取得同月 stations.json 並檢查 month 與站數相同（AD-2）。
