@@ -1,27 +1,28 @@
-# 城市呼吸 initiative 的 epics，依建置順序。由 v6 epics.md 遷移（2026-10-29），2026-11-03 replan。
+# 城市呼吸 initiative 的 epics，依建置順序。由 v6 epics.md 遷移（2026-10-29），2026-11-03 replan，2026-11-10 replan（天光定案）。
 
 [[epic]]
 id = 1
 slug = "epic-data-pipeline"
 title = "每月 OD 原始檔變成網站讀得動的小檔"
-description = "一個指令就能把該月 OD 檔彙總成靜態 JSON（契約 v2：含行政區對照、行政區起訖與逐日每站每小時），車站類型由人定名。"
-covers = ["R10"]
+description = "一個指令就能把該月 OD 檔彙總成靜態 JSON（契約 v2：含行政區對照、行政區起訖與逐日每站每小時；之後加每站來源），底圖圖層（地形、河川、綠地、軌道、班距、地標）也由管線輸出，車站類型由人定名。"
+covers = ["R10", "R18", "R20"]
 # v6: Epic 0
 
 [[epic]]
 id = 2
 slug = "epic-visual-system"
 title = "城市呼吸有一套微縮城市視覺系統"
-description = "微縮城市方向用 prototype 定案，tokens 與 base 用 impeccable 整理，正式底圖或場景在建置版可用。"
-covers = ["R12"]
+description = "微縮城市方向定案為天光（DESIGN.md），tokens 與 base 用 impeccable 整理，台北盆地的場景基底（地形、河川、綠地、路線、天光）在建置版可用。"
+covers = ["R12", "R20"]
+after = [{ epic = 1, needs = "底圖圖層輸出（1.12）" }]
 # v6: Epic 1
 
 [[epic]]
 id = 3
 slug = "epic-city-breath-home"
 title = "城市觀察者看得到一整天各行政區之間的流動"
-description = "首頁自動播放行政區流向、可切換平日／假日；點一個行政區看這區的人去哪、誰來這裡並展開該區的站，在手機上順暢。"
-covers = ["R3", "R13"]
+description = "首頁自動播放行政區流向、可切換平日／假日；點一個行政區看這區的人去哪、誰來這裡並展開該區的站，點站開車站卡；地標、徽章、此刻最忙帶人找到值得看的站，街廓與列車（示意）讓城市活起來，在手機上順暢。"
+covers = ["R3", "R13", "R19", "R20"]
 after = [{ epic = 1, needs = "契約 v2 的行政區對照與行政區起訖彙總" }, { epic = 2, needs = "微縮城市場景基底（2.3）" }]
 # v6: Epic 2
 
@@ -29,27 +30,27 @@ after = [{ epic = 1, needs = "契約 v2 的行政區對照與行政區起訖彙�
 id = 4
 slug = "epic-commute-card"
 title = "通勤族找到同路人並把通勤卡分享出去"
-description = "輸入起訖站與時段看到同路人數與名次，一鍵下載直式分享卡，下載次數可計數。"
-covers = ["R1", "R2"]
-after = [{ epic = 1, needs = "od/{stationId}.json 分片" }, { epic = 2, needs = "分享卡的視覺 token" }, { epic = 3, needs = "首頁，通勤入口疊在上面" }]
+description = "一鍵下載直式分享卡（先做，行政區卡與活動卡共用版型），從可打字搜尋的「找車站／通勤」輸入起訖站與時段看到同路人數、名次與早晚一小時比較，行政區卡也能分享，下載次數可計數。"
+covers = ["R1", "R2", "R17"]
+after = [{ epic = 1, needs = "od/{stationId}.json 分片" }, { epic = 2, needs = "分享卡的視覺 token" }, { epic = 3, needs = "首頁與車站卡，通勤入口疊在上面；行政區小卡（3.6）" }]
 # v6: Epic 3
 
 [[epic]]
 id = 7
 slug = "epic-event-days"
 title = "使用者看得到上個月哪幾天特別不一樣、為什麼"
-description = "每月自動列出異常日並對上場館檔期，人工補的活動附來源，對不到的標「原因未查證」；點進一天看和平常的差異與人從哪些區來。"
-covers = ["R5"]
-after = [{ epic = 1, needs = "逐日每站每小時資料" }, { epic = 3, needs = "行政區流向地圖" }]
+description = "每月自動列出異常日並對上場館檔期，人工補的活動附來源，對不到的標「原因未查證」；時間軸的「大日子」點進一天看和平常的差異、散場高峰周邊站與人從哪些區來，活動卡可分享。"
+covers = ["R5", "R17"]
+after = [{ epic = 1, needs = "逐日每站每小時資料" }, { epic = 3, needs = "行政區流向地圖" }, { epic = 4, needs = "分享卡版型（4.3）" }]
 # 2026-11-03 replan 新增
 
 [[epic]]
 id = 5
 slug = "epic-station-personality"
 title = "使用者認識每個站的個性"
-description = "點站開啟車站個性卡：類型、一句話、平假日曲線、前 5 目的地與同類型站。"
-covers = ["R4"]
-after = [{ epic = 1, needs = "人工定名的車站類型" }]
+description = "首頁的車站卡（3.12）再加上類型、一句話、平假日曲線、整天前 10 目的地、同類型站與誰來這站。"
+covers = ["R4", "R18"]
+after = [{ epic = 1, needs = "人工定名的車站類型與每站來源（1.13）" }, { epic = 3, needs = "車站卡（3.12）" }]
 # v6: Epic 4
 
 [[epic]]

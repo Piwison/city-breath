@@ -1,13 +1,25 @@
-# 通勤族找到同路人並把通勤卡分享出去 的 stories，依建置順序。
+# 通勤族找到同路人並把通勤卡分享出去 的 stories，依建置順序。2026-11-10 replan：分享卡移到最前。
+
+[[entry]]
+id = 3
+type = "story"
+title = "直式分享卡輸出"
+description = "一鍵產生直式圖片：web/src/share/render.ts 依資料在離屏 canvas 重畫（AD-17），附資料月份、來源與網址；先接在骨架現有的通勤結果上，4.1 換成正式入口時沿用；版型做成行政區卡（4.5）與活動卡（7.7）共用（走查結論 1：A2、B2、C6 一起解）。"
+verify = "下載的圖片含月份、來源、網址三項且版面在 IG 限動比例內；vitest 檢查少於 10 人時圖上寫「少於 10 人」。"
+covers = ["R2"]
+after = ["2.2"]
+hitl = false
+risk = "low"
+v6_key = "3-3"
 
 [[entry]]
 id = 1
 type = "story"
-title = "起訖站與時段輸入"
-description = "3 步內選好起站、迄站、出發時段（骨架表單已完成）；入口疊在首頁上方，播放中也能直接輸入。"
-verify = "3 步內看到結果。"
+title = "找車站與起訖站輸入"
+description = "上方「找車站／通勤」入口疊在首頁上，播放中也能直接用：可打字搜尋的站選單（站名與別名都找得到），選站後可「只看起站」（鏡頭飛到該站、開 3.12 的車站卡，看這站這一小時去哪幾區），或再選迄站與時段看同路人；接上車站卡的「從這站找通勤」；面板寫明環狀線沒有出站紀錄、不能當迄站（走查 A1、A4、A7）。"
+verify = "打「忠孝」就列出忠孝復興、忠孝新生、忠孝敦化；3 步內看到同路人；只看起站時看得到去哪幾區；選環狀線站當迄站時看到說明。"
 covers = ["R1"]
-after = ["3.5"]
+after = ["3.5", "3.12"]
 hitl = false
 risk = "low"
 v6_key = "3-1"
@@ -15,35 +27,45 @@ v6_key = "3-1"
 [[entry]]
 id = 2
 type = "story"
-title = "同路人數、名次與前 5 目的地"
-description = "computeCommute 算出同路人數、名次與起站前 5 目的地，少於 10 人只顯示「少於 10 人」（邏輯與測試已完成）。"
-verify = "vitest 涵蓋少於 10 人、停止營運、名次。"
+title = "同路人數、名次與早晚一小時"
+description = "通勤卡顯示 computeCommute 算出的同路人數、名次與起站前 5 目的地（邏輯與測試已完成），加「早一點、晚一點出門呢？」三格比較前後一小時，點了直接換時段（A3）；少於 10 人只顯示「少於 10 人」；卡內用 3.6 的時間列。"
+verify = "vitest 涵蓋少於 10 人、停止營運、名次與前後一小時；點 7 點那格時段換成 7 點、數字更新。"
 covers = ["R1"]
-after = []
+after = [1, "1.5"]
 hitl = false
 risk = "low"
 v6_key = "3-2"
 
 [[entry]]
-id = 3
+id = 5
 type = "story"
-title = "直式分享卡輸出"
-description = "一鍵產生直式圖片，附資料月份、來源與網址。"
-verify = "下載的圖片含三項資訊且版面在 IG 限動比例內。"
-covers = ["R2"]
-after = []
+title = "行政區卡分享"
+description = "行政區小卡加「存成圖片」：用 4.3 的版型重畫這區這一小時或整天的去哪、誰來前 3，附月份、日型、時段、來源與網址（C6）。"
+verify = "從大安區小卡下載的圖含區名、日型、時段、前 3 名與來源；少於 10 人顯示「少於 10 人」。"
+covers = ["R3"]
+after = [3, "3.6"]
 hitl = false
 risk = "low"
-v6_key = "3-3"
 
 [[entry]]
 id = 4
 type = "story"
 title = "下載分享卡計數"
-description = "記錄「下載分享卡」事件以量測北極星指標。"
-verify = "按下下載後事件可在分析工具看到。"
+description = "記錄「下載分享卡」事件以量測北極星指標；props 帶卡片種類（通勤、行政區、活動），經 track.ts（AD-20）。"
+verify = "按下下載後事件可在分析工具看到，種類正確。"
 covers = ["R2"]
-after = []
+after = [3, 5]
 hitl = false
 risk = "low"
 v6_key = "3-4"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Refactor sweep"
+description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定。"
+verify = "npm test 與 npm run build 通過，延後的整理項目都處理或記錄。"
+covers = ["R1", "R2", "R3"]
+after = [3, 1, 2, 5, 4]
+hitl = false
+risk = "low"

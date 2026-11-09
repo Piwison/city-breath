@@ -1,13 +1,13 @@
-# 使用者認識每個站的個性 的 stories，依建置順序。
+# 使用者認識每個站的個性 的 stories，依建置順序。2026-11-10 replan：建在首頁的車站卡（3.12）上。
 
 [[entry]]
 id = 1
 type = "story"
 title = "類型、一句話與 24 小時曲線"
-description = "點站開啟個性卡，顯示類型、描述與平假日 24 小時曲線（類型與描述已完成，曲線圖未做）。"
-verify = "任一站開啟後三項皆可見。"
+description = "3.12 的車站卡加上類型標籤、一句話描述與平假日 24 小時曲線（類型與描述已完成，曲線圖未做）；與卡上的「個性特質」並列，不重複。"
+verify = "任一站開啟後三項皆可見；類型 draft=true 時不顯示標籤。"
 covers = ["R1"]
-after = []
+after = ["1.6", "3.12"]
 hitl = false
 risk = "low"
 v6_key = "4-1"
@@ -15,23 +15,45 @@ v6_key = "4-1"
 [[entry]]
 id = 2
 type = "story"
-title = "前 5 目的地與同類型站"
-description = "顯示全日最常去的 5 站與同類型其他站（前 5 已完成）。"
-verify = "任一站顯示 5 個目的地與同類型站。"
-covers = ["R1"]
-after = []
+title = "整天前 10 目的地與同類型站"
+description = "車站卡加整天最常去的 10 站（1.13 擴充的 topDestinations，平日／假日）與同類型其他站；3.12 的「這一小時前 5」不變（C5）。"
+verify = "任一站顯示整天 10 個目的地與同類型站；少於 10 人顯示「少於 10 人」。"
+covers = ["R1", "R2"]
+after = [1, "1.13"]
 hitl = false
 risk = "low"
 v6_key = "4-2"
 
 [[entry]]
+id = 4
+type = "story"
+title = "誰來這站"
+description = "車站卡加「誰來這站」：這一小時前 5 個起站與各來源行政區（1.13 的 inbound 分片，選了站才載，AD-6），地圖畫出來源區到這站的流向（共用流向圖層，AD-19），以及整天前 10 個起站（D1、F2）。"
+verify = "點任一非環狀線站平日 9 點看到來源區前幾名，與 inbound 分片一致；少於 10 人顯示「少於 10 人」。"
+covers = ["R2"]
+after = [2]
+hitl = false
+risk = "low"
+
+[[entry]]
 id = 3
 type = "story"
 title = "環狀線車站說明"
-description = "環狀線站出站未計，個性卡說明原因而不誤導（骨架已完成）。"
-verify = "點環狀線站看到說明文字，無類型標籤。"
-covers = ["R1"]
-after = []
+description = "環狀線站出站未計：車站卡不顯示類型標籤、說明原因，「誰來這站」也說明為什麼沒有（3.12 已顯示出站未入檔）。"
+verify = "點環狀線站看到說明文字，無類型標籤，誰來這站的位置是說明而不是空白。"
+covers = ["R1", "R2"]
+after = [4]
 hitl = false
 risk = "low"
 v6_key = "4-3"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Refactor sweep"
+description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定。"
+verify = "npm test 與 npm run build 通過，延後的整理項目都處理或記錄。"
+covers = ["R1", "R2"]
+after = [1, 2, 4, 3]
+hitl = false
+risk = "low"
