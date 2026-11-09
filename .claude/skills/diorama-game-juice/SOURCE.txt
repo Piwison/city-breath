@@ -1,1 +1,2 @@
 source: 專案自有（2026-11-04）。依 Piwi 提供的「diorama-game-juice」建議改寫，對齊 architecture AD-3、AD-6、AD-8、AD-11、AD-12、AD-16、AD-19。
+2026-11-10 依 DESIGN.md（天光定案）改寫：地形與底座、真實／示意界線、天光的光照、流向緞帶、回饋強度三級、地標與徽章、HUD；對齊 AD-21 到 AD-26。
