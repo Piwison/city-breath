@@ -1,11 +1,136 @@
-/* 暫用 token：hallmark scaffold 產出 tokens.css 後整檔取代。只保留骨架需要的變數名。 */
+/* 城市呼吸 設計 token：天光（2026-11-10 定案，見 DESIGN.md）。
+   這是全站唯一定義顏色與字型的地方（CLAUDE.md 規則 5、AD-8）。其他 CSS 只用 var(--…)；
+   TS 與 Three.js 經 web/src/styles/tokens.ts 讀取，不寫死色碼。
+
+   日夜：後綴 -night／-dawn／-day／-dusk 的 token 由 tokens.ts 的 tokenAt() 依時刻在相鄰兩組間內插
+   （關鍵時刻見 PHASE_KEYS）；沒有後綴的 token 全天共用，材質顏色固定，日夜靠光。
+   HUD 只有白天／夜晚兩組，由 clock 依太陽高度寫 :root 的 data-phase（hudPhase()）。 */
+
 :root {
-  --surface: oklch(0.18 0.01 260);
-  --ink: oklch(0.95 0.005 260);
-  --ink-muted: oklch(0.72 0.01 260);
-  --flow-in: oklch(0.78 0.14 75);
-  --flow-out: oklch(0.7 0.12 230);
-  --flow-arc: oklch(0.85 0.06 75);
-  --station-selected: oklch(0.98 0 0);
-  --font-body: system-ui, "Noto Sans TC", "PingFang TC", sans-serif;
+  /* ── 字型與尺寸 ── */
+  --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --text-2xs: 0.6875rem; /* 11px：圖例、註記 */
+  --text-xs: 0.75rem;    /* 12px：次要說明 */
+  --text-sm: 0.875rem;   /* 14px：內文、按鈕 */
+  --text-md: 1.125rem;   /* 18px：小卡標題 */
+  --text-lg: 1.375rem;   /* 22px：時間 */
+  --text-xl: 2.5rem;     /* 40px：大數字 */
+  --leading: 1.5;
+  --radius: 14px;        /* HUD 面板 */
+  --radius-sm: 10px;     /* 按鈕、輸入框 */
+  --radius-pill: 999px;
+  --tap: 40px;           /* 主要按鈕（DESIGN.md 版面） */
+  --tap-min: 30px;       /* 點擊目標下限 */
+
+  /* ── 動態：reduced-motion 時時長歸零（直接切換，AD-8） ── */
+  --dur-press: 120ms;
+  --dur-quick: 160ms;
+  --dur-phase: 600ms;    /* HUD 日夜換色 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-pop: cubic-bezier(0.2, 1.6, 0.4, 1);
+
+  /* ── 捷運路線：臺北捷運路線資料服務（data.taipei）LineColor ── */
+  --line-br: #b57a25;
+  --line-r: #d90023;
+  --line-r3: #ef9298;
+  --line-g: #107547;
+  --line-g3: #d2de1a;
+  --line-o: #f5a818;
+  --line-bl: #0a59ae;
+  /* 環狀線由新北捷運營運、不在臺北捷運路線資料裡；暫定黃色，待查官方色碼 */
+  --line-y: #f2c500;
+
+  /* ── 流向：全城／去哪／誰來／通勤 ── */
+  --flow-neutral: #e9781e;
+  --flow-out: #2a7fd0;
+  --flow-in: #e2582b;
+  --commute: #d63a48;
+  --ripple: #ffd9a0;
+  --particle-hi: #fffaf0;
+  --shadow: #1c160c;
+
+  /* ── 天空與光（四相位，tokenAt() 內插） ── */
+  --sky-top-night: #0a0f26;  --sky-top-dawn: #3a4c8c;  --sky-top-day: #5aa6e0;  --sky-top-dusk: #35306f;
+  --sky-horizon-night: #1e2a50;  --sky-horizon-dawn: #f7b48f;  --sky-horizon-day: #d9eeff;  --sky-horizon-dusk: #f2895a;
+  --light-night: #7b8ce0;  --light-dawn: #ffb27a;  --light-day: #fff2dc;  --light-dusk: #ff8f52;
+  --amb-sky-night: #2a3466;  --amb-sky-dawn: #b9b6dc;  --amb-sky-day: #d3e8ff;  --amb-sky-dusk: #bba6d0;
+  --amb-ground-night: #12141f;  --amb-ground-dawn: #7a6a66;  --amb-ground-day: #b5a58c;  --amb-ground-dusk: #76605e;
+  --sun-disc: #fff3cf;
+  --sun-glow: rgba(255, 205, 120, 0.55);
+  --moon-disc: #e9edff;
+  --moon-glow: rgba(190, 205, 255, 0.35);
+  --star: #ffffff;
+  --cloud: #ffffff;
+
+  /* ── 地面與地形（材質固定） ── */
+  --plinth: #d8c9ac;  --plinth-side: #a48d6b;  --plinth-line: #b5a382;
+  --strata-1: #b39a74;  --strata-2: #8c7457;
+  --tile: #f3ede1;  --tile-side: #d6c9b2;
+  /* 地形六層：40／120／250／400／600／850 公尺 */
+  --terrain-1: #dfe2b8;  --terrain-2: #c6d49c;  --terrain-3: #aac485;
+  --terrain-4: #8fb271;  --terrain-5: #789f5f;  --terrain-6: #648b50;
+  --terrain-side: #a69a74;
+  --water: #7db3dc;
+  --green: #a8cf8c;
+  --tree: #93bf74;
+  --tree-tint-1: #ffffff;  --tree-tint-2: #dcebc9;
+
+  /* ── 建築（示意）：牆色三種、屋頂點綴三種，乘在材質色上 ── */
+  --building: #ffffff;  --roof: #ebe4d6;  --window: #ffcb72;
+  --bld-tint-1: #ffffff;  --bld-tint-2: #f1e8dc;  --bld-tint-3: #e1e8ee;
+  --accent-1: #e39a80;  --accent-2: #9fc2b4;  --accent-3: #e9c98a;
+
+  /* ── 車站與列車 ── */
+  --station: #fbf7ef;
+  --station-glow: #ffe0a0;
+  --train-glow: #fff4d6;
+
+  /* ── 地標（位置真實、造型示意） ── */
+  --lm-glass: #8db1c2;  --lm-red: #b9483b;  --lm-gold: #e2b24c;  --lm-white: #f5f1e8;  --lm-blue: #2e5d9b;
+  --lm-roof-dark: #4d4440;  --runway: #6f737c;  --lantern: #ff8a3d;  --steam: #ffffff;
+  --elephant: #a7b0ba;  --beam: #fff1b0;
+  --boat: #ffffff;  --boat-sail: #e8604c;  --cable: #4f545c;  --gondola: #e9573f;
+
+  /* ── 徽章與皇冠 ── */
+  --gem: #ffc83d;
+  --gem-light: #fff1b8;
+  --gem-ink: #b07a00;
+  --gem-found: #4fc9b8;
+  --gem-glow: #ffe08a;
+  --unlock-bg: rgba(255, 200, 61, 0.14);
+
+  /* ── HUD 白天：亮玻璃 ── */
+  --hud-bg: rgba(255, 252, 246, 0.86);
+  --hud-ink: #1b2033;
+  --hud-muted: #586079;
+  --hud-line: rgba(27, 32, 51, 0.12);
+  --hud-accent: #2a7fd0;
+  --hud-chip: rgba(27, 32, 51, 0.07);
+  --hud-on: #ffffff;
+  --hud-shadow: rgba(0, 0, 0, 0.18);
+  /* 頁面底色：場景載入前與無 WebGL 時，用當下相位的地平線色 */
+  --page-bg: var(--sky-horizon-day);
+  color-scheme: light;
+}
+
+/* ── HUD 夜晚：暗玻璃 ── */
+:root[data-phase="night"] {
+  --hud-bg: rgba(14, 18, 38, 0.8);
+  --hud-ink: #eef1ff;
+  --hud-muted: #a3acd0;
+  --hud-line: rgba(255, 255, 255, 0.14);
+  --hud-accent: #7fb6ff;
+  --hud-chip: rgba(255, 255, 255, 0.08);
+  --hud-on: #0e1226;
+  --hud-shadow: rgba(0, 0, 0, 0.4);
+  --page-bg: var(--sky-horizon-night);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-press: 0ms;
+    --dur-quick: 0ms;
+    --dur-phase: 0ms;
+  }
 }
