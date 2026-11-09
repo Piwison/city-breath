@@ -245,6 +245,21 @@ body { font-family: var(--font); color: var(--hud-ink); -webkit-font-smoothing: 
 .rank .s2 { grid-column: 1 / -1; font-size: 11px; color: var(--hud-muted); }
 .sheet a { color: var(--hud-accent); }
 
+/* 小卡裡的時間與日子控制（小卡蓋住時間軸時也能換時段、換平假日） */
+.ctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ctl .step { width: 32px; height: 30px; border-radius: 8px; border: 1px solid var(--hud-line); background: var(--hud-chip); cursor: pointer; font-size: 16px; line-height: 1; }
+.ctl .t { min-width: 46px; text-align: center; font-weight: 700; font-size: 14px; }
+.ctl .seg { margin-left: auto; }
+.ctl .seg button { height: 28px; }
+.spark button { position: relative; }
+.spark .norm { position: absolute; left: 10%; right: 10%; height: 2px; background: var(--hud-ink); opacity: 0.55; border-radius: 1px; }
+.cmp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cmp button { display: grid; gap: 2px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--hud-line); background: var(--hud-chip); cursor: pointer; text-align: left; }
+.cmp button[aria-current="true"] { border-color: var(--hud-accent); }
+.cmp b { font-size: 16px; } .cmp span { font-size: 11px; color: var(--hud-muted); }
+.story.small { font-size: 13px; line-height: 1.55; }
+.toast.hint-toast { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 168px); max-width: calc(100vw - 24px); }
+
 /* 時段切換的提示 */
 .toast { top: calc(env(safe-area-inset-top, 0px) + 108px); left: 50%; transform: translateX(-50%); padding: 8px 14px; border-radius: 999px;
   font-size: 13px; font-weight: 700; display: flex; gap: 8px; align-items: center; pointer-events: none; white-space: nowrap; }
@@ -494,7 +509,7 @@ function startApp(stage, vi) {
     <p class="loading">載入 ${MONTH} 資料中</p>
     <div class="labels"></div>
     <div class="badge" hidden></div>
-    <button class="hud commute-pill" type="button" aria-expanded="false">${ICON.route}找你的通勤</button>
+    <button class="hud commute-pill" type="button" aria-expanded="false">${ICON.route}找車站／通勤</button>
     <button class="hud layer-btn" type="button" aria-expanded="false" aria-label="圖層">${ICON.layers}</button>
     <button class="hud medal-btn" type="button" aria-label="城市徽章">${ICON.medal}<b class="num">0/8</b></button>
     <button class="hud top-chip" type="button" hidden></button>
@@ -505,7 +520,7 @@ function startApp(stage, vi) {
       <p class="src">捷運路線：臺北市政府捷運局路網圖。列車：位置為示意，間隔依臺北捷運公司公告的發車班距（環狀線無資料，不畫）。河川：臺北市政府工務局、新北市政府水利局。綠地：臺北市政府工務局。建築與樹：示意，街廓依附近車站全日進出人數疏密、高度隨該區此刻人數起伏，不是真實建物。</p>
     </div>
     <form class="hud commute-panel" hidden>
-      <h2>你平常從哪站到哪站？</h2>
+      <h2>找一站，或你平常的通勤</h2>
       <div class="row">
         <label>起站<select name="o" required></select></label>
         <label>迄站<select name="d" required></select></label>
@@ -514,7 +529,8 @@ function startApp(stage, vi) {
         <label>出發時段<select name="h"></select></label>
         <label>日子<select name="day"><option value="weekday">平日</option><option value="holiday">假日</option></select></label>
       </div>
-      <div class="actions"><button type="button" class="btn" data-cancel>取消</button><button class="btn primary">看同路人</button></div>
+      <p class="note">環狀線車站沒有出站紀錄（新北捷運營運、未入檔），不能當迄站。</p>
+      <div class="actions"><button type="button" class="btn" data-cancel>取消</button><button type="button" class="btn" data-only-o>只看起站</button><button class="btn primary">看同路人</button></div>
     </form>
     <section class="hud dock" aria-label="時間軸">
       <div class="top">
@@ -1104,22 +1120,27 @@ function startApp(stage, vi) {
     const WEEK = '日一二三四五六';
     const dOfId = new Map(D.map((d) => [d.id, d.i]));
     const evMaxRatio = (ev) => Math.max(0, ...(data.events?.anomalies || []).filter((a) => a.eventIds?.includes(ev.id)).map((a) => a.ratio));
-    async function enterEvent(ev) {
+    // ev 可以是 events.json 的活動，也可以是「原因未查證」的異常（站或全城）；date 不給就挑異常最大的那天
+    async function enterEvent(ev, dateIn) {
       const anos = (data.events?.anomalies || []).filter((a) => a.eventIds?.includes(ev.id)).sort((a, b) => b.ratio - a.ratio);
-      const date = anos[0]?.date || ev.startDate;
+      const date = dateIn || anos[0]?.date || ev.startDate;
       const daily = await fetch(new URL(`daily/${date}.json`, BASE)).then((r) => r.json());
       if (disposed) return;
-      const si = ev.stations[0], dayType = daily.dayType;
+      const si = ev.stations[0] ?? -1, dayType = daily.dayType;
       const stAct = HRS.map((h) => ST.map((_, i) => (daily.entries[i]?.[h] || 0) + (daily.exits[i]?.[h] || 0)));
       const agg = (src) => HRS.map((h) => { const a = new Array(D.length).fill(0); ST.forEach((s, i) => { if (s.di !== undefined) a[s.di] += src[i]?.[h] || 0; }); return a; });
       const ent = agg(daily.entries), ext = agg(daily.exits), act = HRS.map((h) => ent[h].map((v, k) => v + ext[h][k]));
-      const ex = HRS.map((h) => daily.exits[si]?.[h] || 0), peakH = ex.indexOf(Math.max(...ex));
-      const base = ST[si][dayType].exits[peakH] || 1;
-      EV = { ev, date, daily, si, dayType, stAct, ent, ext, act, peakH, peakV: ex[peakH], base, venue: daily.venues?.find((v) => v.station === si) || null };
+      EV = { ev, date, daily, si, dayType, stAct, ent, ext, act, venue: si >= 0 ? daily.venues?.find((v) => v.station === si) || null : null, dayInfo: data.events?.days?.find((d) => d.date === date) };
+      if (si >= 0) {
+        // 到場高峰（出站最多）與散場高峰（進站最多）
+        const ex = HRS.map((h) => daily.exits[si]?.[h] || 0), en = HRS.map((h) => daily.entries[si]?.[h] || 0);
+        EV.peakH = ex.indexOf(Math.max(...ex)); EV.peakV = ex[EV.peakH]; EV.base = ST[si][dayType].exits[EV.peakH] || 1;
+        EV.outH = en.indexOf(Math.max(...en)); EV.outV = en[EV.outH]; EV.outBase = ST[si][dayType].entries[EV.outH] || 1;
+      } else { EV.peakH = 8; }
       S.sel = -1; S.station = -1; stationRow = null; S.shard = null; S.focusArc = null; S.commute = null; S.lm = -1; closePanel(); liftDistricts(-1);
       S.day = dayType; for (const b of root.querySelectorAll('[data-day]')) b.setAttribute('aria-pressed', String(b.dataset.day === 'event'));
-      S.hour = Math.max(0, peakH - 1.6); setPlaying(!S.still);
-      lookAt(stPos[si][0], stPos[si][1], 60);
+      S.hour = Math.max(0, EV.peakH - 1.6); setPlaying(!S.still);
+      if (si >= 0) lookAt(stPos[si][0], stPos[si][1], 60); else controls.setLookAt(...HOME(), !S.still);
       sfx('event'); arcSig = ''; renderEventCard();
     }
     function exitEvent() {
@@ -1442,6 +1463,7 @@ function startApp(stage, vi) {
       S.day = day; for (const b of root.querySelectorAll('[data-day]')) b.setAttribute('aria-pressed', String(b.dataset.day === day)); arcSig = '';
       if (S.sel >= 0) renderDistrictCard();
       if (S.station >= 0 && S.shard) { stationRow = S.shard[S.day][Math.floor(S.hour) % 24] || []; renderStationCard(S.shard); }
+      if (S.commute) rerunCommute(S.commute.h, day);
     }
     function setStill(v) { S.still = v; $('[data-still]').setAttribute('aria-pressed', String(v)); arcSig = ''; if (v) setPlaying(false); }
     on(playBtn, 'click', () => setPlaying(!S.playing));
@@ -1551,7 +1573,13 @@ function startApp(stage, vi) {
       sheet.querySelectorAll('[data-ev]').forEach((b) => on(b, 'click', () => enterEvent(data.events.events.find((e) => e.id === b.dataset.ev))));
       sheet.querySelectorAll('[data-station]').forEach((b) => on(b, 'click', () => selectStation(+b.dataset.station)));
       sheet.querySelectorAll('[data-hour]').forEach((b) => on(b, 'click', () => { S.hour = +b.dataset.hour + 0.5; setPlaying(false); }));
+      sheet.querySelectorAll('[data-step]').forEach((b) => on(b, 'click', () => { S.hour = ((Math.floor(S.hour) + +b.dataset.step + 24) % 24) + 0.5; setPlaying(false); }));
+      sheet.querySelectorAll('[data-dayset]').forEach((b) => on(b, 'click', () => { setDay(b.dataset.dayset); if (!S.commute && S.focusArc && S.sel < 0 && S.station < 0) renderFlowCard(); }));
     }
+    const ctlRow = (withDay = true) => {
+      const hh = Math.floor(S.hour) % 24;
+      return `<div class="ctl"><button type="button" class="step" data-step="-1" aria-label="前一小時">‹</button><span class="t num">${String(hh).padStart(2, '0')}:00</span><button type="button" class="step" data-step="1" aria-label="後一小時">›</button>${withDay && !EV ? `<div class="seg" role="group" aria-label="日子"><button type="button" data-dayset="weekday" aria-pressed="${S.day === 'weekday'}">平日</button><button type="button" data-dayset="holiday" aria-pressed="${S.day === 'holiday'}">假日</button></div>` : ''}</div>`;
+    };
     function netRank(hh) {
       const e = entAt(hh), x = extAt(hh);
       const net = D.map((_, i) => x[i] - e[i]);
@@ -1568,12 +1596,16 @@ function startApp(stage, vi) {
     const lineChips = (s) => `<span class="lchips">${s.lines.map((l) => `<span class="lchip"><i style="background:var(${lineToken(l)})"></i>${esc(data.layers?.lines?.[l] || l)}</span>`).join('')}</span>`;
     function renderDistrictCard() {
       const i = S.sel; if (i < 0) return;
-      const hh = Math.floor(S.hour) % 24, M = flows[S.day][hh], d = D[i];
-      const label = `${dayLabel()} ${hh} 點出發`;
+      const hh = Math.floor(S.hour) % 24, d = D[i], whole = S.dRange === 'day';
+      // 整天：各小時的平均人數加總（只算有公開人數的小時）
+      const M = whole ? D.map((_, a) => D.map((__, b) => HRS.reduce((t, h) => t + (flows[S.day][h]?.[a]?.[b] || 0), 0))) : flows[S.day][hh];
+      const label = whole ? `${dayLabel()}整天` : `${dayLabel()} ${hh} 點出發`;
+      const range = `<div class="seg" role="group" aria-label="範圍"><button type="button" data-drange="hour" aria-pressed="${!whole}">這一小時</button><button type="button" data-drange="day" aria-pressed="${whole}">整天</button></div>`;
       const SA = stActAt(hh);
       const sts = ST.filter((s) => s.di === i).sort((a, b) => SA[b.i] - SA[a.i]).slice(0, 6);
       const chips = `<h3 class="sec">這區的車站（點了看那一站）</h3><div class="chips">${sts.map((s) => `<button type="button" data-station="${s.i}"><i style="background:var(${lineToken(s.lines[0] || 'bl')})"></i>${esc(stName(s))} <span class="num">${fmt(SA[s.i])}</span></button>`).join('')}</div>`;
-      if (!M) { showSheet(`<header><h2>${esc(d.name)}</h2><span class="sub">${label}</span><button class="close" aria-label="關閉">${ICON.close}</button></header><p class="note">這個時段停止營運。</p>${chips}`); return; }
+      const wire = () => sheet.querySelectorAll('[data-drange]').forEach((b) => on(b, 'click', () => { S.dRange = b.dataset.drange; renderDistrictCard(); }));
+      if (!M) { showSheet(`<header><h2>${esc(d.name)}</h2><span class="sub">${label}</span><button class="close" aria-label="關閉">${ICON.close}</button></header>${ctlRow()}${range}<p class="note">這個時段停止營運。</p>${chips}`); wire(); return; }
       const outRow = M[i].map((v, j) => [j, v]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]);
       const inCol = M.map((row, j) => [j, row[i]]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]);
       const sum = (arr) => arr.reduce((s, [, v]) => s + v, 0) || 1;
@@ -1584,13 +1616,15 @@ function startApp(stage, vi) {
           <span class="n">${esc(D[j].name)}</span><span class="v num">${fmt(v)} 人</span>
           <span class="s"><i style="width:${(v / tot * 100).toFixed(1)}%;background:var(${kind === 'out' ? '--flow-out' : '--flow-in'})"></i></span></button></li>`).join('')}</ol>`;
       };
-      showSheet(`<header><h2>${esc(d.name)}</h2><span class="sub">${label}・${esc(titleOf(i))}</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
+      showSheet(`<header><h2>${esc(d.name)}</h2><span class="sub">${label}${whole ? '' : `・${esc(titleOf(i))}`}</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
+        ${ctlRow()}${range}
         <div class="cols">
           <div><h3><span class="dot" style="background:var(--flow-out)"></span>這區的人去哪</h3>${list(outRow, 'out')}</div>
           <div><h3><span class="dot" style="background:var(--flow-in)"></span>誰來這裡</h3>${list(inCol, 'in')}</div>
         </div>
         ${chips}
-        <p class="note">每小時平均人次，比例以公開的格子加總為分母；少於 10 人的方向不列出。${d.inflowPartial ? '這區有環狀線車站，出站未入檔，「誰來」會少算。' : ''}</p>`);
+        <p class="note">${whole ? '整天＝各小時平均人次加總（只算有公開人數的小時）' : '每小時平均人次'}，比例以公開的格子加總為分母；少於 10 人的方向不列出。地圖上的流向線仍是這一小時。${d.inflowPartial ? '這區有環狀線車站，出站未入檔，「誰來」會少算。' : ''}</p>`);
+      wire();
       sheet.querySelectorAll('[data-arc]').forEach((b) => on(b, 'click', () => { S.focusArc = b.dataset.arc; arcSig = ''; rebuildIfNeeded(true); flyToArc(arcs.find((a) => a.key === S.focusArc)); }));
     }
     function renderStationCard(shard) {
@@ -1602,16 +1636,21 @@ function startApp(stage, vi) {
       let dest = '<p class="note">載入這站的起訖資料中…</p>';
       if (shard) {
         const row = shard[day][hh] || [];
-        const top = row.map((v, j) => [j, v]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        const top = row.map((v, j) => [j, v]).filter(([j, v]) => j !== i && v).sort((a, b) => b[1] - a[1]).slice(0, 5);
         const dep = shard[`${day}Departures`][hh];
+        const byD = new Map(); row.forEach((v, j) => { if (v && j !== i && ST[j].di !== undefined) byD.set(ST[j].di, (byD.get(ST[j].di) || 0) + v); });
+        const dTop = [...byD.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
         const tot = top.reduce((a, [, v]) => a + v, 0) || 1;
         dest = top.length ? `<ol class="rank">${top.map(([j, v]) => `<li><button type="button" data-arc="s${i}>s${j}"><span class="n">${esc(ST[j].display)}</span><span class="v num">${fmt(v)} 人</span>
             <span class="s"><i style="width:${(v / tot * 100).toFixed(1)}%;background:var(--flow-out)"></i></span></button></li>`).join('')}</ol>
-            <p class="note">這一小時從這站出發的共 <span class="num">${fmt(dep || 0)}</span> 人；比例以前三名加總為分母。</p>`
+            <p class="note">去哪幾區：${dTop.map(([di, v]) => `${esc(shortName(D[di].name))} <span class="num">${fmt(v)}</span>`).join('・')}（只算公開的格子）</p>
+            <p class="note">這一小時從這站出發的共 <span class="num">${fmt(dep || 0)}</span> 人；比例以前五名加總為分母。</p>`
           : '<p class="note">這個時段沒有公開人數的目的地（每個方向都少於 10 人，或停止營運）。</p>';
       }
       const bh = S.badgeHere ? `<div class="unlock${S.newBadge ? ' new' : ''}"><i class="medal on" aria-hidden="true"></i><div><b>${S.newBadge ? '解鎖徽章：' : '徽章：'}${esc(S.badgeHere.title)}</b><span>${esc(S.badgeHere.fact(MET[i]))}（已收集 ${found.size}/${BADGES.length}）</span></div></div>` : '';
       showSheet(`<header><h2>${esc(s.display)}</h2>${lineChips(s)}<span class="sub">${EV ? EV.date.slice(5).replace('-', '/') : dayLabel()} ${hh} 點・${esc(D[s.di]?.name || '')}</span><button class="close" aria-label="關閉">${ICON.close}</button></header>${bh}
+        ${ctlRow()}
+        ${MET[i].ok ? `<p class="story small"><b>這一站的個性：</b>${traitsOf(i)}</p>` : ''}
         <div class="stat3">
           <div><b class="num">${en == null ? '—' : fmt(en)}</b><span>進站</span></div>
           <div><b class="num">${!s.exitsRecorded ? '未入檔' : exv == null ? '—' : fmt(exv)}</b><span>出站</span></div>
@@ -1629,6 +1668,7 @@ function startApp(stage, vi) {
       const [i, j] = S.focusArc.split('>').map(Number), hh = Math.floor(S.hour) % 24;
       const all = allPairs(hh), k = all.findIndex((f) => f.key === S.focusArc), v = k >= 0 ? all[k].v : null;
       showSheet(`<header><h2>${esc(D[i].name)} → ${esc(D[j].name)}</h2><span class="sub">${dayLabel()} ${hh} 點出發</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
+        ${ctlRow()}
         <div class="big">${v ? `<b class="num">${fmt(v)}</b><span>人／小時</span>` : '<b>少於 10 人</b>'}</div>
         <p class="note">${v ? `此刻全市第 ${k + 1} 大的區對區流向（共 ${all.length} 組有公開人數）。` : ''}線寬和人數成正比，圖例在時間軸下方。${MONTH.replace('-', ' 年 ')} 月${dayLabel()}平均。</p>`);
     }
@@ -1644,13 +1684,14 @@ function startApp(stage, vi) {
       late: (m, r) => `晚上 10 點以後的進出占全天 ${pct(m.late)}，全線第 ${r}（平均 ${pct(avgOf('late'))}）。`,
       early: (m, r) => `清晨 5、6 點進站的人占全天進站 ${pct(m.early)}，全線第 ${r}（平均 ${pct(avgOf('early'))}）。`,
     };
-    const story = (l) => {
-      const i = l.si; if (i < 0 || !MET[i].ok) return '';
+    const story = (l) => (l.si < 0 ? '' : traitsOf(l.si));
+    function traitsOf(i) {
+      if (i < 0 || !MET[i].ok) return '';
       // 只講真的突出的：排前 20 名才算；早上進出比要大於 1 才有「大家在這裡下車／出門」的意思
       const top = Object.keys(TRAITS).filter((k) => !['office', 'bed'].includes(k) || MET[i][k] > 1).map((k) => [k, rankOf(k, i)])
         .sort((a, b) => a[1] - b[1]).filter(([, r], n) => n === 0 || r <= 20).slice(0, 2);
       return top.map(([k, r]) => TRAITS[k](MET[i], r)).join('<br>');
-    };
+    }
     const evButtons = (evs) => (evs.length ? `<h3 class="sec">這個月的大日子</h3><ol class="rank">${evs.map((ev) => `<li><button type="button" data-ev="${esc(ev.id)}"><span class="n">${esc(ev.name)}</span><span class="v num">${evMaxRatio(ev) ? `${x2(evMaxRatio(ev))} 倍` : ''}</span><span class="s2">${ev.startDate.slice(5).replace('-', '/')}${ev.endDate !== ev.startDate ? `–${ev.endDate.slice(5).replace('-', '/')}` : ''}・${esc(ST[ev.stations[0]]?.display || '')}・點了看那天</span></button></li>`).join('')}</ol>` : '');
     function selectLandmark(k) {
       const l = LANDMARKS[k], L = lmTop[k]; if (!L) return;
@@ -1676,34 +1717,71 @@ function startApp(stage, vi) {
         ${n ? '<div class="chips"><button type="button" data-reset>重新收集</button></div>' : ''}`, 'list');
       const r = sheet.querySelector('[data-reset]'); if (r) on(r, 'click', () => { found.clear(); saveFound(); paintGems(); paintMedal(); renderBadgeSheet(); });
     }
+    // 沒對到活動的異常（原因未查證）：站級的同站連續日子併成一筆；全城級的另外列
+    const unexplained = (() => {
+      const out = [];
+      for (const a of data.events?.anomalies || []) {
+        if (a.eventIds?.length) continue;
+        if (a.station == null) { out.push({ id: `city-${a.date}`, city: true, date: a.date, ratio: a.ratio, name: `全城進站人數是平常的 ${x2(a.ratio)} 倍`, stations: [], startDate: a.date, endDate: a.date }); continue; }
+        const prev = out.find((x) => !x.city && x.stations[0] === a.station && x.endDate < a.date && (new Date(a.date) - new Date(x.endDate)) <= 86400000);
+        if (prev) { prev.endDate = a.date; if (a.ratio > prev.ratio) { prev.ratio = a.ratio; prev.date = a.date; } continue; }
+        out.push({ id: `ano-${a.station}-${a.date}`, date: a.date, ratio: a.ratio, measure: a.measure, name: `${ST[a.station].display} ${a.measure === 'entries' ? '進站' : '出站'}暴增`, stations: [a.station], startDate: a.date, endDate: a.date });
+      }
+      return out;
+    })();
     function renderEventList() {
       const evs = data.events?.events || [];
-      showSheet(`<header><h2>這個月的大日子</h2><span class="sub">人流資料自動偵測到的異常，對上場館檔期或人工查到的活動</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
-        ${evs.length ? evButtons(evs).replace('<h3 class="sec">這個月的大日子</h3>', '') : '<p class="note">這個月沒有查得到原因的大日子。</p>'}
-        <p class="note">倍數是那幾天場館站的進或出站人數，跟同類日子平均相比的最大值。</p>`, 'list');
+      const dd = (x) => `${x.startDate.slice(5).replace('-', '/')}${x.endDate !== x.startDate ? `–${x.endDate.slice(5).replace('-', '/')}` : ''}`;
+      showSheet(`<header><h2>這個月的大日子</h2><span class="sub">人流資料自動偵測到的異常日；點一筆就切到那一天</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
+        ${evs.length ? evButtons(evs).replace('這個月的大日子', '查到原因的') : ''}
+        ${unexplained.length ? `<h3 class="sec">原因未查證</h3><ol class="rank">${unexplained.map((u) => `<li><button type="button" data-uev="${esc(u.id)}"><span class="n">${esc(u.name)}</span><span class="v num">${x2(u.ratio)} 倍</span><span class="s2">${dd(u)}・資料偵測到，還沒查到原因</span></button></li>`).join('')}</ol>` : ''}
+        <p class="note">倍數是跟同類日子（平日或假日）平均相比；全城的是全線進站總數。</p>`, 'list');
+      sheet.querySelectorAll('[data-uev]').forEach((b) => on(b, 'click', () => { const u = unexplained.find((x) => x.id === b.dataset.uev); enterEvent({ ...u, venue: null, url: null, source: 'unverified' }, u.date); }));
     }
     function renderEventCard() {
       if (!EV) return;
-      const { ev, date, si, peakH, peakV, base, dayType } = EV, hh = Math.floor(S.hour) % 24, wd = WEEK[new Date(`${date}T12:00:00+08:00`).getDay()];
+      const { ev, date, si, dayType } = EV, hh = Math.floor(S.hour) % 24, wd = WEEK[new Date(`${date}T12:00:00+08:00`).getDay()];
+      const dl = dayType === 'weekday' ? '平日' : '假日';
+      const src = ev.url ? `<a href="${esc(ev.url)}" target="_blank" rel="noopener">活動來源</a>・${ev.source === 'auto' ? '場館檔期自動比對' : '人工查證'}` : '原因未查證：管線沒對到活動、假日或場館檔期';
+      const head = `<header><h2>${esc(ev.name)}</h2><span class="sub">${date.slice(5).replace('-', '/')}（週${wd}）${si >= 0 ? `・${esc(ST[si].display)}` : '・全城'}</span><button class="close" aria-label="關閉">${ICON.close}</button></header>`;
+      if (si < 0) {
+        const di = EV.dayInfo;
+        showSheet(`${head}${ctlRow(false)}
+          <div class="big"><b class="num">${di ? fmt(di.cityEntries) : '—'}</b><span>人次進站（全線，這一天）</span></div>
+          <p class="note">${di ? `是平常${dl}的 ${x2(di.cityRatio)} 倍，少了 ${fmt((1 - di.cityRatio) * 100)}%。` : ''}地圖上每一站都換成這一天的數字，播放看看城市哪裡停下來了。</p>
+          <p class="note">${src}・按右上角關閉回到月平均</p>`, 'event');
+        return;
+      }
+      const { peakH, peakV, base, outH, outV, outBase } = EV;
+      // 一整天的出站＋進站，和平常同類日子的平均（短橫線）
+      const day = HRS.map((h) => (EV.daily.entries[si]?.[h] || 0) + (EV.daily.exits[si]?.[h] || 0));
+      const norm = HRS.map((h) => (ST[si][dayType].entries[h] || 0) + (ST[si][dayType].exits[h] || 0));
+      const mx = Math.max(...day, ...norm, 1);
+      const spark = `<div class="spark" role="group" aria-label="這一天每小時進出人數；短橫線是平常${dl}">${day.map((v, h) => `<button type="button" data-hour="${h}" aria-label="${h} 點 ${fmt(v)} 人，平常 ${fmt(norm[h])} 人" ${h === hh ? 'aria-current="true"' : ''}><i style="height:${(v / mx * 100).toFixed(1)}%"></i><b class="norm" style="bottom:${(norm[h] / mx * 100).toFixed(1)}%"></b></button>`).join('')}</div><div class="spark-axis"><span>0</span><span>6</span><span>12</span><span>18</span><span>23 點</span></div>`;
+      // 散場那一小時，場館周邊（約 1.5 公里內）各站的進站人數——決定往哪站走
+      const near = ST.map((s2, j) => [j, Math.hypot(stPos[j][0] - stPos[si][0], stPos[j][1] - stPos[si][1])]).filter(([j, dist]) => dist < 3.4 && ST[j].di !== undefined).sort((a, b) => a[1] - b[1]).slice(0, 5)
+        .map(([j]) => [j, EV.daily.entries[j]?.[outH] ?? null, ST[j][dayType].entries[outH] || 0]);
+      const nearHtml = `<h3 class="sec">散場高峰 ${outH} 點，周邊各站進站人數</h3><ol class="rank">${near.map(([j, v, b]) => `<li><button type="button" data-station="${j}"><span class="n">${esc(ST[j].display)}${j === si ? '（場館站）' : ''}</span><span class="v num">${v == null ? '少於 10' : fmt(v)} 人</span><span class="s2">平常${dl}這小時 ${fmt(b)} 人${v && b ? `・${x2(v / b)} 倍` : ''}</span></button></li>`).join('')}</ol>`;
       let origins = '<p class="note">這一小時到這站的人數不多（每個來源區都少於 10 人）。</p>';
       if (EV.venue) {
         const rows = EV.venue.origins.map((id, k) => [dOfId.get(id), EV.venue.arrivals[k][hh]]).filter(([di, v]) => di !== undefined && v).sort((a, b) => b[1] - a[1]).slice(0, 3);
         const tot = rows.reduce((a, [, v]) => a + v, 0) || 1;
         if (rows.length) origins = `<ol class="rank">${rows.map(([di, v]) => `<li><button type="button" data-arc="v${di}"><span class="n">${esc(D[di].name)}</span><span class="v num">${fmt(v)} 人</span><span class="s"><i style="width:${(v / tot * 100).toFixed(1)}%;background:var(--flow-in)"></i></span></button></li>`).join('')}</ol>`;
-      }
-      showSheet(`<header><h2>${esc(ev.name)}</h2><span class="sub">${date.slice(5).replace('-', '/')}（週${wd}）・${esc(ST[si].display)}</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
-        <div class="big"><b class="num" data-count="${peakV}">${S.still ? fmt(peakV) : 0}</b><span>人在 ${peakH} 點從${esc(stName(ST[si]))}出站</span></div>
-        <p class="note">平常${dayType === 'weekday' ? '平日' : '假日'}這個小時約 ${fmt(base)} 人，這天是 ${x2(peakV / base)} 倍。現在地圖上每一站都換成這一天的數字。</p>
+      } else origins = '<p class="note">這一站沒有分來源區的資料（只有場館站有）。</p>';
+      showSheet(`${head}${ctlRow(false)}
+        <div class="big"><b class="num" data-count="${peakV}">${S.still || EV.counted ? fmt(peakV) : 0}</b><span>人在 ${peakH} 點從${esc(stName(ST[si]))}出站</span></div>
+        <p class="note">平常${dl}這小時約 ${fmt(base)} 人：這天多了 <b class="num">${fmt(peakV - base)}</b> 人，是 ${x2(peakV / base)} 倍。散場高峰在 ${outH} 點，進站 ${fmt(outV)} 人（平常 ${fmt(outBase)}）。</p>
+        ${spark}
+        ${nearHtml}
         <h3 class="sec">${hh} 點到這站的人從哪裡來</h3>${origins}
-        <p class="note"><a href="${esc(ev.url)}" target="_blank" rel="noopener">活動來源</a>・${ev.source === 'auto' ? '場館檔期自動比對' : '人工查證'}・按右上角關閉回到月平均</p>`, 'event');
+        <p class="note">${src}・地圖上每一站都換成這一天的數字・按右上角關閉回到月平均</p>`, 'event');
       sheet.querySelectorAll('[data-arc]').forEach((b) => on(b, 'click', () => { S.focusArc = b.dataset.arc; arcSig = ''; rebuildIfNeeded(true); }));
       const el = sheet.querySelector('[data-count]');
       if (el && !S.still && !EV.counted) { EV.counted = true; const o = { n: 0 }; tw(gsap.to(o, { n: peakV, duration: 1.1, ease: 'power3.out', onUpdate: () => { el.textContent = fmt(o.n); } })); }
-      else if (el) el.textContent = fmt(peakV);
     }
     function closeSheet() {
       if (S.commute) { clearCommute(); return; }
-      if (S.sel >= 0 || S.station >= 0) { selectDistrict(-1); if (EV) { lookAt(stPos[EV.si][0], stPos[EV.si][1], 60); renderEventCard(); } return; }
+      if (S.sel >= 0 || S.station >= 0) { selectDistrict(-1); if (EV) { if (EV.si >= 0) lookAt(stPos[EV.si][0], stPos[EV.si][1], 60); renderEventCard(); } return; }
       if (S.sheetKind === 'event') { exitEvent(); return; }
       S.lm = -1; S.focusArc = null; arcSig = '';
       if (EV) { renderEventCard(); return; }
@@ -1737,38 +1815,48 @@ function startApp(stage, vi) {
     function closePanel() { panel.hidden = true; pill.setAttribute('aria-expanded', 'false'); }
     on(pill, 'click', () => (panel.hidden ? openPanel() : closePanel()));
     on(panel.querySelector('[data-cancel]'), 'click', closePanel);
-    on(panel, 'submit', async (e) => {
+    on(panel.querySelector('[data-only-o]'), 'click', () => { closePanel(); selectStation(+panel.o.value); });
+    on(panel, 'submit', (e) => {
       e.preventDefault();
       const o = +panel.o.value, dd = +panel.d.value, h = +panel.h.value, day = panel.day.value;
       if (o === dd) { panel.d.setCustomValidity('起站和迄站要不同'); panel.d.reportValidity(); return; }
       panel.d.setCustomValidity('');
-      closePanel();
+      closePanel(); runCommute(o, dd, h, day, true);
+    });
+    const commuteAt = (shard, o, dd, h, day) => {
+      const row = shard[day][h] || [], v = row[dd];
+      const ranked = row.map((x, j) => [j, x]).filter(([j, x]) => x && j !== o).sort((a, b) => b[1] - a[1]);
+      return { v, rank: v ? ranked.findIndex(([j]) => j === dd) + 1 : null, total: ranked.length, dep: shard[`${day}Departures`][h] };
+    };
+    async function runCommute(o, dd, h, day, fly) {
       const shard = await loadShard(ST[o].id);
       if (disposed) return;
-      const row = shard[day][h] || [];
-      const v = row[dd];
-      const ranked = row.map((x, j) => [j, x]).filter(([j, x]) => x && j !== o).sort((a, b) => b[1] - a[1]);
-      const rank = v ? ranked.findIndex(([j]) => j === dd) + 1 : null;
-      S.sel = -1; S.station = -1; stationRow = null; S.focusArc = null; liftDistricts(-1);
+      S.commute = null;   // 先清掉，避免 setDay 又觸發重算
+      S.sel = -1; S.station = -1; S.lm = -1; stationRow = null; S.focusArc = null; liftDistricts(-1);
+      if (EV) { EV = null; showSheet(null); }
       setDay(day); S.hour = h + 0.5; setPlaying(false);
-      S.commute = { o, d: dd, h, day, v, rank, total: ranked.length, dep: shard[`${day}Departures`][h], arc: { key: `s${o}>s${dd}`, o, d: dd, v: v || 10 } };
+      const c = commuteAt(shard, o, dd, h, day);
+      // 早一小時、晚一小時也一起算（A3：提早或延後出門，同路人差多少）
+      const near = [h - 1, h, h + 1].filter((x) => x >= 0 && x < 24 && flows[day][x]).map((x) => ({ h: x, v: shard[day][x]?.[dd] ?? null }));
+      S.commute = { o, d: dd, h, day, ...c, near, arc: { key: `s${o}>s${dd}`, o, d: dd, v: c.v || 10 } };
       arcSig = ''; rebuildIfNeeded(true);
-      flyToArc(arcs.find((a) => a.kind === 'commute'));
-      renderCommuteCard();
-    });
+      if (fly) flyToArc(arcs.find((a) => a.kind === 'commute'));
+      renderCommuteCard(fly);
+    }
+    const rerunCommute = (h, day) => { const c = S.commute; if (c) runCommute(c.o, c.d, h, day, false); };
     function clearCommute() { S.commute = null; arcSig = ''; controls.setLookAt(...HOME(), !S.still); showSheet(null); }
-    function renderCommuteCard() {
+    function renderCommuteCard(count) {
       const c = S.commute, o = ST[c.o], d = ST[c.d];
       const dl = c.day === 'weekday' ? '平日' : '假日';
-      const big = c.v ? `<b class="num" data-count="${c.v}">0</b><span>人跟你同一小時出發、同一站下車</span>` : '<b>少於 10 人</b><span>跟你同路</span>';
+      const big = c.v ? `<b class="num" data-count="${c.v}">${fmt(c.v)}</b><span>人跟你同一小時出發、同一站下車</span>` : '<b>少於 10 人</b><span>跟你同路</span>';
+      const cmp = c.near.length > 1 ? `<h3 class="sec">早一點、晚一點出門呢？</h3><div class="cmp">${c.near.map((n) => `<button type="button" data-ch="${n.h}" ${n.h === c.h ? 'aria-current="true"' : ''}><span>${n.h} 點出發${n.h === c.h ? '（你）' : ''}</span><b class="num">${n.v ? fmt(n.v) : '<10'}</b></button>`).join('')}</div>` : '';
       showSheet(`<header><h2>${esc(o.display)} → ${esc(d.display)}</h2><span class="sub">${dl} ${c.h} 點出發</span><button class="close" aria-label="關閉">${ICON.close}</button></header>
-        <div class="big">${big}</div>
-        <p class="note">${c.rank ? `在 ${esc(o.display)} ${c.h} 點出發的人裡，${esc(d.display)} 是第 ${c.rank} 熱門的目的地（共 ${c.total} 個方向有公開人數）。` : ''}這一小時從 ${esc(o.display)} 出發的共 <span class="num">${fmt(c.dep)}</span> 人。${MONTH.replace('-', ' 年 ')} 月${dl}平均，資料：臺北捷運公司 OD 開放資料。</p>`);
+        <div class="ctl"><div class="seg" role="group" aria-label="日子"><button type="button" data-dayset="weekday" aria-pressed="${c.day === 'weekday'}">平日</button><button type="button" data-dayset="holiday" aria-pressed="${c.day === 'holiday'}">假日</button></div></div>
+        <div class="big">${big}</div>${cmp}
+        <p class="note">${c.rank ? `在 ${esc(o.display)} ${c.h} 點出發的人裡，${esc(d.display)} 是第 ${c.rank} 熱門的目的地（共 ${c.total} 個方向有公開人數）。` : ''}這一小時從 ${esc(o.display)} 出發的共 <span class="num">${fmt(c.dep || 0)}</span> 人。${MONTH.replace('-', ' 年 ')} 月${dl}平均，資料：臺北捷運公司 OD 開放資料。</p>`);
+      sheet.querySelectorAll('[data-ch]').forEach((b) => on(b, 'click', () => rerunCommute(+b.dataset.ch, c.day)));
       const el = sheet.querySelector('[data-count]');
-      if (el) {
-        if (S.still) el.textContent = fmt(c.v);
-        else { const o2 = { n: 0 }; tw(gsap.to(o2, { n: c.v, duration: 0.9, ease: 'power3.out', onUpdate: () => { el.textContent = fmt(o2.n); } })); }
-      }
+      if (el && count && !S.still) { const o2 = { n: 0 }; el.textContent = '0'; tw(gsap.to(o2, { n: c.v, duration: 0.9, ease: 'power3.out', onUpdate: () => { el.textContent = fmt(o2.n); } })); }
     }
 
     // ── 浮在選中區上方的名牌 ──
@@ -1821,6 +1909,14 @@ function startApp(stage, vi) {
       if (force || sig !== arcSig) { const animate = ctx !== ctxSig; arcSig = sig; ctxSig = ctx; rebuildArcs(animate); }
     }
     applyLayers();
+    // 第一次來：提示可以點什麼（只出現一次）
+    try {
+      if (!localStorage.getItem('cb-hint')) {
+        setTimeout(() => { if (disposed || !sheet.hidden) return; toast.classList.add('hint-toast'); toast.innerHTML = '點一個區、一個地標或發光的寶石看看<small>上方可以找車站</small>'; toast.hidden = false;
+          setTimeout(() => { toast.hidden = true; toast.classList.remove('hint-toast'); }, 5000); }, 3500);
+        localStorage.setItem('cb-hint', '1');
+      }
+    } catch {}
     if (new URLSearchParams(location.search).has('debug')) { window.__cb = { S, controls, selectLandmark: (k) => selectLandmark(k), get arcs() { return arcs; }, lmScreen: (k) => { const L = lmTop[k]; L.g.getWorldPosition(P); P.y += L.top * 0.5; P.project(camera); return [(P.x * 0.5 + 0.5) * innerWidth, (-P.y * 0.5 + 0.5) * innerHeight]; } }; gsap.ticker.lagSmoothing(0); }   // 測試用：無頭瀏覽器很慢，關掉 lag smoothing 讓補間照實際時間跑完
 
     // ── 每一格 ──
@@ -1916,14 +2012,14 @@ function startApp(stage, vi) {
         if (frameNo % 8 === 1) updateTopChip(SAh[crownSi]);
       } else { crown.visible = false; topChip.hidden = true; }
       // 地標動畫；大日子的高峰前後，場館噴彩紙、打光
-      const celebrate = EV && Math.abs(h - (EV.peakH + 0.5)) < 1.6 ? EV.ev.venue : null;
+      const celebrate = EV?.ev.venue && (Math.abs(h - (EV.peakH + 0.5)) < 1.6 || Math.abs(h - (EV.outH + 0.5)) < 1.2) ? EV.ev.venue : null;
       const lctx = { hh, night: sunS.night, ev: EV?.ev, celebrate };
       lmAnims.forEach((a) => a.update(t, lctx));
       if (celebrate && !S.still) {
         celebT -= dt;
         if (celebT <= 0) {
           celebT = 0.9; const k = LANDMARKS.findIndex((l) => l.venue === celebrate), L = lmTop[k];
-          if (L) { L.g.getWorldPosition(Q); Q.y += L.top; } else Q.set(stPos[EV.si][0], capY[EV.si] + 1, stPos[EV.si][1]);
+          if (L) { L.g.getWorldPosition(Q); Q.y += L.top; } else if (EV.si >= 0) Q.set(stPos[EV.si][0], capY[EV.si] + 1, stPos[EV.si][1]);
           burst(Q, 40, 0.9);
         }
       }
