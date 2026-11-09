@@ -2,7 +2,7 @@
 
 2026-11-10 Piwi 定案：**天光**。原型與四輪紀錄在 `design/prototypes/2.1-diorama/`（README 有每輪的取捨），可試玩的頁面是 https://claude.ai/artifact/EGtXU3zq58fgnCoMT2py3n 。user story 走查在 `design/reviews/2.1-user-story-walkthrough-2026-11-10.md`。
 
-正式版照這份做；原型移進 `web/src/scene/` 後刪除原型資料夾（2.3、3.5）。顏色以下表與原型 `:root` 為準，2.2 整理成 `web/src/styles/tokens.css`。
+正式版照這份做；原型移進 `web/src/scene/` 後刪除原型資料夾（2.3、3.5）。顏色以下表與原型 `:root` 為準，2.2 已整理成 `web/src/styles/tokens.css`（見「Token 與 base」）。
 
 ## 一句話
 
@@ -50,6 +50,14 @@
 
 地標用的 `--lm-*`、列車 `--train-glow`、雲 `--cloud` 等其餘 token 以原型 `:root` 為準。
 
+## Token 與 base（2.2）
+
+- `web/src/styles/tokens.css`：全站唯一定義顏色與字型的地方。上面兩張表的值都在這裡（測試 `tokens.test.ts` 會逐一比對這份文件），另有字級 `--text-2xs`…`--text-xl`、圓角 `--radius*`、點擊尺寸 `--tap` `--tap-min`、動態 `--dur-*` `--ease-*`。相位 token 直接放 `:root`（正式版沒有 `data-variant`）；HUD 夜晚放 `:root[data-phase="night"]`。`--page-bg` 是場景載入前與無 WebGL 時的頁面底色，白天＝`--sky-horizon-day`、夜晚＝`--sky-horizon-night`。
+- `web/src/styles/base.css`：reset、字型、焦點框、選取色、`.num` 等寬數字、`.hud` 玻璃面（跟著 `data-phase` 換色）。
+- 動態：所有 transition／animation 的時長用 `--dur-*`，`prefers-reduced-motion: reduce` 時歸零，也就是直接切換（AD-8）；測試會擋寫死的時長。
+- 程式取色：`web/src/styles/tokens.ts`。`tokenRgb('--flow-in')` 讀全天 token；`tokenAt('--sky-top', h)` 依上面的關鍵時刻在線性 sRGB 內插四相位（與原型 `at()` 相同）；`hudPhase(h)` 依太陽高度決定 `data-phase`（夜晚程度 > 0.55 為夜）。2.3 的 `useTokenColor` 建在這些工具上。
+- 其他 CSS 與 TS 不寫色碼，測試會掃 `web/src` 擋下。
+
 ## 場景的層
 
 | 層 | 資料 | 真實或示意 |
@@ -84,6 +92,8 @@ HUD 不超過畫面 35%；上方兩排（40px 按鈕、34px 提示）、下方�
 ## 待辦
 
 - 環狀線官方色碼。
+- 白天 HUD 的 `--hud-accent`（#2a7fd0）當文字色在亮玻璃上對比約 4.0:1、白字壓在它上面約 4.2:1，都略低於 WCAG AA 的 4.5:1（2.2 audit P1）；要調深或只用在粗大字與非文字元素，待 Piwi 決定。
+- 字型目前只列在 `--font`，沒有自帶 Noto Sans TC 字檔：iOS 用蘋方、Windows 用正黑體、Android 用系統字。要不要自帶（檔案大小與分享卡一致性的取捨）待決定。
 - 新北公園綠地範圍。
 - 真實建物（國土測繪中心建物圖層需申請授權）。
 - 手機效能實測（AD-6）。

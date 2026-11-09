@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import type { DayType, Station } from "../data/types";
-import { tokenRgb } from "./tokens";
+import { tokenRgb } from "../styles/tokens";
 
 interface Props {
   stations: Station[];
@@ -14,11 +14,11 @@ interface Props {
   onSelect: (index: number) => void;
 }
 
-// 底圖暫用純色背景（不依賴圖磚服務）；正式底圖在 hallmark 設計階段決定。
+// 開發骨架：底圖透明、露出頁面底色（不依賴圖磚服務）。正式場景改用 Three.js（AD-11，3.5 移除本檔）。
 const BLANK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {},
-  layers: [{ id: "bg", type: "background", paint: { "background-color": "rgba(0,0,0,0)" } }],
+  layers: [{ id: "bg", type: "background", paint: { "background-color": "transparent" } }],
 };
 
 export function CityMap({ stations, dayType, hour, selected, onSelect }: Props) {
@@ -45,7 +45,8 @@ export function CityMap({ stations, dayType, hour, selected, onSelect }: Props) 
   const layers = useMemo(() => {
     const inflow = tokenRgb("--flow-in");
     const outflow = tokenRgb("--flow-out");
-    const ring = tokenRgb("--station-selected");
+    const ring = tokenRgb("--hud-ink");
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     return [
       new ScatterplotLayer<Station>({
         id: "stations",
@@ -67,7 +68,7 @@ export function CityMap({ stations, dayType, hour, selected, onSelect }: Props) 
         stroked: true,
         radiusUnits: "meters",
         onClick: ({ index }) => onSelect(index),
-        transitions: { getRadius: 400 },
+        transitions: { getRadius: reduce ? 0 : 400 }, // reduced-motion：直接切換
         updateTriggers: { getRadius: [hour, dayType], getFillColor: [hour, dayType], getLineWidth: [selected] },
       }),
     ];

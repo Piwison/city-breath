@@ -1,4 +1,4 @@
-// 開發骨架：驗證資料契約與地圖效能用。視覺設計待 hallmark 流程產出後替換（見 CLAUDE.md）。
+// 開發骨架：驗證資料契約與地圖效能用，不是設計稿；3.5 換成微縮城市場景（見 CLAUDE.md、DESIGN.md）。
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CityMap } from "./map/CityMap";
 import { computeCommute, formatCount, type CommuteResult } from "./data/commute";
