@@ -18,6 +18,9 @@
                        https://data.taipei/dataset/detail?id=cb9b4bd5-a648-41be-9287-11bc5b3e2343
     headway.csv        臺北捷運路線發車班距頻率資料服務（臺北捷運公司）
                        https://data.taipei/dataset/detail?id=6d15899a-ff77-4a39-8203-a3addfe1fa28
+    cop_N25_00_E121_00.tif / cop_N24_00_E121_00.tif（第四個參數的資料夾）
+                       Copernicus DEM GLO-30（ESA，© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018，
+                       依 Copernicus 計畫授權免費使用）https://copernicus-dem-30m.s3.amazonaws.com/
     ntpc_river_10.geojson / ntpc_river_8.geojson
                        新北市政府水利局地理資訊服務的「中央管河川」「市管河川」面（水利署水利規劃分署 108 年資料）
                        https://wrd.ntpc.gov.tw/arcgis/rest/services/Rain/river_00131/MapServer/10 與 /8
@@ -29,6 +32,7 @@
 """
 import csv
 import json
+import math
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -39,6 +43,7 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon, shape
 from shapely.ops import unary_union
 
 RAW, REPO, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+DEM_DIR = sys.argv[4] if len(sys.argv) > 4 else None  # Copernicus GLO-30 兩塊：N25_00_E121_00、N24_00_E121_00
 MONTH = "2026-09"
 
 # 路網圖的 RouteName 是興建時期的路段名，對到現行營運路線（路線代碼與色碼見 lines.csv）。
@@ -220,5 +225,66 @@ for did, dpoly in DIST.items():
             entry["rail"].append({"line": line, "coords": rnd(piece.coords)})
             size["rail"] += 1
     out["districts"][did] = entry
+
+# ── 地形：把盆地四周的山做成一層層的等高線台地（真實高程，垂直方向在前端誇張） ──
+if DEM_DIR:
+    import numpy as np
+    import rasterio
+    from rasterio import features
+    from rasterio.merge import merge
+    from scipy.ndimage import gaussian_filter
+    from shapely.geometry import box
+
+    allp = unary_union(list(DIST.values()))
+    lo0, la0, lo1, la1 = allp.bounds
+    kx = math.cos(math.radians((la0 + la1) / 2))
+    scale = 100 / max((lo1 - lo0) * kx, la1 - la0)
+    mla, mlo = 8 / scale, 8 / (scale * kx)          # 前端底座四周各留 8 單位
+    B = (lo0 - mlo, la0 - mla, lo1 + mlo, la1 + mla)
+    srcs = [rasterio.open(f"{DEM_DIR}/cop_{t}.tif") for t in ("N25_00_E121_00", "N24_00_E121_00")]
+    dem, tr = merge(srcs, bounds=B, res=(1 / 1800, 1 / 1800))   # 約 60 公尺
+    dem = gaussian_filter(np.where(dem[0] < -100, 0, dem[0]).astype("float32"), 1.2)
+    LEVELS = [40, 120, 250, 400, 600, 850]
+    plinth = box(*B)
+    outside = plinth.difference(allp.buffer(0.0002))
+    def vec(mask, min_km2=0.25, tol=0.0007):
+        geoms = [shape(g) for g, v in features.shapes(mask.astype("uint8"), mask=mask, transform=tr) if v == 1]
+        u = unary_union(geoms).buffer(0.0005).buffer(-0.0005).simplify(tol, preserve_topology=True)
+        return [p for p in polys(u) if p.area * M2 / 1e6 > min_km2]
+    terr = {"levels": LEVELS, "bbox": [round(v, 5) for v in B], "districts": {}, "outside": []}
+    level_geoms = [unary_union(vec(dem >= L)) for L in LEVELS]
+    def pack(g):
+        out_ = []
+        for q in polys(g):
+            if q.area * M2 / 1e6 < 0.12:
+                continue
+            out_.append([rnd(q.exterior.coords)] + [rnd(r.coords) for r in q.interiors if Polygon(r).area * M2 / 1e6 > 0.12])
+        return out_
+    for did, dpoly in DIST.items():
+        terr["districts"][did] = [pack(g.intersection(dpoly).difference(water)) for g in level_geoms]
+    terr["outside"] = [pack(g.intersection(outside)) for g in level_geoms]
+    # 海：高程 0 以下、在 21 區以外；底座外圍的河（新北、臺北河川面在 21 區以外的部分）
+    sea = unary_union(vec(dem <= 0.5, min_km2=1.0, tol=0.0008)).intersection(outside)
+    terr["sea"] = pack(sea)
+    terr["outsideWater"] = pack(unary_union([tp_water, ntpc]).intersection(outside).simplify(0.0002))
+    # 高程等級格網（前端放樹、放站、擋掉山上的建築用）：每格存 0–6 的等級
+    step = 0.003
+    nx, ny = int((B[2] - B[0]) / step) + 1, int((B[3] - B[1]) / step) + 1
+    inv = ~tr
+    grid = []
+    for j in range(ny):
+        la = B[3] - j * step
+        row = []
+        for i in range(nx):
+            c, r = inv * (B[0] + i * step, la)
+            r, c = min(max(int(r), 0), dem.shape[0] - 1), min(max(int(c), 0), dem.shape[1] - 1)
+            e = dem[r, c]
+            row.append(str(sum(e >= L for L in LEVELS)))
+        grid.append("".join(row))
+    terr["grid"] = {"lon0": round(B[0], 5), "lat0": round(B[3], 5), "step": step, "nx": nx, "ny": ny, "rows": grid}
+    out["terrain"] = terr
+    out["sources"].append({"layer": "地形", "title": "Copernicus DEM GLO-30", "publisher": "European Space Agency／Copernicus", "url": "https://copernicus-dem-30m.s3.amazonaws.com/readme.html"})
+    print("terrain levels", [len(polys(g)) for g in level_geoms], "grid", nx, ny)
+
 json.dump(out, open(OUT, "w"), ensure_ascii=False, separators=(",", ":"))
 print("pieces", size)
