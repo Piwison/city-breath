@@ -30,6 +30,7 @@ R4 (parent R20): 場景以真實底圖呈現台北盆地；街廓、樹、列車
 
 - 起訖人次少於 10 人一律不顯示數字（initiative Constraints；architecture AD-3）。
 - 顏色與字型只透過 `:root` token，每個動畫有 reduced-motion 版本，不編造數字（initiative Constraints；hallmark 已移除）。
+- 示意物件不承載數字；唯一跨工作階段保存的是徽章進度與首次提示；音效預設關閉不載音檔；站的特質與之最只在 traits.ts（architecture AD-22 到 AD-26）。
 
 ## Done when
 
