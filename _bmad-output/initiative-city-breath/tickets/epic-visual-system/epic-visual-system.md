@@ -2,9 +2,9 @@
 type: epic
 title: "城市呼吸有一套微縮城市視覺系統"
 parent: initiative-city-breath
-covers: [R12]
+covers: [R12, R20]
 sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md]
-companions: []
+companions: [DESIGN.md]
 after: []
 risk: medium
 ---
@@ -17,11 +17,12 @@ risk: medium
 
 ## Outcome
 
-hallmark 選定主題並產出 tokens.css／base.css，底圖可用。
+天光的 tokens.css／base.css 取代暫用 token，台北盆地的場景基底（地形、海、河川、綠地、捷運路線、天光）在建置版可用。
 
 ## Requirements
 
 R1 (parent R12): 所有畫面以手機優先版面設計，顏色與字型只透過定案方向的 token。
+R2 (parent R20): 場景以真實地形、海、河川、綠地、捷運路線與路線色呈現台北盆地；日夜由光線表現，示意物件明白標成示意。
 
 ## Constraints
 
@@ -32,13 +33,16 @@ R1 (parent R12): 所有畫面以手機優先版面設計，顏色與字型只透
 
 - 微縮城市方向由 Piwi 從 prototype 的幾個版本中定案，記錄在 DESIGN.md。
 - tokens.css 取代暫用 token，impeccable audit 沒有阻擋級問題。
-- 微縮城市場景基底在建置版正常載入。
+- 微縮城市場景基底在建置版正常載入：讀 basemap.json 畫出地形、海、河川、綠地與捷運路線，日夜由太陽與月光表現。
 
 ## References
 
 - parent — _bmad-output/initiative-city-breath/initiative-city-breath.md, Requirements
 - architecture — _bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/architecture-city-breath-2026-10-26.md
+- design — DESIGN.md（天光定案）；原型 design/prototypes/2.1-diorama/
 
 ## Notes
 - Decision: 2026-11-03 replan：hallmark 已移除（PR #1），2.1、2.2 在原 id 上改寫成 prototype 定案與 impeccable 整理 tokens；2.3 底圖要等 bmad-architecture 決定渲染方式（Three.js 或 MapLibre＋deck.gl）。
 - Decision: 2026-11-03 渲染方式定案為 Three.js＋React Three Fiber（architecture AD-11，Piwi 選），2.3 改寫成「微縮城市場景基底」，不再做 maplibre 底圖。
+- Waits on epic-data-pipeline because: 底圖圖層輸出（1.12）
+- Decision: 2026-11-10 replan：2.1 定案天光（DESIGN.md，PR #20，合併後由 Piwi 標 done）。2.3 改寫成「台北盆地與天光」：地形台地、底座地層、行政區薄片、河川綠地、捷運路線、天空與太陽月亮，讀 1.12 的 basemap.json，所以 2.3 多等 1.12；2.2 依天光色票整理。街廓建築、列車與雲放在首頁 epic（3.13、3.14），因為它們跟著時間軸與人潮動。

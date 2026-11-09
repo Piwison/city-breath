@@ -24,7 +24,7 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 
 都放在 `.claude/skills/`，每個資料夾的 `SOURCE.txt` 記著來源與版本（已審過內容；只有 impeccable 帶執行腳本，見其 SOURCE.txt）。
 
-- **視覺方向與新畫面**：先用 `prototype` 做多個可切換的版本給 Piwi 選；方向定案（2026-11-03 起偏向「微縮城市」：等角視角、發光路線、日夜光影）後照該方向實作。
+- **視覺方向與新畫面**：先用 `prototype` 做多個可切換的版本給 Piwi 選；微縮城市方向已於 2026-11-10 定案為「天光」，照 `DESIGN.md` 實作。
 - **打磨、稽核、評論**：`impeccable`（audit、polish、critique、animate 等指令）。
 - **`hallmark` 已移除**（2026-11-03 Piwi 決定）：它的規則以一般網頁為前提，跟滿版地圖與 3D 場景衝突。保留的底線規則已寫在上方「工作方式」。
 - `prototype` 與 `review-animations` 只在明確呼叫時執行（例如 `/prototype`），不會自動觸發。

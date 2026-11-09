@@ -1,8 +1,8 @@
 ---
 type: initiative
 title: "台北人看得到自己在城市作息裡的位置，並把它分享出去"
-sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, _bmad-output/initiative-city-breath/user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md]
-companions: [_bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/architecture-city-breath-2026-10-26.md, docs/data-contract.md]
+sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, _bmad-output/initiative-city-breath/user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md, DESIGN.md, design/reviews/2.1-user-story-walkthrough-2026-11-10.md]
+companions: [_bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/architecture-city-breath-2026-10-26.md, docs/data-contract.md, DESIGN.md]
 after: []
 status: in-progress
 risk: medium
@@ -36,19 +36,24 @@ R13 (user-stories C2、E1, 決定 5): 使用者點一個行政區，看到這區
 R14 (user-stories I1): 通勤族拿到一整年的通勤年度回顧卡（同路人、自己那站最擠的一天）並可分享。
 R15 (user-stories I2): 城市觀察者看跨年、春節、連假時城市怎麼空掉又回來。
 R16 (user-stories I3): 城市觀察者看颱風或大雨那天城市怎麼停下來。
+R17 (user-stories B2、C6；走查結論 1): 使用者把行政區卡與活動卡存成直式圖分享，圖上附日期或月份、資料來源與網址。
+R18 (user-stories C5、D1、F2；走查結論 2): 使用者點一個站，看到整天最常去的 10 站，以及每小時來這站的人從哪幾站、哪幾區來。
+R19 (DESIGN.md 原則 5、互動): 使用者能從有故事的地標、城市徽章與「此刻最忙」找到值得看的站；地標故事、徽章與此刻最忙都由當月資料算出，不寫死數字。
+R20 (DESIGN.md 原則 1、2、場景的層): 首頁場景以真實地形、海、河川、綠地、捷運路線與路線色呈現台北盆地；畫面上每樣東西不是真實資料就是明白標成示意，示意物件不承載數字。
 
 ## Constraints
 
 - 純靜態網站、沒有後端；所有重運算在每月本機彙總完成（PRD 產品提案、資料與技術做法）。
 - 起訖人次少於 10 人一律不顯示數字（PRD 風險與對策；architecture AD-3）。
-- 只做北捷，不做即時、不做列車動畫與多圖層、不做路線規劃（PRD 我們不做的事）。
+- 只做北捷，不做即時、不做路線規劃；列車只做示意（間隔依官方班距、位置示意，不代表即時列車位置），圖層開關只切換底圖的層，不疊北捷以外的資料（PRD 我們不做的事；DESIGN.md 天光定案）。
 - 網站是月刊式回顧：每月初更新上個月，不做預告與即時（user-stories 決定 4）。
 - 資料標示出處：政府資料開放授權條款第 1 版（PRD 背景與問題）。
 - 顏色與字型只透過 `:root` token，每個動畫有 reduced-motion 版本，不編造數字；視覺方向用 prototype、打磨用 impeccable，hallmark 已移除（user-stories 決定 7；CLAUDE.md）。
 
 ## Done when
 
-- 首頁的行政區流向、點行政區看流向、通勤同路人卡、活動日、車站個性卡、資料來源頁在手機上可用，並部署成公開網址。
+- 首頁（台北盆地底圖、行政區流向、地標、徽章、此刻最忙）、點行政區看流向、車站卡（含誰來這站）、通勤同路人卡、活動日、資料來源頁在手機上可用，並部署成公開網址。
+- 通勤卡、行政區卡、活動卡都能存成直式圖，圖上附日期或月份、來源與網址。
 - 通勤卡可一鍵下載，且「下載分享卡」次數可被計數。
 - 每月的活動日清單有自動對上的場館檔期與人工補的來源，對不到的標「原因未查證」。
 - 上線首月檢視成功指標：通勤卡 500 次、輸入完成率 60%、每位訪客開 3 個站、次月回訪 15%（PRD 成功指標，假設值）。
@@ -56,7 +61,7 @@ R16 (user-stories I3): 城市觀察者看颱風或大雨那天城市怎麼停下
 
 ## Boundaries
 
-- 不做：即時擁擠度、預測、列車動畫、路線規劃、北捷以外的系統、帳號（PRD 我們不做的事；user-stories 決定 4）。
+- 不做：即時擁擠度、預測、即時列車位置、路線規劃、北捷以外的系統與資料疊圖、帳號（PRD 我們不做的事；user-stories 決定 4；DESIGN.md）。
 - 只主動設計 A 通勤族、B 追星族與球迷、C 城市觀察者；其他族群用同一份資料就能服務，但不為他們設計（user-stories 決定 1）。
 - R6–R9、R14–R16 不在這一版的 epics 內，先記為 Parked。
 - Touch point: 臺北市資料大平臺（小巨蛋、花博、中山堂檔期，站點與區界圖資）— 管線讀取；owner: epic-data-pipeline、epic-event-days。
@@ -70,6 +75,8 @@ R16 (user-stories I3): 城市觀察者看颱風或大雨那天城市怎麼停下
 - contract — docs/data-contract.md
 - prd (original) — https://claude.ai/artifact/S46QYMugL6cKGNZK9ePN7r
 - user-stories (original) — https://claude.ai/artifact/Ss7vdA4Mv3iH3uPm1XEDdG
+- design — DESIGN.md（2026-11-10 天光定案：原則、色票、場景各層真實／示意界線、互動、版面）
+- walkthrough — design/reviews/2.1-user-story-walkthrough-2026-11-10.md（原型對 user stories 的走查與缺口）
 
 ## Notes
 
@@ -84,3 +91,7 @@ R16 (user-stories I3): 城市觀察者看颱風或大雨那天城市怎麼停下
 - Decision: 2026-11-03 replan。需求變了，不只是做法：城市流動從站對站弧線改成行政區流向（R3 改寫、新增 R13）；活動日從 Parked 移入這一版（R5 改寫）；新增 R14–R16 並暫緩；hallmark 移除（PR #1）。來源是 Piwi 的 user-stories 2026-11-03。已完成的 1.1–1.5 不受影響。
 - Decision: 2026-11-03 新增 epic-event-days（活動日），排在上線之前；年度回顧卡暫緩，目標 2027 年 1 月（Piwi）。
 - Decision: 2026-11-03 architecture 受影響：AD-8「設計依 hallmark」失效；資料契約要加行政區、逐日資料與活動表（v2）；渲染方式未定。已建議跑 bmad-architecture，architecture 文件由 Winston 改，這裡不動。
+- Decision: 2026-11-10 replan。2.1 定案「天光」（DESIGN.md，PR #20）並做了 user story 走查。需求有變：新增 R17 行政區卡與活動卡分享、R18 誰來這站與整天前 10、R19 地標徽章與此刻最忙、R20 真實底圖與示意界線；「不做列車動畫與多圖層」改成列車只做示意、圖層只切換底圖。做法也變：底圖與地標位置改由管線輸出（1.12）、每站來源由管線算（1.13）、2.3 改寫成台北盆地與天光、首頁 epic 加地標、徽章、皇冠、首次提示、車站卡與示意物件、通勤入口改成可打字的找車站、分享卡往前、7.4 依原型寫清楚。已完成或已建好的 1.1–1.11、7.1–7.3 不動。
+- Decision: 2026-11-10 architecture 受影響：底圖檔的契約與版本、地形垂直誇張與 projection.ts、地標位置與所屬行政區、徽章進度的 localStorage、音效、示意物件規則；由 Winston（bmad-architecture）在同一個 PR 更新 spine。
+- Open question: B3（同場散場同站回家）要活動日逐日起訖、A5／D3／H1 要路網距離；走查建議的這兩項新計算這次不開票，留在 Parked 的 R6 與之後的 replan。
+- Open question: R18 的 D1、F2 屬於不主動設計的族群（決定 1），這次因為 C5 一起做；若 Piwi 只要 C5，1.13 可縮成整天前 10 目的地。

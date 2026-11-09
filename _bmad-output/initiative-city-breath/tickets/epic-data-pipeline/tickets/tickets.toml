@@ -105,6 +105,28 @@ hitl = false
 risk = "low"
 
 [[entry]]
+id = 12
+type = "story"
+title = "底圖圖層輸出"
+description = "把 design/prototypes/2.1-diorama/tools/build_layers.py 的做法搬進管線：新的 `city-breath fetch-basemap` 把原始檔（Copernicus DEM GLO-30、臺北市捷運局路網圖、臺北市河流、水利署河川河道 data.gov.tw 25781、臺北市水綠地圖集、捷運路線色與班距）下載到 data/raw/basemap/，網址、取得日期、sha256 記在 pipeline/config/basemap_sources.csv；`build` 輸出不分月份的 web/public/data/basemap.json：地形六層台地（40／120／250／400／600／850 公尺，存公尺不存誇張後高度）與高程等級格網、海與底座外的河、依 21 區切開的河川與綠地、捷運軌道（路網圖缺段以直線補並標 approx）、每站所屬路線（站 ID）、各線平日／假日每小時班距，以及 pipeline/config/landmarks.csv 的地標（位置與連到的車站寫在 config，所屬行政區由管線依 districts 判定）。契約照 AD-21：docs/data-contract.md、export.py、types.ts 同一個 commit。新北市水利局地圖服務沒有標示授權，只能拿來比對，不進輸出。"
+verify = "`uv run city-breath fetch-basemap` 後 `uv run city-breath build --month 2026-09` 產出 basemap.json（≤ 1 MB）；pytest 檢查 120 站都有路線（環狀線站為 Y）、班距每線 24 格且營運外為 null、每個地標的行政區與連到的車站存在、每個來源都在 basemap.json 的 sources；load.ts 讀得到並驗版本。"
+covers = ["R5"]
+after = [8]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 13
+type = "story"
+title = "每站的來源（誰來這站）"
+description = "管線多算每站的「誰來」：每個迄站每日型每小時前 5 個起站、各來源行政區的平均人次，以及整天前 10 個起站，寫進新的 inbound/{stationId}.json 分片（選了站才載，AD-6、AD-10）；stations.json 的 topDestinations 從前 5 擴成前 10（C5）。少於 10 人輸出 null，新的組（某迄站某小時的各來源區之和＝該站 exits[h]）經 suppress.py 次要隱藏（AD-3）；環狀線站沒有出站紀錄，不產生分片。契約升 v3，所有月份重建（AD-18），三處同步（AD-1）。"
+verify = "pytest 逐組檢查 inbound 分片與擴充後的 topDestinations 都是零格或至少兩格 null；2026-09 某站某小時的來源區人數與用 od 分片手算的結果一致；12 個月重建後 pytest 與 npm test 通過。"
+covers = ["R6"]
+after = [8, 11, 12]
+hitl = false
+risk = "medium"
+
+[[entry]]
 id = 6
 type = "story"
 title = "車站類型人工定名"

@@ -1,12 +1,12 @@
-# 城市觀察者看得到一整天各行政區之間的流動 的 stories，依建置順序。
+# 城市觀察者看得到一整天各行政區之間的流動 的 stories，依建置順序。2026-11-10 replan（天光定案）。
 
 [[entry]]
 id = 5
 type = "story"
-title = "行政區流向弧線"
-description = "首頁自動播放全城一天：行政區之間的流向用弧線與粒子表示，粒子數依人數，平日／假日可切換；這是本 epic 的 tracer bullet。"
-verify = "首頁開啟就自動播放，8 點平日可看到永和往中山、中正、大安、信義的流向；切換假日流向改變；reduced-motion 時不自動播放。"
-covers = ["R1"]
+title = "行政區流向緞帶"
+description = "首頁換成 2.3 的場景並自動播放全城一天（48 秒、從清晨開始，手指碰到就暫停）：行政區之間的流向用緞帶與光點表示，線寬與人數成正比、尾端箭頭、全市只畫前 12 大、前三大在弧頂標人數，一顆光點代表固定人數，時間軸下方的圖例用同一個公式；平日／假日可切換；移除骨架的 maplibre-gl 與 deck.gl。這是本 epic 的 tracer bullet。"
+verify = "首頁開啟就自動播放，8 點平日可看到永和往中山、中正、大安、信義的流向；切換假日流向改變；圖例的粗細和畫面一致；reduced-motion 時不自動播放；package.json 沒有 maplibre-gl 與 deck.gl。"
+covers = ["R1", "R4"]
 after = ["1.9", "2.3"]
 hitl = false
 risk = "medium"
@@ -15,10 +15,10 @@ risk = "medium"
 id = 3
 type = "story"
 title = "時間軸播放與日型切換"
-description = "播放一整天並切換平日／假日平均；時間軸與小時存在 web/src/state/ 的單一畫面狀態並同步到網址；reduced-motion 時不自動播放、直接切換（architecture AD-8、AD-16）。"
-verify = "手機上播放不卡頓，可切換日型。"
+description = "下方時間軸：播放／暫停、目前時間、平日／假日、天色漸層的拖曳條、圖例位置，播放中跨進新時段時上方浮出時段名稱；時間軸與小時存在 web/src/state/ 的單一畫面狀態並同步到網址；reduced-motion 時不自動播放、直接切換（architecture AD-8、AD-16；DESIGN.md 互動、版面）。「大日子」入口由 7.4 加。"
+verify = "手機上播放不卡頓，可切換日型，拖動時天色跟著時刻變；網址帶 hour 與 dayType，重新整理後回到同一刻。"
 covers = ["R1"]
-after = []
+after = ["2.2"]
 hitl = false
 risk = "low"
 v6_key = "2-3"
@@ -27,24 +27,35 @@ v6_key = "2-3"
 id = 6
 type = "story"
 title = "點行政區看去哪、誰來並展開站"
-description = "點一個行政區，顯示這區的人去哪幾區、誰來這區（平日與假日分開），並在地圖上展開該區的站。"
-verify = "點大安區假日看到前幾名目的地為中正、大安、信義（與 2026-09 查核一致），站點展開且可再點站。"
+description = "點一個行政區彈出小卡：「這一小時／整天」切換、去哪與誰來前 3（點了飛到那條緞帶）、這區此刻最忙的車站，並展開該區的站；小卡蓋住時間軸時卡內有一列「‹ 時間 ›＋平日／假日」，這列與小卡外框做成共用元件，之後的車站、通勤、地標、活動卡都用它（走查共通問題 1、3）。"
+verify = "點大安區、假日、整天看到前幾名目的地為中正、大安、信義（與 2026-09 查核一致）；小卡開著也能換時段與平假日；站點展開且可再點站。"
 covers = ["R2"]
-after = [5]
+after = [5, 3]
 hitl = false
 risk = "medium"
 
 [[entry]]
 id = 1
 type = "story"
-title = "站點脹縮光點"
-description = "展開一個行政區後，該區每站光點大小＝該小時進出量、顏色＝淨流入或淨流出（開發骨架已在 web/src/map/CityMap.tsx）。"
-verify = "切換小時時光點大小與顏色更新。"
+title = "車站柱與站珠"
+description = "展開一個行政區或放大到一定程度時，每站是「廣場＋細柱＋站珠」：柱高＝該小時進出人數、站珠是所屬路線色（basemap.json 的站所屬路線），只標重要站名避免一片字；點站時鏡頭飛過去、站珠彈一下。"
+verify = "切換小時時柱高更新；選區或放大後點得到站，站名不重疊；reduced-motion 時沒有彈跳。"
 covers = ["R1"]
 after = [6]
 hitl = false
 risk = "low"
 v6_key = "2-1"
+
+[[entry]]
+id = 12
+type = "story"
+title = "車站卡"
+description = "點站開啟車站卡（共用 3.6 的卡內時間列）：這一站的個性（web/src/data/traits.ts 從 stations.json，AD-26， 挑這站在全線排名前 20 的兩個特質：假日倍數、早上進出比、晚上占比、清晨占比、人次）、進站與出站、整天長條（點了跳到那個時段）、這一小時前 5 目的地（od 分片）並在地圖畫出站對站緞帶、這 5 站加總成「去哪幾區」，以及「從這站找通勤」按鈕（把起站寫進畫面狀態，4.1 的入口接手）；環狀線站顯示出站未入檔。類型標籤、一句話、整天前 10、同類型站與誰來這站由 epic-station-personality 加進同一張卡（走查 A4、C4、C5）。"
+verify = "點任一站平日 8 點看到個性、進出、前 5 目的地與去哪幾區，數字與 stations.json、od 分片一致（vitest 測 traits.ts）；少於 10 人顯示「少於 10 人」；點環狀線站看到出站未入檔的說明。"
+covers = ["R1", "R2"]
+after = [1]
+hitl = false
+risk = "medium"
 
 [[entry]]
 id = 4
@@ -53,10 +64,76 @@ title = "城市睡覺狀態"
 description = "2–4 點停止營運時有明確的畫面狀態。"
 verify = "時間軸經過停止營運時段時有標示。"
 covers = ["R1"]
-after = []
+after = [3]
 hitl = false
 risk = "low"
 v6_key = "2-4"
+
+[[entry]]
+id = 13
+type = "story"
+title = "街廓建築與樹（示意）"
+description = "整座城共用一張方格街廓，每格疏密依附近車站全日人數、整區高度隨此刻進出人數起伏；山上（basemap.json 等級格網 40 公尺以上）不蓋房子、成片種樹，公園種樹，河上與站前廣場不蓋；矮胖圓角積木、三種牆色、窗戶入夜亮燈深夜漸少；全部用 InstancedMesh，不顯示任何數字、圖例標成示意（AD-23）；圖層面板可關掉建築。"
+verify = "預覽看得到街廓與樹，山區沒有房子；切換時段整區高度變；圖層面板關得掉；中階手機 30 fps 以上（AD-6）。"
+covers = ["R4"]
+after = ["2.3", 3]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 14
+type = "story"
+title = "列車與雲（示意）"
+description = "列車沿真實軌道雙向跑，同線列車間隔依 basemap.json 的官方班距（平日／假日、尖峰較密），營運時間外沒有列車，環狀線不在班距資料內不畫；6 點第一班車時各站從台北車站往外一圈圈亮起；雲在白天飄過並投影，放大時淡出；列車與雲的位置是示意、不承載數字（AD-23），reduced-motion 時靜止。"
+verify = "平日 8 點板南線列車比 14 點密（依班距）；停止營運時段沒有列車；reduced-motion 時列車與雲不動。"
+covers = ["R4"]
+after = [13]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 8
+type = "story"
+title = "有故事的地標"
+description = "basemap.json 的地標（位置與連到的車站在 pipeline/config/landmarks.csv，所屬行政區由管線判定，AD-25）做成積木：位置真實、造型示意；點了鏡頭飛過去並開地標卡：連到的車站與這站的個性（共用 3.12 的 traits.ts，數字每月由 stations.json 重算），可跳到那站的車站卡；會動的部分要有根據：纜車只在白天、夜市燈籠傍晚亮、飛機只在營運時段。"
+verify = "點台北 101 看到台北101/世貿站排名前 20 的兩個特質，換月份數字跟著變；地標卡標明造型是示意；reduced-motion 時地標不動。"
+covers = ["R3"]
+after = [12]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 10
+type = "story"
+title = "此刻最忙皇冠"
+description = "皇冠跟著每小時進出最多的站移動，左上第二排顯示站名與人數，點了直接開那站的車站卡；依目前日型與小時用 traits.ts 從 stations.json 算出（AD-26）。"
+verify = "vitest：任一小時皇冠所在站等於 stations.json 該日型該小時進出最多的站；點左上的名牌開車站卡。"
+covers = ["R3"]
+after = [8]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 9
+type = "story"
+title = "城市徽章"
+description = "8 個「之最」徽章（城市心臟、臥室之王、上班族大本營、假日人氣王、夜貓子、早起鳥、尖峰衝刺、祕境小站）由 web/src/data/badges.ts 用 traits.ts 從當月 stations.json 算出（AD-26）；地圖上發光的寶石是線索，收集冊有容易的謎題提示（Piwi 決定），點到那一站就解鎖、噴彩紙並開車站卡；進度只存 localStorage（AD-22），不能存時照常運作只是不保存；圖層面板加音效開關，預設關閉、WebAudio 合成、不載音檔（AD-24）。"
+verify = "vitest：badges.ts 對 2026-09 選出的 8 站與手算一致；封鎖 localStorage 時仍能解鎖；重新整理後進度還在；reduced-motion 時沒有彩紙、改成淡入。"
+covers = ["R3"]
+after = [10]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 11
+type = "story"
+title = "第一次開啟提示"
+description = "第一次打開時出現一次提示「點一個區、一個地標或發光的寶石看看」，碰到任何東西就收起；「看過了」和徽章進度存在同一處（AD-22），不能存時每次都提示但不擋操作（走查共通問題最後一條）。"
+verify = "清空瀏覽器資料後第一次開看到提示，重新整理後不再出現；reduced-motion 時沒有彈出動畫。"
+covers = ["R3"]
+after = [8, 9]
+hitl = false
+risk = "low"
 
 [[entry]]
 id = 2
@@ -74,9 +151,9 @@ v6_key = "2-2"
 id = 7
 type = "story"
 title = "Refactor sweep"
-description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定。"
-verify = "npm test 與 npm run build 通過，延後的整理項目都處理或記錄。"
-covers = ["R1", "R2"]
-after = [5, 3, 6, 1, 4]
+description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定；原型已全部移進 web/src/scene/，刪除 design/prototypes/2.1-diorama/。"
+verify = "npm test 與 npm run build 通過，延後的整理項目都處理或記錄，原型資料夾已刪。"
+covers = ["R1", "R2", "R3", "R4"]
+after = [5, 3, 6, 1, 12, 4, 13, 14, 8, 10, 9, 11]
 hitl = false
 risk = "low"

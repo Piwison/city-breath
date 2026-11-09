@@ -44,3 +44,4 @@ R1 (parent R11): 資料來源頁說明出處、授權、OD 是進出站配對而
 - Waits on epic-commute-card because: 通勤卡
 - Waits on epic-event-days because: 活動日
 - Decision: 2026-11-03 replan：活動日排在上線前（Piwi），本 epic 也等 epic-event-days；資料來源頁要加上活動資料的出處（臺北市資料大平臺、人工補的來源）。
+- Decision: 2026-11-10 replan（天光定案）：資料來源頁也要列底圖的來源（basemap.json 的 sources）並說明哪些是示意、徽章進度只存在瀏覽器（6.1）。
