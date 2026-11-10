@@ -3,7 +3,7 @@ title: '車站類型：固定四型與定名'
 type: 'feature'
 ticket: '6'
 created: '2026-11-11'
-status: 'built'
+status: done
 baseline_revision: '8053e3fb9af7ae0e9b287a38974289240bd857bd'
 route: 'full'
 route_source: 'auto'

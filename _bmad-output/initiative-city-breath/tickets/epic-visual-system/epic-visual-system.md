@@ -6,6 +6,7 @@ covers: [R12, R20]
 sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md]
 companions: [DESIGN.md]
 after: []
+status: done
 risk: medium
 ---
 
@@ -46,3 +47,4 @@ R2 (parent R20): 場景以真實地形、海、河川、綠地、捷運路線與
 - Decision: 2026-11-03 渲染方式定案為 Three.js＋React Three Fiber（architecture AD-11，Piwi 選），2.3 改寫成「微縮城市場景基底」，不再做 maplibre 底圖。
 - Waits on epic-data-pipeline because: 底圖圖層輸出（1.12）
 - Decision: 2026-11-10 replan：2.1 定案天光（DESIGN.md，PR #20，合併後由 Piwi 標 done）。2.3 改寫成「台北盆地與天光」：地形台地、底座地層、行政區薄片、河川綠地、捷運路線、天空與太陽月亮，讀 1.12 的 basemap.json，所以 2.3 多等 1.12；2.2 依天光色票整理。街廓建築、列車與雲放在首頁 epic（3.13、3.14），因為它們跟著時間軸與人潮動。
+- Decision: 2026-11-11 epic 完成：2.1 天光定案（DESIGN.md）、2.2 tokens（impeccable 無阻擋級問題，--hud-accent 文字對比 4.0:1 列為 P1 待辦）、2.3 場景基底已合併並標 done；依 Piwi 2026-11-11 授權設為 done。
