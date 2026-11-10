@@ -6,3 +6,19 @@
 .city-map { height: 60vh; min-height: 320px; }
 .controls, .panel { display: grid; gap: 8px; }
 .controls p, .bar p { color: var(--hud-muted); }
+
+/* 存成圖片（4.3）：通勤色的主要按鈕 40px，按下壓一下；時長走 token，reduced-motion 時直接切換 */
+.share { display: grid; gap: 6px; justify-items: start; }
+.share-button {
+  min-height: var(--tap);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--commute);
+  color: var(--station); /* 站珠白：日夜都和通勤色有 5.7:1 */
+  font-weight: 700;
+  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-quick) var(--ease-out);
+}
+.share-button:active:not(:disabled) { transform: scale(0.96); }
+.share-button:disabled { opacity: 0.6; cursor: progress; }
+.share-error { color: var(--hud-ink); font-size: var(--text-xs); }

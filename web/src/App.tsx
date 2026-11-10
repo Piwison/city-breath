@@ -4,6 +4,9 @@ import { CityMap } from "./map/CityMap";
 import { computeCommute, formatCount, type CommuteResult } from "./data/commute";
 import { loadMeta, loadMonths, loadOdShard, loadStations } from "./data/load";
 import type { DayType, MetaFile, StationsFile } from "./data/types";
+import { commuteCard } from "./share/card";
+import { ShareButton } from "./share/ShareButton";
+import { shareUrl } from "./state/url";
 
 const pad = (h: number) => `${String(h).padStart(2, "0")}:00`;
 
@@ -92,16 +95,18 @@ export default function App() {
         </section>
       )}
 
-      <CommuteForm month={month} st={st} service={service} />
+      <CommuteForm month={month} meta={meta} st={st} service={service} />
     </main>
   );
 }
 
-function CommuteForm({ month, st, service }: { month: string; st: StationsFile; service: number[] }) {
+function CommuteForm({ month, meta, st, service }: { month: string; meta: MetaFile; st: StationsFile; service: number[] }) {
   const [o, setO] = useState("");
   const [d, setD] = useState("");
   const [h, setH] = useState(8);
   const [res, setRes] = useState<CommuteResult | null>();
+  // 結果對應的起訖與時段（送出後再改選單不影響已顯示的結果與分享卡）
+  const [asked, setAsked] = useState<{ o: number; d: number; h: number }>();
   const sorted = useMemo(
     () => st.stations.map((s, i) => ({ s, i })).sort((a, b) => a.s.display.localeCompare(b.s.display, "zh-TW")),
     [st],
@@ -112,6 +117,7 @@ function CommuteForm({ month, st, service }: { month: string; st: StationsFile; 
     if (o === "" || d === "") return;
     const oi = Number(o);
     const shard = await loadOdShard(month, st.stations[oi].id);
+    setAsked({ o: oi, d: Number(d), h });
     setRes(computeCommute(shard, oi, Number(d), "weekday", h));
   }
 
@@ -131,11 +137,20 @@ function CommuteForm({ month, st, service }: { month: string; st: StationsFile; 
       </select>
       <button type="submit">看結果</button>
       {res === null && <p>這個時段停止營運。</p>}
-      {res && (
-        <p>
-          平日 {pad(h)}，平均 {res.companionsLabel}和你一樣從 {st.stations[Number(o)].display} 到 {st.stations[Number(d)].display}
-          {res.rank && `，是這站這時段第 ${res.rank} 熱門的目的地（共 ${res.rankedOf} 個）`}。
-        </p>
+      {res && asked && (
+        <>
+          <p>
+            平日 {pad(asked.h)}，平均 {res.companionsLabel}和你一樣從 {st.stations[asked.o].display} 到 {st.stations[asked.d].display}
+            {res.rank && `，是這站這時段第 ${res.rank} 熱門的目的地（共 ${res.rankedOf} 個）`}。
+          </p>
+          <ShareButton
+            card={() => {
+              const [os, ds] = [st.stations[asked.o], st.stations[asked.d]];
+              const url = shareUrl({ month, dayType: "weekday", commute: { o: os.id, d: ds.id, h: asked.h } });
+              return commuteCard({ meta, origin: os, dest: ds, dayType: "weekday", hour: asked.h, result: res, url });
+            }}
+          />
+        </>
       )}
     </form>
   );
