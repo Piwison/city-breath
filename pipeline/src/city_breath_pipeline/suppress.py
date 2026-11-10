@@ -1,7 +1,7 @@
 """少於 10 人的隱藏規則，含次要隱藏（architecture AD-3）。
 
-這是整條管線唯一套用門檻的地方，所有起訖數字（od 分片、行政區起訖 district-flows，
-以及之後的活動日來源行政區）都經過這裡。
+這是整條管線唯一套用門檻的地方，所有起訖數字（od 分片、全日前 10、行政區起訖 district-flows、
+inbound 分片的來源行政區、活動日的場館來源行政區）都經過這裡。
 
 - 主要隱藏：平均四捨五入後少於 ``SUPPRESS_BELOW`` 一律輸出 ``None``。
 - 次要隱藏：若某個已公開的總量等於一組格子的和，而這組只有一格 ``None``，用總量減掉其他格
@@ -94,30 +94,33 @@ def apply(raw: Mapping[K, float | None], groups: Sequence[Sequence[K]]) -> Suppr
     return Suppressed(values=values, primary_hidden=len(keys), secondary_hidden=hidden, primary_keys=keys)
 
 
-# ── 各輸出的組定義（1.10 活動日來源行政區之後加在這裡）──
+# ── 各輸出的組定義 ──
 
 
 def od_groups(
     origins: list[int],
     recorded: list[int],
-    top_dests: dict[tuple[int, str], list[int]],
+    allday: Iterable[tuple[int, int, str]],
     service_hours: list[int],
-) -> list[list[tuple[int, int, str, int]]]:
+) -> list[list[tuple]]:
     """起訖格子 ``(起站索引, 迄站索引, 日型, 小時)`` 中，和等於某個已公開總量的組（AD-3）。
 
     1. 列：某起站某日型某小時的各迄站 ＝ stations.json 該站 entries[h]，也是分片的 *Departures[h]。
     2. 欄：某迄站某日型某小時的各起站 ＝ stations.json 該站 exits[h]（載入全部分片即可加總）。
-    3. 全日：某起站 topDestinations 的某迄站、某日型的各營運小時 ＝ 該筆 avg。
+    3. 全日：全日格 ``("A", 起站, 迄站, 日型)``（stations.json 的 topDestinations 與 inbound 分片的
+       allDay 都取它）＝ 該起訖各營運小時之和。組成員是全日格加上各小時的 od 格：全日格公開而只剩一格
+       小時 ``None`` 可用減法反推；全日格本身也是起訖數字（< 10 照樣隱藏），是唯一 ``None`` 時也能把
+       各小時加總反推。``allday`` 列出有公開的全日格 ``(起站, 迄站, 日型)``。
 
     只含出站有紀錄的迄站：環狀線車站整欄已知為 0，不能拿來保護別格。
     """
-    groups: list[list[tuple[int, int, str, int]]] = []
+    groups: list[list[tuple]] = []
     for t in DAY_TYPES:
         for h in service_hours:
             groups += [[(oi, di, t, h) for di in recorded] for oi in origins]
             groups += [[(oi, di, t, h) for oi in origins] for di in recorded]
-        for oi in origins:
-            groups += [[(oi, di, t, h) for h in service_hours] for di in top_dests.get((oi, t), [])]
+    for oi, di, t in allday:
+        groups.append([("A", oi, di, t), *((oi, di, t, h) for h in service_hours)])
     return groups
 
 
@@ -175,4 +178,45 @@ def district_groups(
                     block = [(oi, di, t, h) for oi in origins_in.get(fi, []) for di in dests_in.get(ti, [])]
                     if block:  # 空區塊（區內沒有任何起站分片）：行政區格必為無人搭，沒有可反推的 od 格
                         groups.append([("D", fi, ti, t, h), *block])
+    return groups
+
+
+def inbound_groups(
+    n_districts: int,
+    dest: list[int],
+    origins: list[int],
+    recorded: list[int],
+    station_district: Sequence[int],
+    service_hours: list[int],
+) -> list[list[tuple]]:
+    """inbound 分片的來源區格 ``("I", 來源區索引, 迄站索引, 日型, 小時)`` 中，和等於已公開總量的組（AD-3，1.13）。
+
+    參數與 ``district_groups`` 相同。來源區格＝區內各起站（含迄站自己，即同站進出）到該迄站的 od 格之和。
+
+    1. 欄：某迄站某日型某小時的各來源區 ＝ stations.json 該站 ``exits[h]``。
+    2. 列：某來源區某日型某小時的各迄站 ＝ 區內各站 ``entries[h]`` 之和（與 od 列組同樣只算出站有紀錄的迄站）。
+    3. 站區塊：來源區格 ＋ 區內各起站到這個迄站的 od 格（和 district_groups 的站區塊同理：
+       公開的來源區格可減出區塊內唯一的 od ``None``，唯一 ``None`` 的來源區格也能由 od 加總反推）。
+    4. 行政區區塊：district-flows 格 ``("D", 起區, 迄區, t, h)`` ＋ 起區到迄區內各迄站的來源區格。
+
+    所以 od、全日、行政區與來源區格要在同一次 ``apply`` 一起處理。
+    """
+    origins_in: dict[int, list[int]] = {}
+    for oi in origins:
+        origins_in.setdefault(station_district[oi], []).append(oi)
+    dests_in: dict[int, list[int]] = {}
+    for di in recorded:
+        dests_in.setdefault(station_district[di], []).append(di)
+    rows = range(n_districts)
+    groups: list[list[tuple]] = []
+    for t in DAY_TYPES:
+        for h in service_hours:
+            groups += [[("I", fi, di, t, h) for fi in rows] for di in recorded]
+            groups += [[("I", fi, di, t, h) for di in recorded] for fi in rows]
+            for fi in rows:
+                block_origins = origins_in.get(fi, [])
+                if block_origins:  # 區內沒有起站：來源區格必為無人搭，沒有可反推的 od 格
+                    groups += [[("I", fi, di, t, h), *((oi, di, t, h) for oi in block_origins)] for di in recorded]
+                for ti in dest:
+                    groups.append([("D", fi, ti, t, h), *(("I", fi, di, t, h) for di in dests_in.get(ti, []))])
     return groups

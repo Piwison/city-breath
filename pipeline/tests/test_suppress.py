@@ -113,10 +113,10 @@ def test_district_block_protects_od_cell():
 
 
 def test_od_groups_shapes():
-    groups = od_groups(origins=[0, 1], recorded=[0, 2], top_dests={(0, "weekday"): [2]}, service_hours=[7, 8])
-    # 每日型每小時：2 列組 + 2 欄組；weekday 另有 1 個全日組
+    groups = od_groups(origins=[0, 1], recorded=[0, 2], allday=[(0, 2, "weekday")], service_hours=[7, 8])
+    # 每日型每小時：2 列組 + 2 欄組；weekday 另有 1 個全日組（全日格本身也是成員）
     assert len(groups) == 2 * 2 * (2 + 2) + 1
-    assert [(0, 2, "weekday", 7), (0, 2, "weekday", 8)] in groups
+    assert [("A", 0, 2, "weekday"), (0, 2, "weekday", 7), (0, 2, "weekday", 8)] in groups
     assert [(0, 0, "holiday", 8), (0, 2, "holiday", 8)] in groups  # 列：只含出站有紀錄的迄站
     assert [(0, 2, "weekday", 7), (1, 2, "weekday", 7)] in groups  # 欄
 
@@ -157,9 +157,9 @@ def test_od_shards_every_group_has_zero_or_two_nulls(month):
                 if n == 1:
                     bad.append(("row", stations[o]["id"], t, h))
             for top in stations[o]["topDestinations"][t]:
-                # 全日：各小時之和 ＝ topDestinations 的 avg
+                # 全日：各小時之和 ＝ topDestinations 的 avg（avg 本身也可能是 null）
                 d = top["station"]
-                n = sum(j[t][h][d] is None for h in service)
+                n = (top["avg"] is None) + sum(j[t][h][d] is None for h in service)
                 checked += 1
                 if n == 1:
                     bad.append(("allday", stations[o]["id"], stations[d]["id"], t))

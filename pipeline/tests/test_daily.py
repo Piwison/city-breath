@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from city_breath_pipeline import CONTRACT_VERSION
 from city_breath_pipeline.aggregate import aggregate_month
 from city_breath_pipeline.export import export_daily
 from city_breath_pipeline.stations import Station
@@ -87,7 +88,7 @@ def test_one_file_per_day_with_shape(daily):
     res, files = daily
     assert sorted(files) == ["2026-09-01", "2026-09-05"]
     f = files["2026-09-01"]
-    assert (f["v"], f["month"], f["date"], f["dayType"]) == (2, "2026-09", "2026-09-01", "weekday")
+    assert (f["v"], f["month"], f["date"], f["dayType"]) == (CONTRACT_VERSION, "2026-09", "2026-09-01", "weekday")
     assert files["2026-09-05"]["dayType"] == "holiday"
     assert len(f["entries"]) == 4 and all(len(r) == 24 for r in f["entries"])
     assert set(res["sizes"]) == {"daily/2026-09-01.json", "daily/2026-09-05.json"}
@@ -199,7 +200,7 @@ def test_committed_daily_shape(month):
     meta = json.loads((DATA / month / "meta.json").read_text("utf-8"))
     assert len(files) == sum(meta["dayCounts"].values())
     for f in files:
-        assert f["v"] == 2 and f["month"] == month and f["date"].startswith(month)
+        assert f["v"] == CONTRACT_VERSION and f["month"] == month and f["date"].startswith(month)
         assert f["dayType"] in ("weekday", "holiday")
         assert len(f["entries"]) == len(f["exits"]) == len(stations)
         closed = {h for h in range(24) if f["entries"][0][h] is None}
