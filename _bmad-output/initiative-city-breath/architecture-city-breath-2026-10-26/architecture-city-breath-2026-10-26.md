@@ -124,7 +124,7 @@ flowchart LR
 ### AD-12 — 場景座標只有一個投影
 - **Binds:** 所有場景圖層與地理資產，含地形高程
 - **Prevents:** 站點、行政區、河流、弧線、粒子各自換算，彼此錯位；地形、站、街廓用不同的垂直誇張，站浮在山上或埋進地裡
-- **Rule:** `web/src/scene/projection.ts` 的 `project(lon, lat)` 是唯一的經緯度轉場景座標函式（固定原點與比例），點選回推只用它的反函式。地理資產（行政區、河流）以經緯度（GeoJSON）存放，執行時經 `project()`；若要預先投影，必須由讀取同一組常數的腳本產生，並有測試比對已知點。高程：`basemap.json` 一律存公尺；`projection.ts` 匯出 `TERRAIN_EXAGGERATION`（2）與 `elevation(m)`，是唯一把真實高程換成場景高度的函式；地形等級查詢 `terrainLevelAt(lon, lat)` 讀 basemap 的等級格網，也放在 `projection.ts`。站柱、建築、緞帶等由人數決定的高度不是高程，不經 `elevation()`，比例在 `views.ts`；它們的基座高度才取 `elevation()`。
+- **Rule:** `web/src/scene/projection.ts` 的 `project(lon, lat)` 是唯一的經緯度轉場景座標函式（固定原點與比例），點選回推只用它的反函式。地理資產（行政區、河流）以經緯度（GeoJSON）存放，執行時經 `project()`；若要預先投影，必須由讀取同一組常數的腳本產生，並有測試比對已知點。高程：`basemap.json` 一律存公尺；`projection.ts` 匯出 `TERRAIN_EXAGGERATION`（1.5，Piwi 2026-11-11 由 2 調低）與 `elevation(m)`，是唯一把真實高程換成場景高度的函式；地形等級查詢 `terrainLevelAt(lon, lat)` 讀 basemap 的等級格網，也放在 `projection.ts`。站柱、建築、緞帶等由人數決定的高度不是高程，不經 `elevation()`，比例在 `views.ts`；它們的基座高度才取 `elevation()`。
 
 ### AD-13 — 活動標註只在管線
 - **Binds:** R5，任何顯示「那天發生什麼」的畫面

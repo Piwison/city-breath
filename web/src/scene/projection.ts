@@ -21,8 +21,8 @@ const METERS_PER_DEG_LAT =
 /** 一個場景單位是幾公尺（水平）。 */
 export const METERS_PER_UNIT = METERS_PER_DEG_LAT / SCALE;
 
-/** 地形的垂直誇張倍數（DESIGN.md「場景的層」：真實，垂直約誇張 2 倍）。 */
-export const TERRAIN_EXAGGERATION = 2;
+/** 地形的垂直誇張倍數（DESIGN.md「場景的層」：真實，垂直約誇張 1.5 倍；Piwi 2026-11-11 定案）。 */
+export const TERRAIN_EXAGGERATION = 1.5;
 
 export type XZ = [number, number];
 
