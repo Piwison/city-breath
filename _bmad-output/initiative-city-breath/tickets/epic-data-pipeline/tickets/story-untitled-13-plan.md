@@ -25,7 +25,7 @@ context: []
 
 ## Boundaries & Constraints
 
-**Always:** 起訖數字四捨五入後 < 10 → `null`；新組（迄站某小時各來源區之和＝exits[h]、來源區格＝區內起站 od 格之和、district-flows 格＝區內各迄站的來源區格之和、全日格＝各小時 od 格之和）只在 `suppress.py` 定義並逐組測試（AD-3）；停止營運小時為 `null`（AD-5）；行政區只用 `districts.station_codes`（AD-9）；起站格的值與 od 分片相同（AD-10）；環狀線站沒有 inbound 分片；所有 JSON `v`＝3（AD-18、AD-21）；不編造數字。
+**Always:** 起訖數字四捨五入後 < 10 → `null`；新組（迄站某小時各來源區之和＝exits[h]、來源區格＝區內起站 od 格之和、district-flows 格＝區內各迄站的來源區格之和、全日格＝各小時 od 格之和）只在 `suppress.py` 定義並逐組測試（AD-3）；停止營運小時為 `null`（AD-5）；行政區只用 `districts.station_codes`（AD-9）；起站格的值與 od 分片相同（AD-10）；環狀線站沒有 inbound 分片；所有 JSON `v`＝3（AD-18、AD-21）；不編造數字。已公開過的格不再新藏（Piwi 2026-11-10 決定 B）：新格（來源區格、v2 沒公開過的全日格）與舊格同組時優先藏新格，od 分片相對 v2 只允許例外表列出的新 null。
 
 **Never:** 不在 export.py 或前端另寫門檻或組；不改 tickets.toml、不標 done；不做車站卡 UI（epic-station-personality）；不動 7.6 的 events.json 擴充。
 
@@ -87,6 +87,14 @@ Assumptions（無人值守；Checkpoint 1 由派工者代為放行，同 1.8、1
 - district-flows 每月另有 1–13 格因連鎖改成 null（2026-05 有 2 格、2026-07 od 有 1 格反而由 null 變公開，連鎖順序改變所致，同一版內每組仍保護好）。
 
 ## Plan Change Log
+
+- 2026-11-10 Piwi 看 PR #26 後決定改用 B（經派工者轉達）：觸發是原本照 AD-3 字面藏最小格，od 分片多約 4% null，而且 repo 公開、v2 的 od 在 git 歷史，會有跨版本反推。改動：`suppress.secondary` 加 `prefer`（新格優先，先挑不會逼別組藏舊格的新格）；`new_in_v3` 把 v2 的 topDestinations 前 5 視為舊格（第一次試做把它們也當新格，結果 2025-12 有 12 個前 5 的 avg 變 null，已修正）；AD-3、memlog、資料契約同步；新增 `tests/test_published_cells.py` 與 v2 公開格遮罩、例外表。避免的狀態：舊格被新藏、舊值加新總量能減出隱藏格。KEEP：inbound 分片形狀、組定義、攻擊者視角檢查、手算對照都不變。
+B 方案實作紀錄（2026-11-10）：
+- 12 個月重新下載並重建（sha256 都與 v2 meta 相同）。od 分片相對 v2 新增 null：每月 16–20 格、12 個月共 215 格（v2 公開 1,161,729 格的 0.02%），全部是「欄組裡某來源區少於 10、其餘來源區的站區塊 od 全公開」而避不開的格，列在 `pipeline/tests/fixtures/od_v2_exceptions.json`，測試確認每格的來源區格確實是 null；null 變公開 0。district-flows 新增 null 共 9 格（2026-01 2、02 3、03 2、09 2）。topDestinations 前 5 與 v2 完全相同。
+- 來源區格：12 個月公開 551,081 格、次要隱藏 80,994 格（過門檻的格的 12.8%；照字面規則時約 4.7%）。
+- 手算對照重跑：台北101/世貿 平日 8 點 18 區公開值與原始 CSV 一致，3 區次要隱藏；台北小巨蛋 假日 21 點公開的 4 區一致。
+- 大小：web/public/data 64,120,662 bytes（v2 52,429,291，+22.3%），inbound 11.33 MB；另有測試基準 `od_v2_public.json.gz` 357 KB。
+- pytest 329 passed；npm test 103 passed；build 通過。
 
 ## Review Triage Log
 

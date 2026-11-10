@@ -88,6 +88,34 @@ def test_apply_counts_raw_none_as_null_but_not_primary():
     assert sorted(res.secondary_hidden) == ["c", "d"]
 
 
+def test_prefer_hides_new_cell_even_if_larger():
+    """AD-3（1.13）：組內有新格（來源區格）時只藏新格，已公開過的 od 格不動。"""
+    fresh = lambda k: k.startswith("I")  # noqa: E731
+    out, hidden = secondary({"I": 50, "od1": None, "od2": 12}, [["I", "od1", "od2"]], prefer=fresh)
+    assert hidden == ["I"] and out["od2"] == 12
+    # 沒給 prefer：照原規則藏最小的
+    assert secondary({"I": 50, "od1": None, "od2": 12}, [["I", "od1", "od2"]])[1] == ["od2"]
+
+
+def test_prefer_skips_new_cell_that_would_force_an_old_one():
+    """欄組要藏一格新格：I1 的站區塊全公開，藏它會逼區塊改藏 od；I2 的區塊已有 null，藏它不會。"""
+    fresh = lambda k: k.startswith("I")  # noqa: E731
+    groups = [["I0", "I1", "I2"], ["I1", "a", "b"], ["I2", "c", "d"]]
+    values = {"I0": None, "I1": 20, "I2": 90, "a": 11, "b": 12, "c": None, "d": 50}
+    out, hidden = secondary(values, groups, prefer=fresh)
+    assert hidden == ["I2"]
+    assert unprotected(out, groups) == []
+
+
+def test_prefer_falls_back_to_old_cells_when_forced():
+    """新格都藏了仍有組只剩一格 null（站區塊 od 全公開）：只能藏舊格，照原規則取最小，仍保證每組受保護。"""
+    fresh = lambda k: k.startswith("I")  # noqa: E731
+    groups = [["I0", "I1"], ["I1", "a", "b"]]
+    out, hidden = secondary({"I0": None, "I1": 20, "a": 11, "b": 9 + 3}, groups, prefer=fresh)
+    assert hidden == ["I1", "a"]
+    assert unprotected(out, groups) == []
+
+
 def test_district_groups_shapes():
     # 站 0、1 在區 0，站 2 在區 1；站 1 出站未入檔
     groups = district_groups(

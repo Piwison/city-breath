@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from .district_flows import district_raw, inbound_raw, total_count
 from .schedules import link as link_schedules
 from .districts import DistrictResult
 from .stations import Station
-from .suppress import Suppressed, district_groups, inbound_groups, od_groups, venue_origin_groups
+from .suppress import Suppressed, district_groups, inbound_groups, new_in_v3, od_groups, venue_origin_groups
 from .suppress import apply as apply_suppression
 
 SOURCE = {
@@ -52,6 +53,7 @@ def suppress_od(
     allday_raw: dict[tuple[str, int, int, str], float | None],
     service_hours: list[int],
     district_cells: DistrictCells | None = None,
+    published_allday: Iterable[tuple] = (),
 ) -> Suppressed:
     """把起站×迄站×日型×小時的平均（與全日格、行政區格、來源區格）經 suppress.py 隱藏。
 
@@ -84,7 +86,7 @@ def suppress_od(
         raw.update(district_cells.inbound)
         groups += district_groups(*args)
         groups += inbound_groups(*args)
-    return apply_suppression(raw, groups)
+    return apply_suppression(raw, groups, prefer=new_in_v3(published_allday))
 
 
 # ── district-flows.json（1.9；AD-7、AD-9、AD-10）與 inbound 的來源區格（1.13）────────
@@ -129,6 +131,7 @@ def district_flows_json(month: str, cells: DistrictCells, values: dict, service_
 
 
 TOP_DESTINATIONS = 10  # stations.json 的 topDestinations：全日最常去的站數（C5）
+V2_TOP_DESTINATIONS = 5  # 契約 v2 公開過的前幾名（已在 git 歷史，算舊格）
 TOP_ORIGINS_HOURLY = 5  # inbound 分片每小時列出的起站數（D1）
 TOP_ORIGINS_ALLDAY = 10  # inbound 分片整天列出的起站數
 
@@ -237,7 +240,11 @@ def export_month(
     for (di, t, h), n in district_cells.inbound_sums.items():
         if n != exits_total.get((di, t, h), 0):
             raise RuntimeError(f"{stations[di].name} {t} {h} 點：來源區合計 {n} ≠ 出站 {exits_total.get((di, t, h), 0)}")
-    suppression = suppress_od(od, stations, allday_raw, agg.service_hours, district_cells)
+    # v2 已公開的全日格（topDestinations 前 5）算舊格：不為了保護新格而改藏它們（AD-3）
+    published_allday = [
+        ("A", index[name], index[d], t) for (name, t), ranked in top_dests.items() for _, d in ranked[:V2_TOP_DESTINATIONS]
+    ]
+    suppression = suppress_od(od, stations, allday_raw, agg.service_hours, district_cells, published_allday)
     od_values = suppression.values
 
     sizes: dict[str, int] = {}

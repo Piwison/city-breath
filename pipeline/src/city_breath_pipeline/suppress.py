@@ -10,12 +10,17 @@ inbound 分片的來源行政區、活動日的場館來源行政區）都經過
 格子用任意可雜湊的鍵表示，「組」就是一串鍵；同一格可以同時屬於好幾組（例：某起站某小時的
 各迄站是一組，同一迄站同一小時的各起站又是一組），一組的隱藏可能讓另一組只剩一格 ``None``，
 所以用工作清單反覆檢查到穩定。結果只由輸入決定：同值時取組內順序較前的格。
+
+優先藏新格（AD-3，1.13 起）：``prefer`` 標出「這一版才新增公開的格」（inbound 的來源區格與全日格）。
+組內有可藏的新格時只在新格裡挑，並先挑「藏了不會逼別組改藏舊格」的那格，再比大小；組內沒有新格時
+照原規則藏最小的格。已公開過的 od、district-flows 格因此不會為了保護新格而改成 ``None``——它們的
+舊值留在 git 歷史，新藏的話舊值加上新總量反而能減出兩版都隱藏的格（跨版本反推）。
 """
 
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Hashable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TypeVar
 
@@ -38,10 +43,13 @@ def unprotected(values: Mapping[K, int | None], groups: Iterable[Sequence[K]]) -
 
 
 def secondary(
-    values: Mapping[K, int | None], groups: Sequence[Sequence[K]]
+    values: Mapping[K, int | None],
+    groups: Sequence[Sequence[K]],
+    prefer: Callable[[K], bool] | None = None,
 ) -> tuple[dict[K, int | None], list[K]]:
     """次要隱藏。回傳（新的值，依隱藏順序列出被次要隱藏的鍵）；不改動傳入的 ``values``。
 
+    ``prefer(k)`` 為真的格（新格）優先藏，見模組說明；不給時每組都藏最小的已公開格。
     組內只有一格 ``None`` 卻沒有其他已公開格可藏（一格的組）時無法保護，丟 ``ValueError``，
     交給呼叫端改成不公開該總量。
     """
@@ -66,7 +74,20 @@ def secondary(
         published = [(out[k], pos, k) for pos, k in enumerate(groups[gi]) if out[k] is not None]
         if not published:
             raise ValueError(f"第 {gi} 組只有一格且已隱藏，公開總量會直接洩漏它：{groups[gi]}")
-        _, _, k = min(published, key=lambda x: (x[0], x[1]))
+        fresh = [x for x in published if prefer(x[2])] if prefer is not None else []
+        if fresh:
+            def forced(k: K) -> int:
+                """藏 k 之後，有幾組會只剩一格 None 且組內沒有別的新格可藏（只能改藏舊格）。"""
+                return sum(
+                    1
+                    for gj in member_of[k]
+                    if gj != gi and nulls[gj] == 0
+                    and not any(c != k and out[c] is not None and prefer(c) for c in groups[gj])
+                )
+
+            _, _, k = min(fresh, key=lambda x: (forced(x[2]), x[0], x[1]))
+        else:
+            _, _, k = min(published, key=lambda x: (x[0], x[1]))
         out[k] = None
         hidden.append(k)
         for gj in member_of[k]:
@@ -86,12 +107,23 @@ class Suppressed:
     primary_keys: list = field(default_factory=list)  # primary_hidden 那些格的鍵
 
 
-def apply(raw: Mapping[K, float | None], groups: Sequence[Sequence[K]]) -> Suppressed:
+def apply(
+    raw: Mapping[K, float | None], groups: Sequence[Sequence[K]], prefer: Callable[[K], bool] | None = None
+) -> Suppressed:
     """先主要隱藏、再依 ``groups`` 次要隱藏。``raw`` 是未四捨五入的平均，``None`` 表示無人搭。"""
     first = {k: primary(v) for k, v in raw.items()}
     keys = [k for k, v in first.items() if v is None and raw[k] is not None]
-    values, hidden = secondary(first, groups)
+    values, hidden = secondary(first, groups, prefer)
     return Suppressed(values=values, primary_hidden=len(keys), secondary_hidden=hidden, primary_keys=keys)
+
+
+def new_in_v3(published_allday: Iterable) -> Callable[[tuple], bool]:
+    """1.13（契約 v3）才新增公開的格，給 ``secondary`` 的 ``prefer``：inbound 的來源區格 ``("I", …)``，以及
+    v2 沒公開過的全日格 ``("A", …)``。``published_allday`` 是 v2 已公開的全日格（各起站 topDestinations
+    的前 5），它們的 avg 已在 git 歷史，算舊格。
+    """
+    old = frozenset(published_allday)
+    return lambda k: k[0] == "I" or (k[0] == "A" and k not in old)
 
 
 # ── 各輸出的組定義 ──
