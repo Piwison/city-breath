@@ -59,3 +59,4 @@ R6 (parent R18): 輸出每站每小時的前幾名起站與來源行政區，以
 - Open question: 風險：新北市水利局地圖服務（原型用的新北河川）沒有標示開放授權；正式輸出改用水利署河川河道（data.gov.tw 25781）。若 25781 的河道面和原型差太多（例如沒有二重疏洪道），要 Piwi 決定是否接受。
 - Open question: 新北的公園綠地沒有範圍資料（data.ntpc.gov.tw 只有地址），1.12 先只輸出臺北市綠地。
 - Decision: 2026-11-10 依賴檢查：1.13 等 1.12，兩張都改 export.py、types.ts、docs/data-contract.md 與 cli.py。
+- Decision: 2026-11-11 1.6 改成固定類型（Piwi）：每月各自分群的群編號 12 個月不一致，照編號定名會貼錯；改成 12 個月一起 k-means（k=4）得固定中心、每月歸類（architecture AD-27），四型定名為臥室站、住商站、人氣站、辦公站。票面 description／verify 同步改寫。

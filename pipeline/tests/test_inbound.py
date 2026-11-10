@@ -46,8 +46,8 @@ def _build(tmp_path, monkeypatch, csv: str, tweak=None):
     agg = aggregate_month(p, "2026-09", aliases={}, holidays={})
     if tweak:
         tweak(agg)
-    # 分群需要上百站，這裡只測起訖輸出
-    monkeypatch.setattr(export_mod, "cluster_stations", lambda *a, **k: ClusterResult(4, {}, {}, []))
+    # 車站類型另測（test_types.py），這裡只測起訖輸出
+    monkeypatch.setattr(export_mod, "assign_types", lambda *a, **k: ClusterResult(4, {}, {}, []))
     out = tmp_path / "data"
     result = export_mod.export_month(agg, _stations(), out, SimpleNamespace(station_codes=CODES, districts=[]), [])
     return result, _read(out / "2026-09")

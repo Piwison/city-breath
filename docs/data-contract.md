@@ -54,10 +54,21 @@ web/public/data/
 | `stations[].lon / lat` | 出口座標平均 |
 | `stations[].exitsRecorded` | `false`＝環狀線車站，出站人次不在資料中 |
 | `stations[].district` | 所屬行政區的 8 碼代碼字串（例 `"63000050"`），對到 `districts.json` 的 `id`；前端不得自行推算（AD-9） |
-| `stations[].type` | 分群 ID；出站未計的站為 `null` |
+| `stations[].type` | 車站類型 id（對到 `types[].id`，所有月份同一個 id 是同一型，AD-27）；出站未計的站（環狀線）或當月平日沒有進出的站為 `null` |
 | `stations[].weekday / holiday` | `{ entries[24], exits[24] }` 平均進站、出站人次 |
 | `stations[].topDestinations.{weekday,holiday}` | 全日最常去的 10 站 `{ station, avg }`（v3 起由 5 擴成 10，C5），依全日總人次排序、同人次依正規站名倒序，不含同站進出與 0 人；`avg` ＝ 各小時整數總人次加總 ÷ 日型天數再四捨五入，少於 10 或次要隱藏為 `null`（名次照列） |
-| `types[]` | `{ id, label, description, draft, size, features, examples }`；`draft: true` 表示標籤待人工定名 |
+| `types[]` | `{ id, label, description, draft, size, features, examples }`，依 `id` 排序、`types[i].id == i`，每月固定 4 筆 |
+
+車站類型（1.6 起；AD-27）：類型是固定的，不是每月重新分群。`city-breath fit-types` 用 2025-10～2026-09 共 12 個月、出站有紀錄的站的平日曲線（6–23 點與 0 點的進、出站占比）與假日／平日總量比一起 k-means（k=4）一次，中心存在 `pipeline/config/station_type_centroids.json`；每月 `build` 只把各站歸到最近的中心。名稱與一句話由 Piwi 定在 `pipeline/config/station_types.csv`。
+
+| `types[]` 欄位 | 說明 |
+| --- | --- |
+| `id` | 0 臥室站、1 住商站、2 人氣站、3 辦公站（依中心的早上淨流向由小到大），所有月份相同 |
+| `label` / `description` | 名稱與一句話，所有月份相同 |
+| `draft` | 目前一律 `false`（Piwi 2026-11-11 定名）；日後重新擬合、中心檔的 `namesConfirmed` 還沒改回 `true` 之前為 `true` |
+| `size` | 當月歸到這型的站數 |
+| `features` | 類型中心的特徵（`amNet` 早上 7–9 點出站占比減進站占比，>0 早上湧入；`pmNet` 17–19 點同理；`lateShare` 21–0 點占比；`holidayRatio` 假日／平日日均總量比；`n` 特徵小時數），描述類型本身，所有月份相同 |
+| `examples` | 當月這型平日進站最多的 5 站（正規站名） |
 
 ## districts.json
 

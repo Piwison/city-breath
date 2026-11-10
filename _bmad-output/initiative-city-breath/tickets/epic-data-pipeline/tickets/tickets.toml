@@ -130,8 +130,8 @@ risk = "medium"
 id = 6
 type = "story"
 title = "車站類型人工定名"
-description = "Piwi 看過分群結果，在 config/station_types.csv 定下類型名稱與一句話描述。"
-verify = "stations.json 的 types 皆為 draft=false。"
+description = "車站類型改成固定類型（architecture AD-27）：12 個月（2025-10～2026-09）出站有紀錄的站一起 k-means（k=4）得固定中心，存在 config/station_type_centroids.json，由 `city-breath fit-types` 重新產生；build 只把當月各站歸到最近的中心。Piwi 看過結果，在 config/station_types.csv 依類型 id 定下名稱與一句話：臥室站、住商站、人氣站、辦公站。"
+verify = "12 個月的 stations.json 的 types 皆為 draft=false，四型的 id、名稱與一句話各月相同；每站的類型等於最近的中心，環狀線站為 null；pytest 通過。"
 covers = ["R1"]
 after = []
 hitl = true

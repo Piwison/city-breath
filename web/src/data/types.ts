@@ -21,7 +21,7 @@ export interface Station {
   exitsRecorded: boolean;
   /** 所屬行政區的 8 碼代碼（國土測繪中心），對到 districts.json 的 id；前端不得自行推算（AD-9） */
   district: string;
-  /** 車站個性分群；出站未計的站為 null */
+  /** 車站類型 id，對到 StationsFile.types[id]，所有月份同一個 id 是同一型（AD-27）；出站未計或當月平日沒有進出的站為 null */
   type: number | null;
   weekday: Profile;
   holiday: Profile;
@@ -36,13 +36,17 @@ export interface StationCount {
   avg: number | null;
 }
 
+/** 固定的車站類型（AD-27）：id、名稱、一句話所有月份相同；size、examples 是當月。 */
 export interface StationType {
+  /** 0 臥室站、1 住商站、2 人氣站、3 辦公站；等於在 types[] 中的索引 */
   id: number;
   label: string;
   description: string;
-  /** true 表示標籤是自動草稿，尚未人工定名 */
+  /** true 表示名稱尚未人工確認（目前一律 false） */
   draft: boolean;
+  /** 當月歸到這型的站數 */
   size: number;
+  /** 當月這型平日進站最多的 5 站（正規站名） */
   examples: string[];
 }
 
