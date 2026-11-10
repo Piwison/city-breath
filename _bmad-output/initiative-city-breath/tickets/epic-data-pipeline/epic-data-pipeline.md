@@ -6,7 +6,7 @@ covers: [R10, R18, R20]
 sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md]
 companions: [DESIGN.md]
 after: []
-status: in-progress
+status: done
 risk: medium
 ---
 
@@ -60,3 +60,4 @@ R6 (parent R18): 輸出每站每小時的前幾名起站與來源行政區，以
 - Open question: 新北的公園綠地沒有範圍資料（data.ntpc.gov.tw 只有地址），1.12 先只輸出臺北市綠地。
 - Decision: 2026-11-10 依賴檢查：1.13 等 1.12，兩張都改 export.py、types.ts、docs/data-contract.md 與 cli.py。
 - Decision: 2026-11-11 1.6 改成固定類型（Piwi）：每月各自分群的群編號 12 個月不一致，照編號定名會貼錯；改成 12 個月一起 k-means（k=4）得固定中心、每月歸類（architecture AD-27），四型定名為臥室站、住商站、人氣站、辦公站。票面 description／verify 同步改寫。
+- Decision: 2026-11-11 epic 完成：1.1–1.13 全部合併並標 done，Done when 各項達成（1.6 定名 draft=false、12 個月 v3 重建、pytest 通過）；依 Piwi 2026-11-11 授權（合併後代標）設為 done。
