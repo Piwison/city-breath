@@ -107,7 +107,8 @@ def test_district_flows_json_shape_and_suppression():
     # 甲→乙 10 過門檻，但甲區那一列在上面之前就只剩甲→甲一格 null → 次要隱藏最小的甲→乙
     assert out["weekday"][8][a][2] is None
     # 主要隱藏：od A1→B1（0.65）、A2→B1（9.35）、假日 A1→A2（1.5）與它的甲→甲
-    assert sorted(res.primary_keys, key=str) == sorted(
+    # （inbound 的來源區格 "I" 和 od、行政區格一起隱藏，另見 test_inbound.py）
+    assert sorted((k for k in res.primary_keys if k[0] != "I"), key=str) == sorted(
         [(0, 2, "weekday", 8), (1, 2, "weekday", 8), (0, 1, "holiday", 7), ("D", a, a, "holiday", 7)], key=str
     )
     assert sorted(k for k in res.secondary_hidden if k[0] == "D") == sorted(

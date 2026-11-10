@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from city_breath_pipeline import CONTRACT_VERSION
 from city_breath_pipeline import anomaly
 from city_breath_pipeline.aggregate import MonthAggregate
 from city_breath_pipeline.anomaly import detect, normal, to_json
@@ -183,7 +184,7 @@ def test_events_json_shape(tmp_path):
     export_events(_agg(), STATIONS, tmp_path)
     body = json.loads((tmp_path / "2026-09" / "events.json").read_text("utf-8"))
     assert list(body) == ["v", "month", "thresholds", "days", "anomalies", "events"]
-    assert (body["v"], body["month"], body["events"]) == (2, "2026-09", [])
+    assert (body["v"], body["month"], body["events"]) == (CONTRACT_VERSION, "2026-09", [])
     assert body["thresholds"] == {"city": 0.15, "stationRatio": 1.3, "stationExtra": 1000, "stationZ": 3.5,
                                   "provisional": False}
     assert body["days"][0] == {"date": "2026-09-01", "dayType": "weekday", "cityEntries": 110_000, "cityRatio": None}
@@ -214,7 +215,7 @@ def test_committed_events_shape(month):
     body = json.loads((root / "events.json").read_text("utf-8"))
     stations = json.loads((root / "stations.json").read_text("utf-8"))["stations"]
     meta = json.loads((root / "meta.json").read_text("utf-8"))
-    assert body["v"] == 2 and body["month"] == month
+    assert body["v"] == CONTRACT_VERSION and body["month"] == month
     assert len(body["days"]) == sum(meta["dayCounts"].values())
     assert [d["date"] for d in body["days"]] == sorted(d["date"] for d in body["days"])
     dates = {d["date"]: d for d in body["days"]}

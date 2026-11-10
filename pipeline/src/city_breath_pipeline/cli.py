@@ -239,13 +239,16 @@ def cmd_build(args) -> None:
     print(f"{args.month}：{m['rawRows']:,} 列，排除 {m['droppedRows']:,} 列，{m['stationCount']} 站，"
           f"日數 {m['dayCounts']}，營運時段 {m['serviceHours']}")
     print(f"分群 k={m['clustering']['k']} silhouette={m['clustering']['silhouette']}")
-    for kind, label in (("od", "站起訖格"), ("district", "行政區起訖格")):
+    for kind, label in (("od", "站起訖格"), ("allday", "全日前 10 格"), ("district", "行政區起訖格"),
+                        ("inbound", "來源行政區格")):
         sup = result["suppression"][kind]
         print(f"{label} {sup['cells']:,}：少於 10 人隱藏 {sup['primary']:,} 格，次要隱藏 {sup['secondary']:,} 格")
     for ty in result["clusters"].types:
         flag = "（草稿）" if ty["draft"] else ""
         print(f"  #{ty['id']} {ty['label']}{flag} {ty['size']} 站，例：{'、'.join(ty['examples'])}  {ty['features']}")
     overrides = sum(a.method == "override" for a in districts.assignment.values())
+    inbound = {k: v for k, v in result["sizes"].items() if k.startswith("inbound/")}
+    print(f"inbound 分片 {len(inbound)} 個共 {sum(inbound.values()) / 1e3:.0f} KB（最大 {max(inbound.values()) / 1e3:.1f} KB）")
     print(f"行政區 {len(districts.districts)} 個，{len(districts.station_codes)} 站都有行政區（人工修正 {overrides} 站），"
           f"簡化容差 {districts.tolerance}，districts.json {result['sizes']['districts.json'] / 1e3:.0f} KB")
     daily = export_daily(agg, stations, districts, venue_stations, Path(args.out))

@@ -3,6 +3,7 @@ import tokensCss from "../styles/tokens.css?raw";
 import { canvasColor, cssTokenReader, parseColor } from "../styles/tokens";
 import { tokenAt } from "../scene/daylight";
 import { computeCommute } from "../data/commute";
+import { CONTRACT_VERSION } from "../data/load";
 import type { MetaFile, OdShard } from "../data/types";
 import { cardFileName, commuteCard, type CommuteCard } from "./card";
 import {
@@ -52,7 +53,7 @@ function fakeCtx() {
 
 // 起站 0、迄站 1–3；8 點：迄站 1 有 214 人、2 有 50 人、3 少於 10 人（null）
 const shard: OdShard = {
-  v: 2, origin: "sA", month: "2026-09",
+  v: CONTRACT_VERSION, origin: "sA", month: "2026-09",
   weekday: Array.from({ length: 24 }, (_, h) => (h >= 2 && h <= 4 ? null : [null, 214, 50, null])),
   holiday: Array.from({ length: 24 }, () => null),
   weekdayDepartures: Array.from({ length: 24 }, () => 400),

@@ -1,6 +1,17 @@
-import type { BasemapFile, DailyFile, DistrictFlowsFile, DistrictsFile, EventsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
+import type {
+  BasemapFile,
+  DailyFile,
+  DistrictFlowsFile,
+  DistrictsFile,
+  EventsFile,
+  InboundShard,
+  MetaFile,
+  MonthsFile,
+  OdShard,
+  StationsFile,
+} from "./types";
 
-export const CONTRACT_VERSION = 2;
+export const CONTRACT_VERSION = 3;
 const BASE = `${import.meta.env.BASE_URL}data`;
 
 const cache = new Map<string, Promise<unknown>>();
@@ -78,6 +89,41 @@ export async function loadOdShard(month: string, stationId: string): Promise<OdS
   const rows = [...shard.weekday, ...shard.holiday].filter((r): r is (number | null)[] => r !== null);
   if (shard.month !== stations.month || shard.origin !== stationId || !rows.every((r) => r.length === n)) {
     throw new Error(`${month} 的起訖分片 ${stationId} 與 stations.json 對不上`);
+  }
+  return shard;
+}
+/**
+ * 迄站分片（1.13）：打開車站卡的「誰來」才載入（約 9 KB，AD-6）。起站索引只在同月有效，來源區的順序
+ * 與同月 district-flows.json 相同，所以一併取得兩者檢查 month、站與索引範圍（AD-2、AD-9）。
+ * 環狀線站沒有出站紀錄，沒有這個分片。
+ */
+export async function loadInboundShard(month: string, stationId: string): Promise<InboundShard> {
+  const [shard, stations, flows] = await Promise.all([
+    getJson<InboundShard>(`${month}/inbound/${stationId}.json`),
+    loadStations(month),
+    loadDistrictFlows(month),
+  ]);
+  const n = stations.stations.length;
+  const isIndex = (i: number) => Number.isInteger(i) && i >= 0 && i < n;
+  const dest = stations.stations.find((s) => s.id === stationId);
+  const sameDistricts =
+    shard.districts?.length === flows.districts.length && shard.districts.every((c, i) => c === flows.districts[i]);
+  const dayOk = (d: InboundShard["weekday"] | undefined) =>
+    !!d &&
+    d.top?.length === 24 &&
+    d.districts?.length === 24 &&
+    d.top.every((row) => row === null || row.every((x) => isIndex(x.station))) &&
+    d.districts.every((row) => row === null || row.length === shard.districts.length) &&
+    !!d.allDay?.every((x) => isIndex(x.station));
+  if (
+    shard.month !== stations.month ||
+    shard.dest !== stationId ||
+    !dest?.exitsRecorded ||
+    !sameDistricts ||
+    !dayOk(shard.weekday) ||
+    !dayOk(shard.holiday)
+  ) {
+    throw new Error(`${month} 的迄站分片 ${stationId} 與 stations.json 或 district-flows.json 對不上`);
   }
   return shard;
 }

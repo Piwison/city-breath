@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadDaily, loadEvents, loadOdShard } from "./load";
+import { CONTRACT_VERSION, loadDaily, loadEvents, loadInboundShard, loadOdShard } from "./load";
 
 const hours = () => Array.from({ length: 24 }, () => 0);
 
@@ -19,13 +19,13 @@ function mockFetch(files: Record<string, unknown>) {
 }
 
 const stations = (month: string, n: number) => ({
-  v: 2,
+  v: CONTRACT_VERSION,
   month,
   stations: Array.from({ length: n }, (_, i) => ({ id: `s${i}` })),
   types: [],
 });
 const daily = (month: string, date: string, n: number) => ({
-  v: 2,
+  v: CONTRACT_VERSION,
   month,
   date,
   dayType: "holiday",
@@ -66,7 +66,7 @@ describe("loadDaily", () => {
 });
 
 const events = (month: string, stationRefs: (number | null)[], eventStations: number[] = []) => ({
-  v: 2,
+  v: CONTRACT_VERSION,
   month,
   thresholds: { city: 0.15, stationRatio: 1.3, stationExtra: 1000, stationZ: 3.5, provisional: false },
   days: [{ date: `${month}-01`, dayType: "weekday", cityEntries: 100, cityRatio: null }],
@@ -135,7 +135,7 @@ describe("loadEvents", () => {
 });
 
 const shard = (month: string, origin: string, n: number) => ({
-  v: 2,
+  v: CONTRACT_VERSION,
   month,
   origin,
   weekday: [null, Array.from({ length: n }, () => null)],
@@ -175,11 +175,82 @@ describe("loadOdShard", () => {
   });
 });
 
+describe("loadInboundShard", () => {
+  const hours = <T>(f: (h: number) => T) => Array.from({ length: 24 }, (_, h) => f(h));
+  const day = (n: number) => ({
+    top: hours((h) => (h >= 2 && h <= 4 ? null : [{ station: n - 1, avg: 12 }])),
+    districts: hours((h) => (h >= 2 && h <= 4 ? null : [30, null])),
+    allDay: [{ station: 0, avg: null }],
+  });
+  const inbound = (month: string, dest: string, n = 2, over: Record<string, unknown> = {}) => ({
+    v: CONTRACT_VERSION,
+    month,
+    dest,
+    districts: ["63000010", "63000050"],
+    weekday: day(n),
+    holiday: day(n),
+    ...over,
+  });
+  const ringStations = (month: string) => ({
+    ...stations(month, 2),
+    stations: [
+      { id: "s0", exitsRecorded: true },
+      { id: "s1", exitsRecorded: false },
+    ],
+  });
+  const flows = (month: string) => ({ v: CONTRACT_VERSION, month, districts: ["63000010", "63000050"] });
+
+  it("載入迄站分片，並一併取同月 stations.json 與 district-flows.json", async () => {
+    const calls = mockFetch({
+      "2032-01/inbound/s0.json": inbound("2032-01", "s0"),
+      "2032-01/stations.json": ringStations("2032-01"),
+      "2032-01/district-flows.json": flows("2032-01"),
+    });
+    const s = await loadInboundShard("2032-01", "s0");
+    expect(s.weekday.districts[8]).toEqual([30, null]);
+    expect(calls.map((u) => u.replace(/^.*data\//, "")).sort()).toEqual([
+      "2032-01/district-flows.json",
+      "2032-01/inbound/s0.json",
+      "2032-01/stations.json",
+    ]);
+  });
+
+  it("起站索引超出同月站數、來源區順序與 district-flows 不同，或迄站是環狀線站就報錯", async () => {
+    mockFetch({
+      "2032-02/inbound/s0.json": inbound("2032-02", "s0", 3),
+      "2032-02/stations.json": ringStations("2032-02"),
+      "2032-02/district-flows.json": flows("2032-02"),
+    });
+    await expect(loadInboundShard("2032-02", "s0")).rejects.toThrow("對不上");
+    mockFetch({
+      "2032-03/inbound/s0.json": inbound("2032-03", "s0", 2, { districts: ["63000050", "63000010"] }),
+      "2032-03/stations.json": ringStations("2032-03"),
+      "2032-03/district-flows.json": flows("2032-03"),
+    });
+    await expect(loadInboundShard("2032-03", "s0")).rejects.toThrow("對不上");
+    mockFetch({
+      "2032-04/inbound/s1.json": inbound("2032-04", "s1"),
+      "2032-04/stations.json": ringStations("2032-04"),
+      "2032-04/district-flows.json": flows("2032-04"),
+    });
+    await expect(loadInboundShard("2032-04", "s1")).rejects.toThrow("對不上");
+  });
+
+  it("契約版本不符就報錯（AD-1、AD-18）", async () => {
+    mockFetch({
+      "2032-05/inbound/s0.json": inbound("2032-05", "s0", 2, { v: 2 }),
+      "2032-05/stations.json": ringStations("2032-05"),
+      "2032-05/district-flows.json": flows("2032-05"),
+    });
+    await expect(loadInboundShard("2032-05", "s0")).rejects.toThrow("版本");
+  });
+});
+
 describe("loadBasemap", () => {
   const hw = () => Array.from({ length: 24 }, () => null);
   const terrain = () => [[], [], [], [], [], []];
   const basemap = (over: Record<string, unknown> = {}) => ({
-    v: 2,
+    v: CONTRACT_VERSION,
     basemapRevision: 1,
     stationsMonth: "2031-01",
     bbox: [121.3, 24.8, 121.7, 25.3],

@@ -89,7 +89,7 @@ export default function App() {
           <p>{pad(hour)} 進站 {formatCount(station[dayType].entries[hour] ?? 0)}、出站 {formatCount(station[dayType].exits[hour] ?? 0)}</p>
           <ol>
             {station.topDestinations[dayType].map((d) => (
-              <li key={d.station}>{st.stations[d.station].display}：每天 {d.avg.toLocaleString("zh-TW")} 人</li>
+              <li key={d.station}>{st.stations[d.station].display}：{d.avg === null ? "少於 10 人" : `每天 ${d.avg.toLocaleString("zh-TW")} 人`}</li>
             ))}
           </ol>
         </section>

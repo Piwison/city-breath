@@ -1,4 +1,4 @@
-// 資料契約 v2 的型別。來源：pipeline/src/city_breath_pipeline/export.py
+// 資料契約 v3 的型別。來源：pipeline/src/city_breath_pipeline/export.py
 // 契約說明：docs/data-contract.md。改這裡就要一起改 pipeline（AD-1）。
 
 export type DayType = "weekday" | "holiday";
@@ -25,7 +25,15 @@ export interface Station {
   type: number | null;
   weekday: Profile;
   holiday: Profile;
-  topDestinations: Record<DayType, { station: number; avg: number }[]>;
+  /** 全日最常去的 10 站（v3 起由 5 擴成 10，C5），依全日人次排序；avg 為 null 表示少於 10 人或次要隱藏（AD-3） */
+  topDestinations: Record<DayType, StationCount[]>;
+}
+
+/** 一個起站或迄站與它的平均人次；avg 為 null 表示少於 10 人或次要隱藏（AD-3），前端不得反推。 */
+export interface StationCount {
+  /** stations.json 的陣列索引（同月份） */
+  station: number;
+  avg: number | null;
 }
 
 export interface StationType {
@@ -57,6 +65,34 @@ export interface OdShard {
   holiday: ((number | null)[] | null)[];
   weekdayDepartures: (number | null)[];
   holidayDepartures: (number | null)[];
+}
+
+/** inbound 分片一個日型的內容（1.13）。小時是進站時段（AD-15）；停止營運的小時為 null（AD-5）。 */
+export interface InboundDay {
+  /** top[hour]：該小時到此站人次最多的 5 個起站（不含同站進出），值與 od 分片相同、一律是公開的數字 */
+  top: (StationCount[] | null)[];
+  /**
+   * districts[hour][i]：從 InboundShard.districts[i] 這區的車站在 hour 點進站、在此站出站的平均人次
+   * （含同站進出，各區之和＝stations.json 的 exits[hour]）；null＝少於 10 人或次要隱藏，前端不得用 exits 反推。
+   */
+  districts: ((number | null)[] | null)[];
+  /** 全日人次前 10 的起站（不含同站進出）；avg 與起站那邊 topDestinations 的同一格相同 */
+  allDay: StationCount[];
+}
+
+/**
+ * 迄站分片 inbound/{stationId}.json（1.13，AD-6、AD-10）：打開車站卡的「誰來」才載入。
+ * 環狀線站（exitsRecorded=false）沒有這個分片。
+ */
+export interface InboundShard {
+  v: number;
+  month: string;
+  /** 迄站的站 ID */
+  dest: string;
+  /** 來源行政區的 8 碼代碼，與 district-flows.json 的 districts 相同順序；名稱從 districts.json 查（AD-9） */
+  districts: string[];
+  weekday: InboundDay;
+  holiday: InboundDay;
 }
 
 /** [lon, lat] */
