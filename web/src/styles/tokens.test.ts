@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import tokensCss from "./tokens.css?raw";
 import designMd from "../../../DESIGN.md?raw";
-import { canvasColor, cssTokenReader, hudPhase, parseColor, phaseSpan, PHASE_KEYS, tokenAt, tokenRgb, type TokenReader } from "./tokens";
+import { canvasColor, cssTokenReader, mixRgba, parseColor, tokenRgb, type TokenReader } from "./tokens";
 
 const reader = (vars: Record<string, string>): TokenReader => (name) => vars[name] ?? "";
 
@@ -16,6 +16,10 @@ const root = block(tokensCss, ":root");
 const night = block(tokensCss, ':root[data-phase="night"]');
 
 describe("parseColor", () => {
+  it("解析建置後壓縮成 8／4 碼 hex 的 rgba token", () => {
+    expect(parseColor("#ffcd788c")).toEqual([255, 205, 120, 0x8c / 255]);
+    expect(parseColor("#0008")).toEqual([0, 0, 0, 0x88 / 255]);
+  });
   it("解析 hex 與 rgb()/rgba()", () => {
     expect(parseColor("#abc")).toEqual([170, 187, 204, 1]);
     expect(parseColor("#AABBCC")).toEqual([170, 187, 204, 1]);
@@ -30,63 +34,17 @@ describe("parseColor", () => {
   });
 });
 
-describe("phaseSpan", () => {
-  it("同相位的關鍵點之間維持該相位", () => {
-    expect(phaseSpan(0)).toMatchObject({ from: "night", to: "night" });
-    expect(phaseSpan(6)).toMatchObject({ from: "dawn", to: "dawn" });
-    expect(phaseSpan(12)).toMatchObject({ from: "day", to: "day" });
-    expect(phaseSpan(18)).toMatchObject({ from: "dusk", to: "dusk" });
-    expect(phaseSpan(23)).toMatchObject({ from: "night", to: "night" });
-  });
-  it("相鄰相位之間給比例", () => {
-    expect(phaseSpan(5.25)).toEqual({ from: "night", to: "dawn", t: 0.5 });
-    expect(phaseSpan(19.3)).toMatchObject({ from: "night", to: "night", t: 0 });
-  });
-  it("超出 0–24 時繞回", () => {
-    expect(phaseSpan(24)).toEqual(phaseSpan(0));
-    expect(phaseSpan(-1)).toEqual(phaseSpan(23));
-    expect(phaseSpan(29.25)).toEqual(phaseSpan(5.25));
-  });
-  it("關鍵時刻與 DESIGN.md 一致", () => {
-    const listed = /關鍵時刻 ([\d.／]+) 時/.exec(designMd)![1].split("／").map(Number);
-    expect(PHASE_KEYS.map(([h]) => h).filter((h) => h > 0 && h < 24)).toEqual(listed.filter((h) => h > 0));
-  });
-});
-
-describe("tokenAt", () => {
-  const read = reader({
-    "--sky-night": "#000000",
-    "--sky-dawn": "#ffffff",
-    "--sky-day": "#ffffff",
-    "--sky-dusk": "#000000",
-    "--water": "#7db3dc",
-    "--hud-bg-night": "rgba(0, 0, 0, 0.2)",
-    "--hud-bg-dawn": "rgba(0, 0, 0, 0.6)",
-  });
-  it("相位內等於該相位的值", () => {
-    expect(tokenAt("--sky", 12, read)).toEqual([255, 255, 255, 1]);
-    expect(tokenAt("--sky", 2, read)).toEqual([0, 0, 0, 1]);
-  });
-  it("相位間在線性 sRGB 內插", () => {
-    // 線性 0.5 → sRGB 0.7354 → 188
-    expect(tokenAt("--sky", 5.25, read)).toEqual([188, 188, 188, 1]);
-    expect(tokenAt("--hud-bg", 5.25, read)[3]).toBeCloseTo(0.4);
-  });
-  it("超出 0–24 的時刻繞回", () => {
-    expect(tokenAt("--sky", 24, read)).toEqual(tokenAt("--sky", 0, read));
-    expect(tokenAt("--sky", -1, read)).toEqual(tokenAt("--sky", 23, read));
-  });
-  it("沒有相位版本時用全天值", () => {
-    expect(tokenAt("--water", 5.25, read)).toEqual([125, 179, 220, 1]);
-  });
+describe("tokenRgb 與 mixRgba", () => {
   it("token 不存在時丟錯", () => {
-    expect(() => tokenAt("--nope", 8, read)).toThrow("--nope");
-    expect(() => tokenRgb("--nope", read)).toThrow("--nope");
+    expect(() => tokenRgb("--nope", reader({}))).toThrow("--nope");
   });
-  it("讀 tokens.css 的天空色：正午就是 day 值", () => {
-    const css = reader(Object.fromEntries(root));
-    expect(tokenAt("--sky-top", 12, css)).toEqual(parseColor(root.get("--sky-top-day")!));
-    expect(tokenRgb("--flow-in", css)).toEqual(parseColor(root.get("--flow-in")!)!.slice(0, 3));
+  it("讀 tokens.css 的全天 token", () => {
+    expect(tokenRgb("--flow-in", reader(Object.fromEntries(root)))).toEqual(parseColor(root.get("--flow-in")!)!.slice(0, 3));
+  });
+  it("在線性 sRGB 內插：線性 0.5 → sRGB 188", () => {
+    expect(mixRgba([0, 0, 0, 1], [255, 255, 255, 1], 0.5)).toEqual([188, 188, 188, 1]);
+    expect(mixRgba([0, 0, 0, 0.2], [0, 0, 0, 0.6], 0.5)[3]).toBeCloseTo(0.4);
+    expect(mixRgba([10, 20, 30, 1], [200, 100, 0, 1], 0)).toEqual([10, 20, 30, 1]);
   });
 });
 
@@ -112,16 +70,6 @@ describe("canvasColor", () => {
   it("輸出 8 碼 hex，含 alpha", () => {
     expect(canvasColor([255, 252, 246, 0.86])).toBe(`#${"fffcf6db"}`);
     expect(canvasColor([0, 0, 0, 1])).toBe(`#${"000000ff"}`);
-  });
-});
-
-describe("hudPhase", () => {
-  it("依太陽高度切換 HUD 日夜", () => {
-    expect(hudPhase(12)).toBe("day");
-    expect(hudPhase(0)).toBe("night");
-    expect(hudPhase(5)).toBe("night");
-    expect(hudPhase(6)).toBe("day");
-    expect(hudPhase(19)).toBe("night");
   });
 });
 

@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { shareUrl, siteLabel, toQuery } from "./url";
+import { readQuery, shareUrl, siteLabel, toQuery } from "./url";
+
+describe("readQuery", () => {
+  it("讀 hour 與 scene", () => {
+    expect(readQuery("?scene=1&hour=6")).toEqual({ scene: true, hour: 6 });
+    expect(readQuery("hour=0")).toEqual({ hour: 0 });
+    expect(readQuery("")).toEqual({});
+  });
+  it("hour 不是 0–23 的整數就忽略", () => {
+    expect(readQuery("?hour=24")).toEqual({});
+    expect(readQuery("?hour=6.5")).toEqual({});
+    expect(readQuery("?hour=-1")).toEqual({});
+    expect(readQuery("?hour=abc&scene=0")).toEqual({});
+  });
+  it("和 toQuery 來回一致", () => {
+    expect(readQuery(toQuery({ hour: 17 }))).toEqual({ hour: 17 });
+  });
+});
 
 describe("url", () => {
   it("固定順序序列化，車站用站 ID", () => {

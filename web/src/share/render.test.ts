@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import tokensCss from "../styles/tokens.css?raw";
-import { canvasColor, cssTokenReader, parseColor, tokenAt } from "../styles/tokens";
+import { canvasColor, cssTokenReader, parseColor } from "../styles/tokens";
+import { tokenAt } from "../scene/daylight";
 import { computeCommute } from "../data/commute";
 import type { MetaFile, OdShard } from "../data/types";
 import { cardFileName, commuteCard, type CommuteCard } from "./card";

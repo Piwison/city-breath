@@ -1,0 +1,205 @@
+/* 微縮城市場景預覽（2.3）。只用 tokens.css 的 token；版面照 DESIGN.md（手機 390×844、按鈕 40px、HUD ≤ 35%）。 */
+
+.scene-page {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--page-bg);
+}
+
+.scene-canvas {
+  position: absolute !important;
+  inset: 0;
+  touch-action: none;
+}
+
+.scene-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--hud-muted);
+  pointer-events: none;
+}
+.scene-status[role="alert"] { color: var(--hud-ink); }
+
+/* 區名：貼在台地上的字，用 HUD 底色描邊，日夜都讀得到 */
+.scene-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.dlabel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--hud-ink);
+  text-shadow: 0 0 3px var(--hud-bg), 0 0 6px var(--hud-bg);
+  opacity: 0.85;
+  will-change: transform;
+}
+
+/* 右上：圖層 */
+.scene-layer-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: 12px;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
+}
+.scene-layer-btn svg { width: 16px; height: 16px; }
+.scene-layer-btn[aria-expanded="true"] { border-color: var(--hud-accent); }
+.scene-layer-btn:active { transform: scale(0.96); }
+
+.scene-layer-panel {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  right: 12px;
+  width: min(260px, calc(100vw - 24px));
+  padding: 10px;
+  display: grid;
+  gap: 2px;
+}
+.scene-layer-panel h2 { margin: 2px 6px 6px; font-size: var(--text-xs); font-weight: 700; }
+.scene-layer-panel label {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.scene-layer-panel label:active { background: var(--hud-chip); }
+.scene-layer-panel small { color: var(--hud-muted); font-size: var(--text-2xs); }
+.scene-layer-panel .sw { width: 18px; height: 18px; border-radius: 6px; }
+.scene-layer-panel .sw-rail { background: linear-gradient(135deg, var(--line-r) 0 25%, var(--line-bl) 25% 50%, var(--line-g) 50% 75%, var(--line-o) 75%); }
+.scene-layer-panel .sw-water { background: var(--water); }
+.scene-layer-panel .sw-green { background: var(--green); }
+.scene-layer-panel .sw-label {
+  border: 1px solid var(--hud-muted);
+  font-size: var(--text-2xs);
+  display: grid;
+  place-items: center;
+  color: var(--hud-muted);
+}
+.scene-layer-panel input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 36px;
+  height: 22px;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--hud-chip);
+  border: 1px solid var(--hud-line);
+  position: relative;
+  cursor: pointer;
+  transition: background-color var(--dur-quick) var(--ease-out);
+}
+.scene-layer-panel input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--hud-muted);
+  transition: transform var(--dur-quick) var(--ease-out), background-color var(--dur-quick) var(--ease-out);
+}
+.scene-layer-panel input:checked { background: var(--hud-accent); border-color: transparent; }
+.scene-layer-panel input:checked::after { transform: translateX(14px); background: var(--hud-on); }
+.scene-layer-panel .src { margin: 6px 6px 2px; font-size: var(--text-2xs); line-height: 1.5; color: var(--hud-muted); }
+
+/* 下方：時間軸（預覽版） */
+.scene-dock {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scene-dock .play {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--hud-accent);
+  color: var(--hud-on);
+  display: grid;
+  place-items: center;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.scene-dock .play:active { transform: scale(0.96); }
+.scene-dock .play svg { width: 16px; height: 16px; }
+.scene-dock .clock { flex: none; display: flex; align-items: center; gap: 8px; font-size: var(--text-lg); font-weight: 700; line-height: 1; min-width: 5.2em; }
+.scene-dock .orb { width: 14px; height: 14px; border-radius: var(--radius-pill); flex: none; }
+.scene-dock .orb.sun { background: var(--sun-disc); box-shadow: 0 0 0 3px var(--sun-glow); }
+.scene-dock .orb.moon { background: transparent; box-shadow: inset -4px 2px 0 0 var(--moon-disc); }
+.scene-dock .scrub {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hud-line);
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.scene-dock .scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--hud-bg);
+  border: 2px solid var(--hud-ink);
+  box-shadow: 0 1px 4px var(--hud-shadow);
+}
+.scene-dock .scrub::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--hud-bg);
+  border: 2px solid var(--hud-ink);
+}
+
+/* WebGL 不可用時的替代畫面（AD-11） */
+.scene-fallback {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: linear-gradient(180deg, var(--sky-top-day), var(--sky-horizon-day));
+}
+.scene-fallback-card { max-width: 420px; padding: 20px; display: grid; gap: 12px; }
+.scene-fallback-card h1 { font-size: var(--text-md); }
+.scene-fallback-link {
+  justify-self: start;
+  display: inline-grid;
+  place-items: center;
+  min-height: var(--tap);
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  background: var(--hud-accent);
+  color: var(--hud-on);
+  font-weight: 700;
+  text-decoration: none;
+}
+.scene-fallback-note { font-size: var(--text-xs); color: var(--hud-muted); }
