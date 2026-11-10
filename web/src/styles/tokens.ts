@@ -53,6 +53,36 @@ export function parseColor(raw: string): Rgba | null {
 export const readCssToken: TokenReader = (name) =>
   getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+/** 取出 tokens.css 原文某個選擇器區塊裡的 `--name: value`（去掉註解）。 */
+function cssBlock(css: string, selector: string): Map<string, string> {
+  const start = css.indexOf(`${selector} {`);
+  if (start < 0) return new Map();
+  const body = css.slice(start + selector.length + 2, css.indexOf("\n}", start)).replace(/\/\*[\s\S]*?\*\//g, "");
+  return new Map([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+}
+
+/**
+ * 從 tokens.css 原文（`import css from "./tokens.css?raw"`）讀 token，不看目前頁面的 data-phase。
+ * 分享卡依卡片自己的時段決定白天或夜晚 HUD 色，所以不能用 getComputedStyle（AD-17）。
+ * `var(--x)` 會展開；夜晚以 `:root[data-phase="night"]` 覆寫 `:root`，與瀏覽器的層疊結果相同。
+ */
+export function cssTokenReader(css: string, phase: "day" | "night" = "day"): TokenReader {
+  const vars = cssBlock(css, ":root");
+  if (phase === "night") for (const [k, v] of cssBlock(css, ':root[data-phase="night"]')) vars.set(k, v);
+  const read: TokenReader = (name) => {
+    const raw = vars.get(name) ?? "";
+    const ref = /^var\((--[\w-]+)\)$/.exec(raw);
+    return ref && ref[1] !== name ? read(ref[1]) : raw;
+  };
+  return read;
+}
+
+/** Rgba 轉成 canvas 可用的色字串（#rrggbbaa）；只用在把 token 值交給 canvas，不是定義新顏色。 */
+export function canvasColor([r, g, b, a]: Rgba): string {
+  const hex = (v: number) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}${hex(a * 255)}`;
+}
+
 /** 讀一個全天 token；不存在或無法解析時丟錯，避免畫面默默用錯色。 */
 export function tokenRgba(name: string, read: TokenReader = readCssToken): Rgba {
   const c = parseColor(read(name));

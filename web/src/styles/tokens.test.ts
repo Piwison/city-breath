@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import tokensCss from "./tokens.css?raw";
 import designMd from "../../../DESIGN.md?raw";
-import { hudPhase, parseColor, phaseSpan, PHASE_KEYS, tokenAt, tokenRgb, type TokenReader } from "./tokens";
+import { canvasColor, cssTokenReader, hudPhase, parseColor, phaseSpan, PHASE_KEYS, tokenAt, tokenRgb, type TokenReader } from "./tokens";
 
 const reader = (vars: Record<string, string>): TokenReader => (name) => vars[name] ?? "";
 
@@ -87,6 +87,31 @@ describe("tokenAt", () => {
     const css = reader(Object.fromEntries(root));
     expect(tokenAt("--sky-top", 12, css)).toEqual(parseColor(root.get("--sky-top-day")!));
     expect(tokenRgb("--flow-in", css)).toEqual(parseColor(root.get("--flow-in")!)!.slice(0, 3));
+  });
+});
+
+describe("cssTokenReader", () => {
+  it("白天讀 :root，夜晚以 data-phase=night 覆寫，與目前頁面無關", () => {
+    const day = cssTokenReader(tokensCss, "day");
+    const nightRead = cssTokenReader(tokensCss, "night");
+    expect(day("--hud-ink")).toBe(root.get("--hud-ink"));
+    expect(nightRead("--hud-ink")).toBe(night.get("--hud-ink"));
+    expect(nightRead("--commute")).toBe(root.get("--commute"));
+    expect(day("--nope")).toBe("");
+  });
+  it("展開 var() 參照", () => {
+    expect(cssTokenReader(tokensCss, "day")("--page-bg")).toBe(root.get("--sky-horizon-day"));
+    expect(cssTokenReader(tokensCss, "night")("--page-bg")).toBe(root.get("--sky-horizon-night"));
+  });
+  it("不受 reduced-motion 區塊影響", () => {
+    expect(cssTokenReader(tokensCss)("--dur-press")).toBe(root.get("--dur-press"));
+  });
+});
+
+describe("canvasColor", () => {
+  it("輸出 8 碼 hex，含 alpha", () => {
+    expect(canvasColor([255, 252, 246, 0.86])).toBe(`#${"fffcf6db"}`);
+    expect(canvasColor([0, 0, 0, 1])).toBe(`#${"000000ff"}`);
   });
 });
 
