@@ -1,4 +1,4 @@
-import type { DailyFile, DistrictFlowsFile, DistrictsFile, EventsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
+import type { BasemapFile, DailyFile, DistrictFlowsFile, DistrictsFile, EventsFile, MetaFile, MonthsFile, OdShard, StationsFile } from "./types";
 
 export const CONTRACT_VERSION = 2;
 const BASE = `${import.meta.env.BASE_URL}data`;
@@ -80,4 +80,23 @@ export async function loadOdShard(month: string, stationId: string): Promise<OdS
     throw new Error(`${month} 的起訖分片 ${stationId} 與 stations.json 對不上`);
   }
   return shard;
+}
+/**
+ * 不分月份的底圖（約 0.6 MB，AD-6、AD-21）。版本由 getJson 驗；另外檢查形狀，
+ * 站 ID 換索引要用目前月份的 stations.json（AD-2 例外），當月沒有的站略過。
+ */
+export async function loadBasemap(): Promise<BasemapFile> {
+  const b = await getJson<BasemapFile>("basemap.json");
+  if (
+    b.v !== CONTRACT_VERSION ||
+    !Number.isInteger(b.basemapRevision) ||
+    b.levels?.length !== 6 ||
+    !b.districts?.every((d) => d.terrain?.length === 6) ||
+    !b.tracks?.every((t) => t.di.length === t.coords.length) ||
+    !Object.values(b.headway ?? {}).every((days) => days && days.weekday.length === 24 && days.holiday.length === 24) ||
+    b.grid?.rows.length !== b.grid?.ny
+  ) {
+    throw new Error("basemap.json 的形狀與資料契約不符");
+  }
+  return b;
 }

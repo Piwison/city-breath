@@ -1,0 +1,15 @@
+id,name,kind,lon,lat,station_name,venue_id,source_url,note
+taipei-main-station,台北車站,station,121.517222,25.047778,台北車站,,https://www.wikidata.org/wiki/Q700588,
+taipei-101,台北 101,tower,121.564722,25.033611,台北101/世貿,,https://www.wikidata.org/wiki/Q83101,
+taipei-arena,臺北小巨蛋,arena,121.550122,25.050699,台北小巨蛋,taipei-arena,https://www.wikidata.org/wiki/Q710183,
+nangang-exhibition,南港展覽館,expo,121.617,25.0557,南港展覽館,nangang-exhibition,https://www.wikidata.org/wiki/Q7676326,位置取 1 館
+taipei-zoo,動物園與貓空纜車,zoo,121.582,25.0026,動物園,,https://www.wikidata.org/wiki/Q591131,位置取臺北市立動物園
+tamsui-old-street,淡水老街,boats,121.442,25.1696,淡水,,https://www.wikidata.org/wiki/Q11152333,原型叫「淡水河口」；Wikidata 的淡水河口座標在海上（不在任何區），改用河岸的淡水老街，造型仍是河上的船
+beitou-hot-spring,北投溫泉,steam,121.509675,25.136163,新北投,,https://www.wikidata.org/wiki/Q10902995,
+shilin-night-market,士林夜市,market,121.5254,25.0866,劍潭,shilin-night-market,https://www.wikidata.org/wiki/Q697118,
+red-house,西門紅樓,redhouse,121.506282,25.042138,西門,,https://www.wikidata.org/wiki/Q7304386,
+songshan-airport,松山機場,airport,121.551667,25.069444,松山機場,,https://www.wikidata.org/wiki/Q702019,
+miramar-wheel,美麗華摩天輪,wheel,121.557541,25.08282,劍南路,,https://www.wikidata.org/wiki/Q699573,位置取美麗華百樂園（摩天輪在其頂樓）
+grand-hotel,圓山大飯店,palace,121.526361,25.078667,圓山,,https://www.wikidata.org/wiki/Q712865,
+cks-memorial-hall,中正紀念堂,hall,121.521667,25.034444,中正紀念堂,,https://www.wikidata.org/wiki/Q540794,
+bitan-bridge,碧潭吊橋,bridge,121.536044,24.956572,新店,,https://www.wikidata.org/wiki/Q21042906,
