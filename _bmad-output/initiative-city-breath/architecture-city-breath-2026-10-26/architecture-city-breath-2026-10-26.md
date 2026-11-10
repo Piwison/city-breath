@@ -7,7 +7,7 @@ paradigm: pipes-and-filters（離線批次）＋靜態資料契約＋純前端 S
 scope: 城市呼吸第一版：月度彙總管線、靜態資料契約（v2，1.13 起 v3）與底圖檔、微縮城市網站（天光）
 status: final
 created: 2026-10-26
-updated: 2026-11-10
+updated: 2026-11-11
 binds: [R1, R2, R3, R4, R5, R10, R11, R12, R13, R17, R18, R19, R20]
 sources: [../initiative-city-breath.md, ../prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, ../user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md, ../../../DESIGN.md]
 companions: [../../../docs/data-contract.md]
@@ -15,7 +15,7 @@ companions: [../../../docs/data-contract.md]
 
 # Architecture Spine — 城市呼吸
 
-> 2026-11-03 更新：配合 initiative replan（行政區流向、活動日、hallmark 移除），渲染改為 Three.js 微縮城市，資料契約升到 v2，並依兩份審查（reviews/）補上 AD-14 到 AD-20。2026-11-10 更新：2.1 定案天光（DESIGN.md），加上底圖檔（AD-21）、唯一的持久化狀態（AD-22）、示意物件（AD-23）、音效（AD-24）、地標（AD-25）、站的特質與徽章（AD-26），並改寫 AD-8、AD-11 的光照與 AD-12 的高程。`[ASSUMPTION]` 標記待 Piwi 確認。
+> 2026-11-03 更新：配合 initiative replan（行政區流向、活動日、hallmark 移除），渲染改為 Three.js 微縮城市，資料契約升到 v2，並依兩份審查（reviews/）補上 AD-14 到 AD-20。2026-11-10 更新：2.1 定案天光（DESIGN.md），加上底圖檔（AD-21）、唯一的持久化狀態（AD-22）、示意物件（AD-23）、音效（AD-24）、地標（AD-25）、站的特質與徽章（AD-26），並改寫 AD-8、AD-11 的光照與 AD-12 的高程。2026-11-11 更新：1.6 車站類型改成固定類型、每月歸類（AD-27）。`[ASSUMPTION]` 標記待 Piwi 確認。
 
 ## Design Paradigm
 
@@ -33,7 +33,7 @@ flowchart LR
   st --> dist
   st --> agg[aggregate.py DuckDB]
   dist --> agg
-  agg --> cl[cluster.py k-means]
+  agg --> cl[cluster.py 歸到固定類型]
   agg --> an[anomaly.py 異常日]
   an --> evt
   agg --> sup[suppress.py 隱藏]
@@ -196,6 +196,11 @@ flowchart LR
 - **Prevents:** 地標卡、車站卡、徽章對同一站給出不同的倍數、排名或「之最」
 - **Rule:** 每站的指標（全日人次、假日倍數、早上進出比、晚上與清晨占比、尖峰倍數）、全線排名與「前 20 的特質」只在 `web/src/data/traits.ts` 從目前月份的 `stations.json` 算；徽章定義與得主只在 `web/src/data/badges.ts`，用 `traits.ts` 的結果；此刻最忙也呼叫 `traits.ts`（大日子時改餵那天的 `daily` 資料，同一個函式）。都是純函式、有 vitest。不寫死任何站名或數字，換月份自動重算。
 
+### AD-27 — 車站類型固定，每月只歸類
+- **Binds:** R4、epic-station-personality、`stations.json` 的 `type` 與 `types[]`
+- **Prevents:** 每月各自分群，群編號與群的意思月月不同（2026-11 有 6 個月出現「臥室站 2」），照編號定的名稱貼錯；同一站換月份就換類型名稱卻說不出原因
+- **Rule:** 類型是固定的：`city-breath fit-types --months …` 把多個月份出站有紀錄的站的特徵（`cluster.py` 的特徵定義，帶 `FEATURE_VERSION`）合在一起 k-means 一次，中心依早上淨流向由小到大給 id，存在 `pipeline/config/station_type_centroids.json`（附月份、方法、特徵版本、指令）；名稱與一句話由 Piwi 定在 `pipeline/config/station_types.csv`（依 id）。`build` 不重算中心，只把當月每站歸到最近的中心；中心檔缺、特徵版本不符或名稱表和中心對不上就失敗。出站未入檔（環狀線）或當月平日沒有進出的站 `type` 為 `null`。重新擬合只在 Piwi 要重新定義類型時做：新中心檔的 `namesConfirmed` 為 `false`，`build` 輸出 `draft: true`；Piwi 對照名稱後改成 `true`、所有月份重建。類型 id 與名稱在所有月份一致，前端照 id 查 `types[]`，不自己分類。2026-11-11 定案：2025-10～2026-09、k=4，臥室站／住商站／人氣站／辦公站。
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -205,7 +210,7 @@ flowchart LR
 | 行政區的參照 | 一律用 AD-9 的 8 碼代碼字串，顯示名稱從 `districts.json` 取 |
 | 文案 | 繁體中文；人數加千分位＋「人」；資料來源與月份須出現在分享卡與來源頁 |
 | 錯誤 | 載入失敗顯示可讀訊息，不出現空白畫面 |
-| 每月更新 | `fetch` → 補 `holidays.csv` 與 `events.csv` → 抓場館檔期快照到 `data/raw/` → `build` → 看全市級異常日與假日檢查、Piwi 定名新類型 → 開 PR、CI 通過後合併部署；`fetch-basemap` 只在底圖來源更新或升版時跑（AD-21） |
+| 每月更新 | `fetch` → 補 `holidays.csv` 與 `events.csv` → 抓場館檔期快照到 `data/raw/` → `build`（車站歸到固定類型，AD-27）→ 看全市級異常日與假日檢查 → 開 PR、CI 通過後合併部署；`fetch-basemap` 只在底圖來源更新或升版時跑（AD-21） |
 
 ## Stack
 
@@ -234,7 +239,7 @@ maplibre-gl 與 deck.gl 由 AD-11 移除；拿掉它們的時機在首頁換成�
 ```text
 city-breath/
   pipeline/            # Python 彙總管線（uv）
-    config/            # 別名、假日、顯示名、車站類型、station_districts、venues、events、landmarks、basemap_sources
+    config/            # 別名、假日、顯示名、車站類型（名稱與固定中心）、station_districts、venues、events、landmarks、basemap_sources
     src/city_breath_pipeline/   # stations、aggregate、cluster、anomaly、suppress、export、basemap
     tests/
   data/raw/            # 原始月檔、區界圖、場館檔期快照、basemap/ 底圖原始檔（不進 git）
@@ -256,7 +261,7 @@ city-breath/
 | R3 首頁行政區流向 | web/src/scene、views.ts、districts.json、district-flows.json | AD-1、AD-5、AD-6、AD-8、AD-9、AD-11、AD-12、AD-15、AD-16、AD-19 |
 | R13 點行政區看去哪、誰來 | web/src/scene、district-flows.json、stations.json | AD-3、AD-7、AD-9、AD-10、AD-16 |
 | R1／R2 通勤同路人卡 | web/src/data/commute.ts、od/{id}.json、web/src/share | AD-3、AD-6、AD-16、AD-17、AD-20 |
-| R4 車站個性卡 | pipeline/cluster.py、stations.json | AD-2、AD-4 |
+| R4 車站個性卡 | pipeline/cluster.py、config/station_type_centroids.json、station_types.csv、stations.json | AD-2、AD-4、AD-27 |
 | R5 活動日 | pipeline/anomaly.py、events.json、daily/{date}.json | AD-3、AD-4、AD-6、AD-13、AD-14、AD-19 |
 | R10 每月管線 | pipeline/、data/raw/、web/public/data/ | AD-1、AD-18、每月更新 |
 | R11 資料來源頁 | web 靜態頁、meta.json、basemap.json | AD-1、AD-15、AD-21、AD-23 |

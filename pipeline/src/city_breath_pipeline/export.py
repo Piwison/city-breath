@@ -12,7 +12,7 @@ from pathlib import Path
 from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW
 from .aggregate import MonthAggregate
 from .anomaly import detect as detect_anomalies, to_json as anomalies_json
-from .cluster import ClusterResult, cluster_stations
+from .cluster import ClusterResult, assign_types
 from .district_flows import district_raw, inbound_raw, total_count
 from .schedules import link as link_schedules
 from .districts import DistrictResult
@@ -191,9 +191,8 @@ def export_month(
     for s in stations:  # 沒有任何進出紀錄的站也要有空曲線
         profiles.setdefault(s.name, {t: {"entries": [None] * 24, "exits": [None] * 24} for t in DAY_TYPES})
 
-    clusters: ClusterResult = cluster_stations(
-        profiles, {s.name for s in stations if s.exits_recorded}, agg.service_hours
-    )
+    # 車站類型：歸到 config 的固定中心（AD-27），不每月重新分群
+    clusters: ClusterResult = assign_types(profiles, {s.name for s in stations if s.exits_recorded})
 
     # 起站 → 迄站 → 日型 → 小時 平均
     od: dict[str, dict[str, dict[str, list]]] = defaultdict(

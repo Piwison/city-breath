@@ -5,6 +5,7 @@
     uv run city-breath fetch-events --month 2026-09   # 場館檔期快照到 data/raw/events/202609/
     uv run city-breath fetch-basemap                  # 底圖原始檔（DEM、路網、河川、綠地、班距）到 data/raw/basemap/
     uv run city-breath build --month 2026-09          # 彙總並輸出到 web/public/data/
+    uv run city-breath fit-types --months 2025-10..2026-09  # 重新擬合固定的車站類型中心（很少用，AD-27）
     uv run city-breath district-report --month 2026-09 --draft ../design/research/station_district.json
 """
 
@@ -22,10 +23,11 @@ import urllib.request
 from pathlib import Path
 
 from . import basemap as bm
+from . import cluster as types_
 from . import districts as geo
 from . import schedules as sched
 from .aggregate import aggregate_month
-from .export import SOURCE, export_basemap, export_daily, export_events, export_month
+from .export import SOURCE, build_profiles, export_basemap, export_daily, export_events, export_month
 from .stations import build_stations, canonical, load_aliases, load_exit_coordinates
 from .venues import VENUES, VenueError, load_venues, resolve_venues
 
@@ -234,11 +236,15 @@ def cmd_build(args) -> None:
          "license": src["license"], "retrieved": src["retrieved"], "sha256": src["sha256"]},
     ]
     sources += snapshot.sources
-    result = export_month(agg, stations, Path(args.out), districts, sources)
+    try:
+        result = export_month(agg, stations, Path(args.out), districts, sources)
+    except types_.StationTypeError as e:
+        raise SystemExit(str(e)) from e
     m = result["meta"]
     print(f"{args.month}：{m['rawRows']:,} 列，排除 {m['droppedRows']:,} 列，{m['stationCount']} 站，"
           f"日數 {m['dayCounts']}，營運時段 {m['serviceHours']}")
-    print(f"分群 k={m['clustering']['k']} silhouette={m['clustering']['silhouette']}")
+    print(f"車站類型：固定 {m['clustering']['k']} 型（config/station_type_centroids.json），"
+          f"當月輪廓係數 {m['clustering']['silhouette']}")
     for kind, label in (("od", "站起訖格"), ("allday", "全日前 10 格"), ("district", "行政區起訖格"),
                         ("inbound", "來源行政區格")):
         sup = result["suppression"][kind]
@@ -304,6 +310,48 @@ def _build_basemap(args, stations, districts, boundaries, extra_sources) -> None
           f"地標 {summary['landmarks']} 個")
     if size > bm.MAX_BYTES:
         raise SystemExit(f"basemap.json {size:,} bytes 超過 {bm.MAX_BYTES:,}（AD-6），請加大簡化容差")
+
+
+def _month_list(spec: str) -> list[str]:
+    """``2025-10..2026-09`` 或 ``2025-10,2025-11``。"""
+    if ".." in spec:
+        a, b = (dt.datetime.strptime(x, "%Y-%m") for x in spec.split(".."))
+        out, y, mo = [], a.year, a.month
+        while (y, mo) <= (b.year, b.month):
+            out.append(f"{y}-{mo:02d}")
+            y, mo = (y + 1, 1) if mo == 12 else (y, mo + 1)
+        return out
+    return [x.strip() for x in spec.split(",") if x.strip()]
+
+
+def cmd_fit_types(args) -> None:
+    """重新擬合固定的車站類型中心（AD-27）。用原始月檔算 profile，不讀網站 JSON。
+
+    只在 Piwi 要重新定義類型時跑；跑完要請 Piwi 對照 config/station_types.csv 的名稱，再重建所有月份。
+    """
+    months = _month_list(args.months)
+    missing = [m for m in months if not (RAW / f"od_{m.replace('-', '')}.csv").exists()]
+    if missing:
+        raise SystemExit(f"缺原始月檔：{missing}；先跑 `uv run city-breath fetch --month YYYY-MM`")
+    samples = []
+    for m in months:
+        args.month = m
+        _, agg, stations, _ = _load_month(args)
+        profiles = build_profiles(agg)
+        recorded = [s.name for s in stations if s.exits_recorded and s.name in profiles]
+        samples += [(m, n, profiles[n]) for n in recorded]
+        print(f"{m}：{len(recorded)} 站")
+    body = types_.fit_types(samples)
+    body["command"] = f"uv run city-breath fit-types --months {args.months}"
+    types_.write_centroids(body, Path(args.out))
+    names = types_.load_type_names()
+    print(f"寫出 {args.out}：{body['samples']} 筆（{body['stations']} 站 × 月），k={body['method']['k']}，"
+          f"輪廓係數 {body['silhouette']}，整段期間都歸同一型的站 {body['stableStations']}/{body['stations']}")
+    for t in body["types"]:
+        label = names.get(t["id"], {}).get("label", "（未定名）")
+        print(f"  #{t['id']} {label}：最常歸到這型的站 {t['stations']}，{t['features']}")
+    print("注意：類型 id 依早上淨流向排序；請 Piwi 對照 config/station_types.csv 的名稱與一句話，確認後把中心檔的 "
+          "namesConfirmed 改成 true（在那之前 build 輸出 draft=true），再重建所有月份")
 
 
 def _report_anomalies(det, stations) -> None:
@@ -384,6 +432,10 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--out", required=True, help="輸出的 Markdown 路徑")
     r.add_argument("--check-api", action="store_true", help="逐站以國土測繪中心點位查詢 API 交叉驗證（需連網）")
     r.set_defaults(func=cmd_district_report)
+    t = sub.add_parser("fit-types", help="用多個月份重新擬合固定的車站類型中心（AD-27）")
+    t.add_argument("--months", required=True, help="2025-10..2026-09 或 2025-10,2025-11")
+    t.add_argument("--out", default=str(types_.CENTROIDS))
+    t.set_defaults(func=cmd_fit_types)
     b = sub.add_parser("build", help="彙總並輸出靜態資料")
     b.add_argument("--month", required=True, help="YYYY-MM")
     b.add_argument("--raw", help="原始 OD CSV（預設 data/raw/od_YYYYMM.csv）")

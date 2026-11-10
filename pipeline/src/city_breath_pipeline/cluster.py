@@ -1,12 +1,15 @@
-"""車站個性：24 小時進出曲線分群。
+"""車站類型：固定的四個類型，每個月把各站歸到最近的類型（1.6，architecture AD-27）。
 
-PRD：類型名稱由資料分群結果後決定，不預設。所以這裡只輸出
-「草稿標籤」（draft=True），供人看過後在 config/station_types.csv 定名。
+類型由 `city-breath fit-types` 用多個月份的 24 小時進出曲線一起 k-means 擬合一次，中心存在
+config/station_type_centroids.json；名稱與一句話由 Piwi 定在 config/station_types.csv（依類型 id）。
+平常的 build 不重算中心，只把當月每站歸到最近的中心，所以類型 id 與名稱在各月之間一致。
 """
 
 from __future__ import annotations
 
+import collections
 import csv
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,14 +23,28 @@ AM = [7, 8, 9]
 PM = [17, 18, 19]
 LATE = [21, 22, 23, 0]
 HOLIDAY_WEIGHT = 0.1
+# 特徵定義：平日 6–23 點與 0 點的進、出站占比（各 19 格），加上假日／平日總量比 × HOLIDAY_WEIGHT。
+# 改任何一項都要把 FEATURE_VERSION 加一並重跑 fit-types（build 會檢查中心檔的版本與小時）。
+FEATURE_HOURS = list(range(6, 24)) + [0]
+FEATURE_VERSION = 1
+FIT_K = 4
+FIT_N_INIT = 20
+FIT_SEED = 20261026
+
+CENTROIDS = CONFIG / "station_type_centroids.json"
+TYPE_NAMES = CONFIG / "station_types.csv"
+
+
+class StationTypeError(Exception):
+    """中心檔或名稱表有問題；build 會停下來。"""
 
 
 @dataclass
 class ClusterResult:
     k: int
-    silhouette: dict[int, float]
-    assignment: dict[str, int]  # station name -> cluster
-    types: list[dict]  # per cluster: id, label, description, draft, size, features
+    silhouette: dict[int, float]  # {k: 當月各站對固定類型的輪廓係數}
+    assignment: dict[str, int]  # station name -> type id
+    types: list[dict]  # per type: id, label, description, draft, size, features, examples
 
 
 def _features(profile: dict, service_hours: list[int]) -> np.ndarray:
@@ -60,81 +77,142 @@ def _describe(profile_mean: dict, service_hours: list[int]) -> dict:
     }
 
 
-def _draft_label(f: dict) -> tuple[str, str]:
-    if f["holidayRatio"] >= 1.0:
-        return "假日站", "假日比平日更熱鬧，觀光與休閒的去處"
-    if f["amNet"] <= -0.04:
-        return "臥室站", "早上吐人、晚上吸人：住在這裡的人出門上班"
-    if f["amNet"] >= 0.04 and f["holidayRatio"] >= 0.8:
-        return "商圈站", "平日有人來上班，假日照樣人潮不減"
-    if f["amNet"] >= 0.04:
-        return "辦公站", "早上吸人、傍晚吐人：大家來這裡上班上學"
-    if f["lateShare"] >= 0.12:
-        return "夜生活站", "越晚越熱鬧，下班後的人往這裡去"
-    return "混合站", "上班、居住、逛街都有，一整天進出平均"
+def _describe_vector(vec: np.ndarray) -> dict:
+    nh = len(FEATURE_HOURS)
+    return _describe(
+        {"entries": vec[:nh], "exits": vec[nh : 2 * nh], "holidayRatio": vec[-1] / HOLIDAY_WEIGHT}, FEATURE_HOURS
+    )
 
 
-def load_type_names(path: Path = CONFIG / "station_types.csv") -> dict[int, dict]:
+def has_weekday_traffic(profile: dict) -> bool:
+    """當月平日在特徵小時內有進出；沒有的站特徵全是 0，不歸類（type 為 null）。"""
+    return any((profile["weekday"][k][h] or 0) > 0 for k in ("entries", "exits") for h in FEATURE_HOURS)
+
+
+# ── 擬合（fit-types）────────────────────────────────────────────────
+
+
+def fit_types(
+    samples: list[tuple[str, str, dict]],
+    k: int = FIT_K,
+    n_init: int = FIT_N_INIT,
+    seed: int = FIT_SEED,
+) -> dict:
+    """``samples``：(月份, 正規站名, profile)，只放出站有紀錄的站。回傳要寫進中心檔的內容。
+
+    各月各站的特徵放在一起 k-means；類型 id 依中心的早上淨流向（amNet）由小到大排，
+    讓「早上出門的站」永遠是 0、「早上湧入的站」永遠是 k-1。
+    """
+    rows = [(m, n, p) for m, n, p in samples if has_weekday_traffic(p)]
+    X = np.vstack([_features(p, FEATURE_HOURS) for _, _, p in rows])
+    km = KMeans(n_clusters=k, n_init=n_init, random_state=seed).fit(X)
+    order = sorted(range(k), key=lambda c: (_describe_vector(km.cluster_centers_[c])["amNet"], c))
+    remap = {old: new for new, old in enumerate(order)}
+    labels = np.array([remap[int(c)] for c in km.labels_])
+    by_station: dict[str, list[int]] = collections.defaultdict(list)
+    for (_, n, _), lab in zip(rows, labels):
+        by_station[n].append(int(lab))
+    modal = {n: collections.Counter(v).most_common(1)[0][0] for n, v in by_station.items()}
+    return {
+        "featureVersion": FEATURE_VERSION,
+        "hours": FEATURE_HOURS,
+        "holidayWeight": HOLIDAY_WEIGHT,
+        "months": sorted({m for m, _, _ in rows}),
+        "method": {"algorithm": "kmeans", "k": k, "nInit": n_init, "randomState": seed},
+        "samples": len(rows),
+        "stations": len(by_station),
+        "silhouette": round(float(silhouette_score(X, labels)), 4),
+        "stableStations": sum(len(set(v)) == 1 for v in by_station.values()),
+        "command": "uv run city-breath fit-types --months " + ",".join(sorted({m for m, _, _ in rows})),
+        # 新擬合的中心還沒有人對照過名稱表：build 輸出 draft=true，直到 Piwi 確認後改成 true
+        "namesConfirmed": False,
+        "types": [
+            {
+                "id": new,
+                "centroid": [float(x) for x in km.cluster_centers_[old]],
+                "features": _describe_vector(km.cluster_centers_[old]),
+                "stations": sum(1 for c in modal.values() if c == new),  # 整年最常歸到這型的站數
+            }
+            for new, old in enumerate(order)
+        ],
+    }
+
+
+def write_centroids(body: dict, path: Path = CENTROIDS) -> None:
+    path.write_text(json.dumps(body, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
+# ── 每月歸類（build）────────────────────────────────────────────────
+
+
+def load_centroids(path: Path = CENTROIDS) -> dict:
+    if not path.exists():
+        raise StationTypeError(f"找不到 {path}；先跑 `uv run city-breath fit-types --months …` 產生固定類型的中心")
+    body = json.loads(path.read_text("utf-8"))
+    if (
+        body.get("featureVersion") != FEATURE_VERSION
+        or body.get("hours") != FEATURE_HOURS
+        or body.get("holidayWeight") != HOLIDAY_WEIGHT
+    ):
+        raise StationTypeError(
+            f"{path.name} 的特徵定義（版本 {body.get('featureVersion')}）與程式（版本 {FEATURE_VERSION}）不同；"
+            "重跑 `city-breath fit-types` 並請 Piwi 對照 station_types.csv"
+        )
+    width = 2 * len(FEATURE_HOURS) + 1
+    if [t["id"] for t in body["types"]] != list(range(len(body["types"]))) or any(
+        len(t["centroid"]) != width for t in body["types"]
+    ):
+        raise StationTypeError(f"{path.name} 的類型 id 要從 0 連號、每個中心 {width} 維")
+    return body
+
+
+def load_type_names(path: Path = TYPE_NAMES) -> dict[int, dict]:
     if not path.exists():
         return {}
     with path.open(encoding="utf-8") as f:
-        return {int(r["cluster"]): r for r in csv.DictReader(f)}
+        return {int(r["id"]): r for r in csv.DictReader(f)}
 
 
-def cluster_stations(
+def assign_types(
     profiles: dict[str, dict],
     exits_recorded: set[str],
-    service_hours: list[int],
-    k_range: range = range(4, 9),
-    seed: int = 20261026,
+    centroids: dict | None = None,
+    names: dict[int, dict] | None = None,
 ) -> ClusterResult:
-    names = sorted(n for n in profiles if n in exits_recorded)
-    X = np.vstack([_features(profiles[n], service_hours) for n in names])
+    """把當月每個出站有紀錄、平日有進出的站歸到最近的固定中心（歐氏距離）。"""
+    centroids = centroids if centroids is not None else load_centroids()
+    names = names if names is not None else load_type_names()
+    ids = [t["id"] for t in centroids["types"]]
+    if sorted(names) != ids or any(not names[i].get("label") or not names[i].get("description") for i in ids):
+        raise StationTypeError(f"station_types.csv 要剛好為類型 {ids} 各定一列名稱與一句話（目前 {sorted(names)}）")
+    C = np.array([t["centroid"] for t in centroids["types"]], float)
 
-    scores: dict[int, float] = {}
-    models: dict[int, KMeans] = {}
-    for k in k_range:
-        if k >= len(names):
-            break
-        m = KMeans(n_clusters=k, n_init=20, random_state=seed).fit(X)
-        scores[k] = round(float(silhouette_score(X, m.labels_)), 4)
-        models[k] = m
-    best_k = max(scores, key=scores.get)
-    labels = models[best_k].labels_
+    members = sorted(n for n in profiles if n in exits_recorded and has_weekday_traffic(profiles[n]))
+    X = np.vstack([_features(profiles[n], FEATURE_HOURS) for n in members]) if members else np.zeros((0, C.shape[1]))
+    dist = ((X[:, None, :] - C[None, :, :]) ** 2).sum(axis=2)
+    labels = dist.argmin(axis=1) if members else np.array([], int)
+    assignment = {n: int(c) for n, c in zip(members, labels)}
 
-    # 依群大小排序，讓 cluster id 在重跑時較穩定
-    order = sorted(range(best_k), key=lambda c: (-int((labels == c).sum()), c))
-    remap = {old: new for new, old in enumerate(order)}
-    assignment = {n: remap[int(c)] for n, c in zip(names, labels)}
+    k = len(ids)
+    silhouette = {}
+    if len(set(labels.tolist())) > 1 and len(members) > len(set(labels.tolist())):
+        silhouette[k] = round(float(silhouette_score(X, labels)), 4)
 
-    named = load_type_names()
-    nh = len(service_hours)
+    def volume(n: str) -> int:
+        return sum(v or 0 for v in profiles[n]["weekday"]["entries"])
+
     types = []
-    used: dict[str, int] = {}
-    for new in range(best_k):
-        members = [n for n, c in assignment.items() if c == new]
-        rows = np.vstack([_features(profiles[n], service_hours) for n in members]).mean(axis=0)
-        feat = _describe(
-            {"entries": rows[:nh], "exits": rows[nh : 2 * nh], "holidayRatio": rows[-1] / HOLIDAY_WEIGHT},
-            service_hours,
-        )
-        if new in named:
-            label, desc, draft = named[new]["label"], named[new]["description"], False
-        else:
-            label, desc = _draft_label(feat)
-            used[label] = used.get(label, 0) + 1
-            if used[label] > 1:
-                label = f"{label} {used[label]}"
-            draft = True
+    for t in centroids["types"]:
+        group = [n for n in members if assignment[n] == t["id"]]
         types.append(
             {
-                "id": new,
-                "label": label,
-                "description": desc,
-                "draft": draft,
-                "size": len(members),
-                "features": feat,
-                "examples": sorted(members, key=lambda n: -sum(v or 0 for v in profiles[n]["weekday"]["entries"]))[:5],
+                "id": t["id"],
+                "label": names[t["id"]]["label"],
+                "description": names[t["id"]]["description"],
+                "draft": not centroids.get("namesConfirmed", False),
+                "size": len(group),
+                "features": t["features"],
+                "examples": sorted(group, key=lambda n: (-volume(n), n))[:5],
             }
         )
-    return ClusterResult(k=best_k, silhouette=scores, assignment=assignment, types=types)
+    return ClusterResult(k=k, silhouette=silhouette, assignment=assignment, types=types)
