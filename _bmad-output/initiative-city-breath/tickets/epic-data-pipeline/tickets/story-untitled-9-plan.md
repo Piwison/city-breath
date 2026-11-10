@@ -3,7 +3,7 @@ title: '行政區起訖彙總'
 type: 'feature'
 ticket: '9'
 created: '2026-11-04'
-status: 'built'
+status: done
 baseline_revision: '78c3e6034b5eb26af05db7d17feac8c635e254cf'
 route: 'full'
 route_source: 'auto'

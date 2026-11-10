@@ -3,7 +3,7 @@ title: '微縮城市場景基底：台北盆地與天光'
 type: 'feature'
 ticket: '3'
 created: '2026-11-10'
-status: 'built'
+status: done
 baseline_revision: 'd9743b0366376cee6e61afa0d6b6050dc885befc'
 route: 'full'
 route_source: 'auto'

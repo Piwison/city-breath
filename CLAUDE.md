@@ -39,7 +39,7 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 - `main` 是可部署的狀態，不直接 commit 到 `main`。
 - 一張 story 一個分支，命名 `story/<ref>-<slug>`（例如 `story/3.3-share-card`），做完開 PR，標題帶票號（例如 `3.3 直式分享卡輸出`）。
 - PR 要通過 CI（`.github/workflows/ci.yml`：管線測試、網站測試與建置、ticket tree 檢查）才合併。
-- 合併後由 Piwi 把票標成 done：`uv run _bmad/method/scripts/tickets.py mark <ref> done`，跟著下一個 PR 一起 commit。
+- 合併後把票標成 done：`uv run .claude/skills/bmad-agent-po/scripts/tickets.py --project-root . mark <ref> done`，跟著下一個 PR 一起 commit。Piwi 已授權（2026-11-11）：CI 通過的 PR 可直接合併，合併後由 Claude 代標 done。
 - 新 clone 下來要先設定 active initiative（個人設定，不進版控）：在 `_bmad/custom/config.user.toml` 加上
   `[core]` 與 `active_initiative = "initiative-city-breath"`。
 - 原始 OD 月檔（`data/raw/`）不進版控，需要時跑 `uv run city-breath fetch`。

@@ -3,7 +3,7 @@ title: '底圖圖層輸出'
 type: 'feature'
 ticket: '12'
 created: '2026-11-10'
-status: 'built'
+status: done
 baseline_revision: '872f37d598e5b4ac30df2955dd8fdca249f88dee'
 route: 'full'
 route_source: 'auto'

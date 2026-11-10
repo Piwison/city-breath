@@ -3,7 +3,7 @@ title: '次要隱藏'
 type: 'feature'
 ticket: '11'
 created: '2026-11-04'
-status: 'built'
+status: done
 baseline_revision: '32301b09e3c0018921bba4f88630e542da5e177b'
 route: 'full'
 route_source: 'auto'

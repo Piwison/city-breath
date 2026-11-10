@@ -3,7 +3,7 @@ title: '人工活動表'
 type: 'feature'
 ticket: '3'
 created: '2026-11-04'
-status: 'built'
+status: done
 baseline_revision: '7f918f420a678cb1b8fa87fac2fd18c4b7293fb6'
 route: 'oneshot'
 route_source: 'auto'

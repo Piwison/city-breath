@@ -3,7 +3,7 @@ title: '產出 tokens 與 base'
 type: 'feature'
 ticket: '2'
 created: '2026-11-10'
-status: 'built'
+status: done
 baseline_revision: '04328776111fb8a2e4458d65a9b764ae9efa99f8'
 route: 'full'
 route_source: 'auto'
