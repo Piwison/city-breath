@@ -40,6 +40,22 @@ export function shareUrl(s: UrlState, base: string = siteBase()): string {
   return u.toString();
 }
 
+/** 從網址讀回的畫面狀態（目前只有時刻）與開發用的開關。 */
+export interface UrlRead extends UrlState {
+  /** `?scene=1`：預覽微縮城市場景（2.3）；3.5 首頁換成場景後拿掉 */
+  scene?: boolean;
+}
+
+/** 讀網址 query（AD-16：網址只在這裡讀寫）。不合法的值忽略，不丟錯。 */
+export function readQuery(search: string): UrlRead {
+  const q = new URLSearchParams(search);
+  const out: UrlRead = {};
+  const hour = q.get("hour");
+  if (hour !== null && /^\d{1,2}$/.test(hour) && Number(hour) <= 23) out.hour = Number(hour);
+  if (q.get("scene") === "1") out.scene = true;
+  return out;
+}
+
 /** 印在圖上的短網址：去掉協定、query 與結尾斜線（圖上的長 query 讀不了也點不了）。 */
 export function siteLabel(url: string): string {
   const u = new URL(url);

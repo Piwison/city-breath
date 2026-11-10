@@ -3,7 +3,8 @@
 // 顏色、字型、字級、圓角都從 tokens.css 讀（AD-8）；卡片的日夜跟卡片時段走，不跟目前頁面。
 // 不畫任何示意物件（街廓、樹、地標造型、列車、雲；AD-23）。
 import tokensCss from "../styles/tokens.css?raw";
-import { canvasColor, cssTokenReader, hudPhase, tokenAt, tokenRgba, type TokenReader } from "../styles/tokens";
+import { canvasColor, cssTokenReader, tokenRgba, type TokenReader } from "../styles/tokens";
+import { phaseAt, tokenAt } from "../scene/daylight";
 import { formatCount } from "../data/commute";
 import { DAY_LABEL, cardFileName, type CommuteCard, type ShareCard } from "./card";
 
@@ -52,7 +53,7 @@ function tokenPx(name: string, read: TokenReader): number {
 /** 卡片時段的配色；整天的卡（hour 為 null）用正午。取該小時的中點，例如 8 點的卡看 8:30 的天色。 */
 export function resolveTheme(hour: number | null, css: string = tokensCss): Theme {
   const t = hour === null ? 12 : hour + 0.5;
-  const phase = hudPhase(t);
+  const phase = phaseAt(t);
   const read = cssTokenReader(css, phase);
   const sizes = ["2xs", "xs", "sm", "md", "lg", "xl"] as const;
   return {

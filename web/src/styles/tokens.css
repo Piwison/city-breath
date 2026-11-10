@@ -2,9 +2,9 @@
    這是全站唯一定義顏色與字型的地方（CLAUDE.md 規則 5、AD-8）。其他 CSS 只用 var(--…)；
    TS 與 Three.js 經 web/src/styles/tokens.ts 讀取，不寫死色碼。
 
-   日夜：後綴 -night／-dawn／-day／-dusk 的 token 由 tokens.ts 的 tokenAt() 依時刻在相鄰兩組間內插
+   日夜：後綴 -night／-dawn／-day／-dusk 的 token 由 scene/daylight.ts 的 tokenAt() 依時刻在相鄰兩組間內插
    （關鍵時刻見 PHASE_KEYS）；沒有後綴的 token 全天共用，材質顏色固定，日夜靠光。
-   HUD 只有白天／夜晚兩組，由 clock 依太陽高度寫 :root 的 data-phase（hudPhase()）。 */
+   HUD 只有白天／夜晚兩組，由 state/clock.ts 依太陽高度寫 :root 的 data-phase（daylight.ts 的 phaseAt()）。 */
 
 :root {
   /* ── 字型與尺寸 ── */

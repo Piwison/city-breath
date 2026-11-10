@@ -55,8 +55,16 @@
 - `web/src/styles/tokens.css`：全站唯一定義顏色與字型的地方。上面兩張表的值都在這裡（測試 `tokens.test.ts` 會逐一比對這份文件），另有字級 `--text-2xs`…`--text-xl`、圓角 `--radius*`、點擊尺寸 `--tap` `--tap-min`、動態 `--dur-*` `--ease-*`。相位 token 直接放 `:root`（正式版沒有 `data-variant`）；HUD 夜晚放 `:root[data-phase="night"]`。`--page-bg` 是場景載入前與無 WebGL 時的頁面底色，白天＝`--sky-horizon-day`、夜晚＝`--sky-horizon-night`。
 - `web/src/styles/base.css`：reset、字型、焦點框、選取色、`.num` 等寬數字、`.hud` 玻璃面（跟著 `data-phase` 換色）。
 - 動態：所有 transition／animation 的時長用 `--dur-*`，`prefers-reduced-motion: reduce` 時歸零，也就是直接切換（AD-8）；測試會擋寫死的時長。
-- 程式取色：`web/src/styles/tokens.ts`。`tokenRgb('--flow-in')` 讀全天 token；`tokenAt('--sky-top', h)` 依上面的關鍵時刻在線性 sRGB 內插四相位（與原型 `at()` 相同）；`hudPhase(h)` 依太陽高度決定 `data-phase`（夜晚程度 > 0.55 為夜）。2.3 的 `useTokenColor` 建在這些工具上。
+- 程式取色：`web/src/styles/tokens.ts`。`tokenRgb('--flow-in')` 讀全天 token（也讀得懂建置壓縮後的 8 碼 hex）；`mixRgba` 在線性 sRGB 內插。
+- 日夜（2.3 起只在 `web/src/scene/daylight.ts`，AD-8）：`tokenAt('--sky-top', h)` 依上面的關鍵時刻內插四相位（與原型 `at()` 相同）；`phaseAt(h)` 依太陽高度決定 `data-phase`（夜晚程度 > 0.55 為夜），由 `state/clock.ts` 寫到 `:root`；`lightingAt(h)` 算太陽／月亮位置與強度、半球光、曝光與天色。場景材質用 `scene/useTokenColor.ts` 的 `useTokenColor('--x')`。
 - 其他 CSS 與 TS 不寫色碼，測試會掃 `web/src` 擋下。
+
+## 場景基底（2.3）
+
+- 在 `?scene=1` 預覽（three／R3F 另外分包），3.5 換成首頁。檔案在 `web/src/scene/`：`projection.ts`（`project()`、`elevation()`、`terrainLevelAt()`）、`daylight.ts`、`Sky`（全螢幕 shader：漸層、太陽、月亮、星星）、`Daylight`（唯一投影的方向光＋半球光＋曝光）、`Plinth`、`Terrain`（每區薄片＋六層台地合成一個頂點色 mesh，水、綠地各一）、`Rails`（全部路線一個 LineSegments2）、`DistrictLabels`、`LayerPanel`、`TimeBar`（預覽用）、`SceneFallback`。
+- 投影：原點＝21 區外框中心，最大邊長 100 單位（1 單位約 424 公尺），與原型相同。台地高度＝`elevation(門檻公尺)`，垂直 2 倍；原型是手調的 0.2–3.0，正式版 850 公尺約 4.0 單位，山比原型高約三分之一。
+- 陰影圖只在光的位置變了才重畫；短邊 < 600px 的螢幕用 1024 的陰影圖（原型 2048）。
+- 截圖與原型對照：`design/reviews/2.3-scene-base/`。
 
 ## 場景的層
 
