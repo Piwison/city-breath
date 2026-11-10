@@ -3,7 +3,7 @@ title: '每站的來源（誰來這站）'
 type: 'feature'
 ticket: '13'
 created: '2026-11-10'
-status: 'built'
+status: done
 baseline_revision: '5432f92378c4e88ac12b2b3cc51aa056e7cec937'
 route: 'full'
 route_source: 'auto'

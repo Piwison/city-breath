@@ -3,7 +3,7 @@ title: '擴充到近 12 個月'
 type: 'feature'
 ticket: '7'
 created: '2026-11-04'
-status: 'built'
+status: done
 baseline_revision: 'c37fa66295e9451d034362328c7e42ea75dc0f67'
 route: 'oneshot'
 route_source: 'auto'

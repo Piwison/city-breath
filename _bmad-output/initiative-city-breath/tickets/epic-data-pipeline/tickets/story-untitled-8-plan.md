@@ -3,7 +3,7 @@ title: '每站對上官方行政區'
 type: 'feature'
 ticket: '8'
 created: '2026-11-04'
-status: 'built'
+status: done
 baseline_revision: '677b33921cfa9d2b3eb2f3a472843dca5a33708c'
 route: 'full'
 route_source: 'auto'

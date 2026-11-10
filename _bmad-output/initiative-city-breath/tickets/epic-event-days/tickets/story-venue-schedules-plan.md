@@ -3,7 +3,7 @@ title: '場館檔期自動匯入'
 type: 'feature'
 ticket: '2'
 created: '2026-11-04'
-status: 'built'
+status: done
 baseline_revision: '5c54d479d12d8015d36f85fe6881162e3d249497'
 route: 'full'
 route_source: 'auto'

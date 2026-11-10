@@ -3,7 +3,7 @@ title: '異常日與 events.json'
 type: 'feature'
 ticket: '1'
 created: '2026-11-04'
-status: 'built'
+status: done
 baseline_revision: '39042024203183acd522e2ad4be635346ff8b770'
 route: 'full'
 route_source: 'auto'
