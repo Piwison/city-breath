@@ -174,3 +174,56 @@ describe("loadOdShard", () => {
     await expect(loadOdShard("2031-12", "s1")).rejects.toThrow("對不上");
   });
 });
+
+describe("loadBasemap", () => {
+  const hw = () => Array.from({ length: 24 }, () => null);
+  const terrain = () => [[], [], [], [], [], []];
+  const basemap = (over: Record<string, unknown> = {}) => ({
+    v: 2,
+    basemapRevision: 1,
+    stationsMonth: "2031-01",
+    bbox: [121.3, 24.8, 121.7, 25.3],
+    levels: [40, 120, 250, 400, 600, 850],
+    lines: [{ id: "BR", name: "文湖線" }],
+    districts: [{ id: "63000010", water: [], green: [], terrain: terrain() }],
+    outside: { terrain: terrain() },
+    sea: [],
+    outsideWater: [],
+    grid: { lon0: 121.3, lat0: 25.3, step: 0.003, nx: 2, ny: 1, rows: ["01"] },
+    tracks: [{ line: "BR", coords: [[121.5, 25], [121.6, 25]], di: [0, -1], approx: false }],
+    stationLines: { s1: ["BR"] },
+    headway: { BR: { weekday: hw(), holiday: hw() } },
+    landmarks: [],
+    sources: [],
+    notes: [],
+    ...over,
+  });
+  // getJson 會快取成功的回應，每個案例重新載入模組
+  const fresh = async () => {
+    vi.resetModules();
+    return (await import("./load")).loadBasemap;
+  };
+
+  it("讀根目錄的 basemap.json（不分月份）", async () => {
+    const calls = mockFetch({ "data/basemap.json": basemap() });
+    const b = await (await fresh())();
+    expect(b.basemapRevision).toBe(1);
+    expect(calls.map((u) => u.replace(/^.*data\//, ""))).toEqual(["basemap.json"]);
+  });
+
+  it("契約版本不符或缺 v 就報錯（AD-1）", async () => {
+    mockFetch({ "data/basemap.json": basemap({ v: 99 }) });
+    await expect((await fresh())()).rejects.toThrow("版本");
+    mockFetch({ "data/basemap.json": basemap({ v: undefined }) });
+    await expect((await fresh())()).rejects.toThrow("形狀");
+  });
+
+  it("形狀不符（班距不是 24 格、di 與座標不等長）就報錯", async () => {
+    mockFetch({ "data/basemap.json": basemap({ headway: { BR: { weekday: [null], holiday: hw() } } }) });
+    await expect((await fresh())()).rejects.toThrow("形狀");
+    mockFetch({
+      "data/basemap.json": basemap({ tracks: [{ line: "BR", coords: [[121.5, 25]], di: [], approx: false }] }),
+    });
+    await expect((await fresh())()).rejects.toThrow("形狀");
+  });
+});

@@ -3,6 +3,7 @@
     uv run city-breath fetch --month 2026-09          # 下載月檔與出口座標到 data/raw/
     uv run city-breath fetch-geo                      # 下載行政區界線到 data/raw/geo/
     uv run city-breath fetch-events --month 2026-09   # 場館檔期快照到 data/raw/events/202609/
+    uv run city-breath fetch-basemap                  # 底圖原始檔（DEM、路網、河川、綠地、班距）到 data/raw/basemap/
     uv run city-breath build --month 2026-09          # 彙總並輸出到 web/public/data/
     uv run city-breath district-report --month 2026-09 --draft ../design/research/station_district.json
 """
@@ -20,12 +21,13 @@ import time
 import urllib.request
 from pathlib import Path
 
+from . import basemap as bm
 from . import districts as geo
 from . import schedules as sched
 from .aggregate import aggregate_month
-from .export import SOURCE, export_daily, export_events, export_month
+from .export import SOURCE, export_basemap, export_daily, export_events, export_month
 from .stations import build_stations, canonical, load_aliases, load_exit_coordinates
-from .venues import VenueError, load_venues, resolve_venues
+from .venues import VENUES, VenueError, load_venues, resolve_venues
 
 ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / "data" / "raw"
@@ -105,6 +107,63 @@ def cmd_fetch_geo(args) -> None:
         print(f"已更新 {geo.GEO_SOURCES}")
 
 
+def cmd_fetch_basemap(args) -> None:
+    """下載底圖原始檔到 data/raw/basemap/（AD-21）。
+
+    csv 還沒有 sha256 的來源直接登記；sha256 不同時要加 --update 才換檔並改寫設定。
+    下載失敗而本機已有手動放入的檔（例：水利署河川河道），就登記那個檔；選用來源都沒有就印手動下載說明。
+    """
+    sources = bm.load_sources()
+    rows = list(sources.values())
+    changed, failed = False, []
+    for row in rows:
+        dest = RAW / row["file"]
+        new = dest.with_name(dest.name + ".new")
+        print(f"下載 {row['name']}：{row['url']}")
+        try:
+            _download(row["url"], new)
+        except Exception as e:  # noqa: BLE001 —— 網路錯誤種類很多，一律改走手動檔
+            for leftover in (new, new.with_suffix(new.suffix + ".part")):
+                leftover.unlink(missing_ok=True)
+            local = bm.local_path(RAW, row)
+            if local is None:
+                if bm.is_optional(row):
+                    print(f"注意：{type(e).__name__}: {e}\n" + bm.manual_download_hint(row, RAW))
+                else:
+                    print(f"錯誤：{row['name']} 下載失敗（{type(e).__name__}: {e}），本機也沒有 {dest}")
+                    failed.append(row["name"])
+                continue
+            sha = bm.fingerprint(local)
+            print(f"下載失敗（{type(e).__name__}），改用本機已有的 {local}")
+            if sha == row["sha256"]:
+                print("  sha256 與設定相符")
+            elif not row["sha256"] or args.update:
+                stamp = dt.datetime.fromtimestamp(local.stat().st_mtime).date().isoformat()
+                row["sha256"], row["retrieved"] = sha, stamp
+                changed = True
+                print(f"  登記 sha256 {sha}、取得日期 {stamp}（檔案修改日期）")
+            else:
+                print(f"  注意：sha256 {sha} 與設定的 {row['sha256']} 不同；確認後用 `fetch-basemap --update` 寫回")
+            continue
+        sha = geo.sha256_file(new)
+        if sha == row["sha256"]:
+            new.replace(dest)
+            print(f"完成 {dest}（sha256 與設定相符）")
+        elif not row["sha256"] or args.update:
+            new.replace(dest)
+            row["sha256"], row["retrieved"] = sha, dt.date.today().isoformat()
+            changed = True
+            print(f"完成 {dest}，登記 sha256 {sha}")
+        else:
+            print(f"注意：{row['name']} 的 sha256 {sha} 與設定的 {row['sha256']} 不同，來源可能已更新；"
+                  f"原檔不動，新檔留在 {new}。確認後用 `fetch-basemap --update` 換上，build 後把 BASEMAP_REVISION 加一")
+    if changed:
+        bm.write_sources(rows)
+        print(f"已更新 {bm.BASEMAP_SOURCES}")
+    if failed:
+        raise SystemExit(f"必要的底圖來源沒有取得：{failed}")
+
+
 def _events_dir(month: str) -> Path:
     return RAW / "events" / month.replace("-", "")
 
@@ -148,10 +207,11 @@ def _load_month(args):
 
 
 def _districts(stations):
+    """回傳 (DistrictResult, 未簡化的界線)；底圖用同一份界線切區與判定地標（AD-9、AD-25）。"""
     src = geo.load_geo_sources()["town_boundary"]
     try:
         boundaries = geo.load_districts(RAW / src["file"], src)
-        return geo.build_districts(stations, boundaries, geo.load_overrides(), src)
+        return geo.build_districts(stations, boundaries, geo.load_overrides(), src), boundaries
     except geo.DistrictError as e:
         raise SystemExit(str(e)) from e
 
@@ -164,7 +224,7 @@ def cmd_build(args) -> None:
     except sched.ScheduleError as e:
         raise SystemExit(str(e)) from e
     raw, agg, stations, venue_stations = _load_month(args)
-    districts = _districts(stations)
+    districts, boundaries = _districts(stations)
     src = districts.source
     sources = [
         _file_source(raw, name=SOURCE["name"], publisher=SOURCE["publisher"], url=SOURCE["url"], license=SOURCE["license"]),
@@ -198,10 +258,49 @@ def cmd_build(args) -> None:
     _report_anomalies(events["detection"], stations)
     _report_schedules(snapshot, events["linked"], events["detection"], stations)
     result["sizes"].update(events["sizes"])
+    # 底圖也用到的兩個輸入：車站出口座標（站的位置）與行政區界線（切區、判定地標）
+    shared = {"臺北捷運車站出入口座標", src["name"]}
+    _build_basemap(args, stations, districts, boundaries, [s for s in sources if s["name"] in shared])
     total = sum(result["sizes"].values())
     biggest = sorted(result["sizes"].items(), key=lambda kv: -kv[1])[:4]
     print(f"輸出 {len(result['sizes'])} 檔共 {total / 1e6:.2f} MB；最大：" + "、".join(f"{k} {v / 1e3:.0f} KB" for k, v in biggest))
     print(f"耗時 {time.time() - t:.1f}s")
+
+
+def _build_basemap(args, stations, districts, boundaries, extra_sources) -> None:
+    """不分月份的 basemap.json（AD-21）：只在建最新月份時重寫，站與路線以最新月份的車站為準。"""
+    out = Path(args.out)
+    latest = json.loads((out / "months.json").read_text("utf-8"))["latest"]
+    if args.month != latest:
+        print(f"basemap.json 以最新月份（{latest}）的車站產生，本次（{args.month}）不重寫")
+        return
+    try:
+        sources = bm.load_sources()
+        check = bm.check_sources(RAW, sources)
+        for row in check.missing:
+            print(f"注意：底圖來源〈{row['name']}〉缺檔（{RAW / row['file']}），這一版底圖沒有用到；"
+                  "取得方式見 `uv run city-breath fetch-basemap` 印出的說明")
+        landmarks = bm.LANDMARKS
+        extra = list(extra_sources) + [{
+            "name": "地標位置（pipeline/config/landmarks.csv，每列附 Wikidata 項目網址）", "publisher": "Wikidata",
+            "url": "https://www.wikidata.org/", "license": "CC0 1.0", "retrieved": bm.LANDMARKS_RETRIEVED,
+            "sha256": geo.sha256_file(landmarks),
+        }]
+        inp = bm.BasemapInputs(
+            stations=stations, station_codes=districts.station_codes, boundaries=boundaries, sources=sources,
+            district_polygons={d["id"]: bm.multipolygon(d["polygon"]) for d in districts.districts},
+            check=check, aliases=load_aliases(), venue_ids={v.id for v in load_venues(load_aliases(), VENUES)},
+            extra_sources=extra, month=args.month,
+        )
+        body, summary = bm.build_basemap(inp)
+    except bm.BasemapError as e:
+        raise SystemExit(str(e)) from e
+    size = export_basemap(body, out)
+    print(f"basemap.json {size / 1e3:.0f} KB（revision {body['basemapRevision']}）：{summary['stations']} 站的路線"
+          f"（{summary['lineMethods']}），軌道 {summary['tracks']} 段，直線補段：{'、'.join(summary['approx']) or '無'}，"
+          f"地標 {summary['landmarks']} 個")
+    if size > bm.MAX_BYTES:
+        raise SystemExit(f"basemap.json {size:,} bytes 超過 {bm.MAX_BYTES:,}（AD-6），請加大簡化容差")
 
 
 def _report_anomalies(det, stations) -> None:
@@ -246,7 +345,7 @@ def nlsc_point_query(lon: float, lat: float) -> str | None:
 
 def cmd_district_report(args) -> None:
     _, _, stations, _ = _load_month(args)
-    districts = _districts(stations)
+    districts, _ = _districts(stations)
     draft = json.loads(Path(args.draft).read_text("utf-8"))
     api = None
     if args.check_api:
@@ -270,6 +369,9 @@ def main(argv: list[str] | None = None) -> None:
     g = sub.add_parser("fetch-geo", help="下載行政區界線（國土測繪中心）")
     g.add_argument("--update", action="store_true", help="sha256 不同時寫回 config/geo_sources.csv")
     g.set_defaults(func=cmd_fetch_geo)
+    m = sub.add_parser("fetch-basemap", help="下載底圖原始檔（DEM、路網圖、河川、綠地、路線、班距）")
+    m.add_argument("--update", action="store_true", help="sha256 不同時換上新檔並寫回 config/basemap_sources.csv")
+    m.set_defaults(func=cmd_fetch_basemap)
     e = sub.add_parser("fetch-events", help="下載場館檔期快照（小巨蛋、花博、中山堂）")
     e.add_argument("--month", required=True, help="YYYY-MM")
     e.set_defaults(func=cmd_fetch_events)

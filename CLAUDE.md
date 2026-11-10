@@ -63,6 +63,7 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 cd pipeline
 uv run city-breath fetch --month 2026-09    # 下載約 300 MB 月檔到 data/raw/
 uv run city-breath fetch-events --month 2026-09  # 小巨蛋、花博、中山堂檔期快照到 data/raw/events/（build 需要）
+uv run city-breath fetch-basemap                 # 底圖原始檔到 data/raw/basemap/（建最新月份時 build 會重寫 basemap.json，需要它）
 uv run city-breath build --month 2026-09    # 彙總到 web/public/data/（約 8 秒）
 uv run --group dev pytest
 
@@ -82,5 +83,6 @@ npm run build
 - 原始資料迄站欄位有路線前綴（O景安、G大坪林、O頭前庄），已在別名表處理；新月份若出現新前綴，`build` 會報錯提醒。
 - 假日表 `pipeline/config/holidays.csv` 要每月補；`events.json` 的全市級異常日（`anomalies[]` 中 `station` 為 `null` 者）可幫忙找漏列的假日，`build` 也會對「平日卻少 15% 以上」的日子印出提示。
 - 場館檔期：花博公園的年度檔常晚發布（2026-11 時最新仍是 114 年度），`fetch-events` 記為 missing、`build` 會提醒；那幾個月花博站（圓山）的異常只能靠人工活動表。
+- 底圖：水利署河川河道的 SHP（gic.wra.gov.tw）在部分網路連不到，`fetch-basemap` 會印手動下載說明；手動檔放 `data/raw/basemap/RIVERPOLY.zip`，再跑一次 `fetch-basemap` 登記 sha256。底圖來源換版後把 `basemap.py` 的 `BASEMAP_REVISION` 加一。
 - 骨架目前還用 maplibre-gl＋deck.gl；架構已改成 Three.js（AD-11），在首頁換成場景的那張票（3.5）移除。
 - `web/src/App.tsx` 是驗證資料與效能的開發骨架，不是設計稿。

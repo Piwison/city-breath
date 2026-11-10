@@ -400,3 +400,13 @@ def suppression_summary(suppression: Suppressed) -> dict[str, dict[str, int]]:
     for k in suppression.secondary_hidden:
         out[kind(k)]["secondary"] += 1
     return out
+
+
+# ── basemap.json（1.12；AD-1、AD-12、AD-21、AD-25）──────────────────────────────
+# 不分月份，只由 basemap.py 組出內容；形狀見 docs/data-contract.md 的 basemap.json。
+
+
+def export_basemap(body: dict, out_root: Path) -> int:
+    """寫出 ``web/public/data/basemap.json``，回傳 bytes。"""
+    assert body["v"] == CONTRACT_VERSION and "basemapRevision" in body
+    return _write(out_root / "basemap.json", body)

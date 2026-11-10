@@ -224,3 +224,94 @@ export interface MonthsFile {
   months: string[];
   latest: string;
 }
+
+// ── basemap.json（1.12；AD-12、AD-21、AD-25）──────────────────────────────
+
+/** 路線 ID（AD-21）；顏色 token＝`--line-` 加小寫、去連字號的 ID（`R-3` → `--line-r3`），JSON 不放色碼 */
+export type LineId = "BR" | "R" | "R-3" | "G" | "G-3" | "O" | "BL" | "Y";
+
+/** GeoJSON MultiPolygon 座標（經緯度）：[面][環][點]，第一個環是外框、其餘是洞；經 project() 轉場景座標（AD-12） */
+export type MultiPolygonCoords = LonLat[][][];
+
+/** 六層台地，索引 0–5 對到 levels（40／120／250／400／600／850 公尺）；第 k 層是「高程 ≥ levels[k]」的面 */
+export type TerrainLevels = [
+  MultiPolygonCoords,
+  MultiPolygonCoords,
+  MultiPolygonCoords,
+  MultiPolygonCoords,
+  MultiPolygonCoords,
+  MultiPolygonCoords,
+];
+
+export interface BasemapDistrict {
+  /** 有車站的行政區 8 碼代碼（AD-9），依代碼排序；切區用 districts.json 的簡化界線 */
+  id: string;
+  water: MultiPolygonCoords;
+  /** 公園與河濱高灘地；只有臺北市資料 */
+  green: MultiPolygonCoords;
+  /** 已扣掉水面 */
+  terrain: TerrainLevels;
+}
+
+export interface BasemapTrack {
+  line: LineId;
+  coords: LonLat[];
+  /** 每個頂點在 basemap 的 districts[] 哪一區（索引），-1＝不在有車站的區 */
+  di: number[];
+  /** 路網圖缺段，以直線從同線軌道端點補到車站 */
+  approx: boolean;
+}
+
+/** 每格是該小時內公告的發車間隔區間 [最短, 最長]（分鐘）；停駛或不在營運時段為 null（AD-5） */
+export type HeadwayHours = ([number, number] | null)[];
+
+export interface Landmark {
+  id: string;
+  name: string;
+  /** 示意造型的種類（AD-23），前端只拿它對造型 */
+  kind: string;
+  lon: number;
+  lat: number;
+  /** 連到的車站：站 ID（AD-2 的例外）；用目前月份的 stations.json 換成索引，當月沒有就略過 */
+  station: string;
+  /** 所屬行政區 8 碼代碼，由管線用 AD-9 同一套界線判定（AD-25） */
+  district: string;
+  /** venues.csv 的 venue_id，沒有為 null */
+  venue: string | null;
+}
+
+export interface BasemapSource extends DataSource {
+  /** true＝選用來源缺檔，這一版沒有用到（sha256、retrieved 為空字串） */
+  missing?: boolean;
+  note?: string;
+}
+
+/** web/public/data/basemap.json：不分月份的底圖（AD-21） */
+export interface BasemapFile {
+  v: number;
+  /** 只換內容（新的 DEM、河道）就加一；改形狀才升 v（AD-18） */
+  basemapRevision: number;
+  /** 站與路線以這個月份的車站產生（最新月份） */
+  stationsMonth: string;
+  /** 底座範圍 [西, 南, 東, 北] */
+  bbox: [number, number, number, number];
+  /** 台地高度（公尺）；場景高度只經 projection.ts 的 elevation()（AD-12） */
+  levels: number[];
+  lines: { id: LineId; name: string }[];
+  districts: BasemapDistrict[];
+  /** 底座上、21 區以外的台地 */
+  outside: { terrain: TerrainLevels };
+  sea: MultiPolygonCoords;
+  /** 底座上、21 區以外的河 */
+  outsideWater: MultiPolygonCoords;
+  /** 高程等級格網：rows[j][i] 是 (lon0 + i·step, lat0 − j·step) 的等級 0–6（≥ 幾層），給 terrainLevelAt() 用 */
+  grid: { lon0: number; lat0: number; step: number; nx: number; ny: number; rows: string[] };
+  tracks: BasemapTrack[];
+  /** 站 ID → 路線（LineId 順序）；環狀線站為 ["Y"] */
+  stationLines: Record<string, LineId[]>;
+  /** 有班距資料的路線（環狀線沒有）→ 平日／假日各 24 格 */
+  headway: Partial<Record<LineId, Record<DayType, HeadwayHours>>>;
+  landmarks: Landmark[];
+  sources: BasemapSource[];
+  notes: string[];
+}
