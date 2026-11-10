@@ -28,7 +28,7 @@ description: 城市呼吸的微縮城市場景與遊戲手感規則（天光）�
 ## 不可違反（對應架構）
 
 - 顏色只從 `:root` token 來，JS 與 GLSL 都不寫死色碼（AD-8）。路線色用 `--line-` 加小寫、去連字號的路線 ID（`R-3` → `--line-r3`，AD-21）。
-- 經緯度只經 `project(lon, lat)` 轉場景座標；真實高程只經 `elevation(m)`（`TERRAIN_EXAGGERATION`＝2），都在 `projection.ts`（AD-12）。人數決定的高度（站柱、建築、緞帶）不是高程，不乘誇張倍數，只有它們的基座取 `elevation()`。
+- 經緯度只經 `project(lon, lat)` 轉場景座標；真實高程只經 `elevation(m)`（`TERRAIN_EXAGGERATION`＝1.5），都在 `projection.ts`（AD-12）。人數決定的高度（站柱、建築、緞帶）不是高程，不乘誇張倍數，只有它們的基座取 `elevation()`。
 - 選了哪一區、現在幾點、播放中與否，只存在 `web/src/state/`（AD-16）。GSAP 和鏡頭動畫只改畫面，不保存狀態；動畫中途狀態改變就打斷重來。唯一跨工作階段保存的是徽章進度與「看過首次提示」，只經 `state/progress.ts`（AD-22）。
 - 播放用的連續時間由單一 clock 推進，場景在 `useFrame` 讀；GSAP 不負責時間軸播放。
 - 場景圖層只吃 `views.ts` 的檢視模型（`FlowFrame`、`StationFrame`），首頁、行政區展開、活動日共用同一個流向圖層與人數→粒子函式（AD-19）。
@@ -44,7 +44,7 @@ description: 城市呼吸的微縮城市場景與遊戲手感規則（天光）�
 
 | 層 | 來源 | 真實或示意 |
 | --- | --- | --- |
-| 地形台地、海 | basemap.json（Copernicus DEM） | 真實，垂直誇張 2 倍 |
+| 地形台地、海 | basemap.json（Copernicus DEM） | 真實，垂直誇張 1.5 倍 |
 | 行政區薄片 | districts.json | 真實 |
 | 河川、綠地 | basemap.json | 真實（新北綠地缺） |
 | 捷運路線 | basemap.json 軌道 | 真實（`approx` 段以直線補） |

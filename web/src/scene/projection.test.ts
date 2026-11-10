@@ -98,18 +98,18 @@ describe("project()", () => {
 });
 
 describe("elevation()", () => {
-  it("垂直誇張 2 倍：高程乘 2 再換成場景單位", () => {
-    expect(TERRAIN_EXAGGERATION).toBe(2);
+  it("垂直誇張 1.5 倍：高程乘 1.5 再換成場景單位", () => {
+    expect(TERRAIN_EXAGGERATION).toBe(1.5);
     expect(elevation(0)).toBe(0);
-    expect(elevation(850)).toBeCloseTo((850 * 2) / METERS_PER_UNIT, 9);
-    expect(elevation(850) * METERS_PER_UNIT).toBeCloseTo(1700, 6);
+    expect(elevation(850)).toBeCloseTo((850 * 1.5) / METERS_PER_UNIT, 9);
+    expect(elevation(850) * METERS_PER_UNIT).toBeCloseTo(1275, 6);
     expect(elevation(400) / elevation(200)).toBeCloseTo(2, 9);
   });
 
-  it("一個場景單位約 424 公尺，850 公尺的台地約 4 單位高", () => {
+  it("一個場景單位約 424 公尺，850 公尺的台地約 3 單位高", () => {
     expect(METERS_PER_UNIT).toBeGreaterThan(420);
     expect(METERS_PER_UNIT).toBeLessThan(428);
-    expect(elevation(850)).toBeCloseTo(4.01, 1);
+    expect(elevation(850)).toBeCloseTo(3.01, 1);
   });
 
   it("levelHeight：等級 0 是地面，等級 k 是第 k 層門檻的高度", () => {
