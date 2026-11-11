@@ -1,8 +1,10 @@
-// 畫面狀態的唯一一份（AD-16）。目前有時刻、播放、速度、靜態模式、日型、圖層開關（2.3、3.5、3.3）；
-// hour、dayType 由 state/url.ts 的 syncUrl() 寫回網址（3.3），之後的票再加 month、district、station、date、commute。
+// 畫面狀態的唯一一份（AD-16）。時刻、播放、速度、靜態模式、日型、圖層開關（2.3、3.5、3.3）；
+// 選中的行政區、站、卡片範圍與聚焦的流向（3.6）。
+// hour、dayType 由 state/url.ts 的 syncUrl() 寫回網址（3.3）；district、station 由 3.15 加進網址，之後再加 month、date、commute。
 // 播放用的連續時間 t 是非 React 欄位（time.t），由 clock.ts 推進；場景在 useFrame 讀它，React 只訂閱整數 hour。
 import { useSyncExternalStore } from "react";
 import type { DayType } from "../data/types";
+import type { DistrictRange } from "../data/views";
 
 export type Speed = 1 | 2;
 
@@ -20,6 +22,14 @@ export interface ViewState {
   dayType: DayType;
   /** 圖層開關；不保存（AD-16、AD-22） */
   layers: Record<LayerKey, boolean>;
+  /** 選中的行政區（8 碼代碼，AD-9）；null＝全城（3.6）。3.15 才寫進網址 */
+  district: string | null;
+  /** 選中的站（站 ID，AD-2：不用跨月份不通用的索引）；null＝沒有選站 */
+  station: string | null;
+  /** 行政區卡的範圍：這一小時／整天 */
+  range: DistrictRange;
+  /** 聚焦的流向（views.ts flowKey「起區>迄區」）：這條照常、其他變淡；null＝不聚焦 */
+  focus: string | null;
 }
 
 /** 連續時間（0–24 時）：非 React 欄位，每格由 clock 改寫。 */
@@ -32,6 +42,10 @@ let state: ViewState = {
   still: false,
   dayType: "weekday",
   layers: { flow: true, water: true, green: true, rail: true, label: true },
+  district: null,
+  station: null,
+  range: "hour",
+  focus: null,
 };
 const listeners = new Set<() => void>();
 
@@ -80,4 +94,36 @@ export function setDayType(dayType: DayType) {
 
 export function setLayer(key: LayerKey, on: boolean) {
   if (state.layers[key] !== on) set({ layers: { ...state.layers, [key]: on } });
+}
+
+// ── 選取（3.6）：行政區、站、聚焦的流向。小卡由選取決定開哪一張；暫停交給共用卡框（cardOpened）。 ──
+
+/** 選一區（null＝回到全城）：換區時清掉選站與聚焦；整天／這一小時的選擇保留。 */
+export function selectDistrict(district: string | null) {
+  if (district === state.district && state.station === null && state.focus === null) return;
+  set({ district, station: null, focus: null });
+}
+
+/** 選一站（站 ID）；行政區維持，回到行政區卡＝selectStation(null)。 */
+export function selectStation(station: string | null) {
+  if (station !== state.station || state.focus !== null) set({ station, focus: null });
+}
+
+export function setRange(range: DistrictRange) {
+  if (range !== state.range) set({ range });
+}
+
+/** 聚焦一條流向（再點同一條或 null 取消）。 */
+export function setFocus(focus: string | null) {
+  if (focus !== state.focus) set({ focus });
+}
+
+/** 關掉小卡：回到全城、不選站不聚焦；播放維持暫停（走查 F1）。 */
+export function closeCard() {
+  if (state.district !== null || state.station !== null || state.focus !== null) set({ district: null, station: null, focus: null });
+}
+
+/** 任何小卡打開就暫停播放（共用卡框掛上時呼叫；走查 2026-11-11 F1）。關卡不恢復播放。 */
+export function cardOpened() {
+  setPlaying(false);
 }

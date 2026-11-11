@@ -70,11 +70,12 @@ export function readQuery(search: string): UrlState {
  * 把 patch 合進現有的 query：這裡管的鍵依固定順序重寫（patch 裡 undefined 的鍵沿用原值），
  * 不認得的鍵（之後的票、外部追蹤參數）原樣留在後面。
  */
-export function writeQuery(search: string, patch: UrlState): string {
+export function writeQuery(search: string, patch: UrlState, drop: readonly (keyof UrlState)[] = []): string {
   const merged: UrlState = { ...readQuery(search) };
   for (const [k, v] of Object.entries(patch) as [keyof UrlState, UrlState[keyof UrlState]][]) {
     if (v !== undefined) (merged as Record<string, unknown>)[k] = v;
   }
+  for (const k of drop) delete merged[k];
   const out = new URLSearchParams(toQuery(merged));
   new URLSearchParams(search).forEach((v, k) => {
     if (!(KEYS as readonly string[]).includes(k)) out.append(k, v);
@@ -82,17 +83,21 @@ export function writeQuery(search: string, patch: UrlState): string {
   return out.toString();
 }
 
-/** 畫面狀態中要進網址的部分（3.3：時刻與日型）。 */
-export function urlStateOf(v: Pick<ViewState, "hour" | "dayType">): UrlState {
-  return { dayType: v.dayType, hour: v.hour };
+/**
+ * 畫面狀態中要進網址的部分（3.3：時刻與日型）。播放中不記 hour（Piwi 2026-11-12：網址不要一直變；
+ * 播放中重新整理照原本從清晨自動播放），停下來才記。
+ */
+export function urlStateOf(v: Pick<ViewState, "hour" | "dayType"> & { playing?: boolean }): UrlState {
+  return v.playing ? { dayType: v.dayType } : { dayType: v.dayType, hour: v.hour };
 }
 
 /** 寫網址的間隔：拖時間軸時不每小時寫一次（Safari 限制 replaceState 次數）。 */
 export const URL_WRITE_MS = 300;
 
 /**
- * 畫面狀態 → 網址：hour、dayType 變了，等 URL_WRITE_MS 再用 replaceState 寫一次（不進瀏覽紀錄）。
- * 播放中也寫，重新整理會停在同一小時。回傳取消訂閱的函式。write 可替換（測試用）。
+ * 畫面狀態 → 網址（Piwi 2026-11-12）：只在使用者操作後寫——暫停（含拖時間軸、打開小卡）寫 day＋hour、
+ * 切日型寫 day、按播放把 hour 拿掉；播放中整點變了不寫。都等 URL_WRITE_MS 再用 replaceState 寫一次
+ * （不進瀏覽紀錄）。開場自動播放時不寫。回傳取消訂閱的函式。write 可替換（測試用）。
  */
 export function syncUrl(
   write: (search: string) => void = (search) => {
@@ -109,13 +114,15 @@ export function syncUrl(
   const flush = () => {
     timer = undefined;
     const current = read().replace(/^\?/, "");
-    const next = writeQuery(current, urlStateOf(getView()));
+    const v = getView();
+    const next = writeQuery(current, urlStateOf(v), v.playing ? ["hour"] : []);
     if (next !== current) write(next);
   };
-  const keyOf = () => `${getView().dayType}:${getView().hour}`;
+  // 播放中 hour 不算進鍵：整點變了不觸發寫入
+  const keyOf = () => `${getView().dayType}:${getView().playing ? "play" : getView().hour}`;
   let key = keyOf();
-  // 開場先對一次（例如網址只有 hour，補上 day）
-  timer = setTimeout(flush, URL_WRITE_MS);
+  // 開場停著（網址有 hour、減少動態）先對一次（例如網址只有 hour，補上 day）；自動播放時不寫
+  if (!getView().playing) timer = setTimeout(flush, URL_WRITE_MS);
   const unsub = subscribeView(() => {
     const k = keyOf();
     if (k === key) return;
