@@ -3,7 +3,7 @@ title: '行政區流向緞帶'
 type: 'feature'
 ticket: '5'
 created: '2026-11-11'
-status: 'built'
+status: done
 baseline_revision: 'a9628fc970c584ccd84f90b7b3cf3980071ea5f9'
 route: 'full'
 route_source: 'auto'
