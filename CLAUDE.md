@@ -85,5 +85,4 @@ npm run build
 - 假日表 `pipeline/config/holidays.csv` 要每月補；`events.json` 的全市級異常日（`anomalies[]` 中 `station` 為 `null` 者）可幫忙找漏列的假日，`build` 也會對「平日卻少 15% 以上」的日子印出提示。
 - 場館檔期：花博公園的年度檔常晚發布（2026-11 時最新仍是 114 年度），`fetch-events` 記為 missing、`build` 會提醒；那幾個月花博站（圓山）的異常只能靠人工活動表。
 - 底圖：水利署河川河道的 SHP（gic.wra.gov.tw）在部分網路連不到，`fetch-basemap` 會印手動下載說明；手動檔放 `data/raw/basemap/RIVERPOLY.zip`，再跑一次 `fetch-basemap` 登記 sha256。底圖來源換版後把 `basemap.py` 的 `BASEMAP_REVISION` 加一。
-- 骨架目前還用 maplibre-gl＋deck.gl；架構已改成 Three.js（AD-11），在首頁換成場景的那張票（3.5）移除。
-- `web/src/App.tsx` 是驗證資料與效能的開發骨架，不是設計稿。
+- 首頁已是 Three.js 場景（3.5，2026-11-11）：maplibre-gl、deck.gl 與舊骨架 `App.tsx` 已移除；網址 `?hour=&day=` 可停在某一刻。原型 `design/prototypes/2.1-diorama/` 留到 3.7 才刪。
