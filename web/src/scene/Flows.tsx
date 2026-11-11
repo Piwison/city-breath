@@ -1,7 +1,8 @@
 // 行政區流向（3.5，原型「流向」段移植）：等比例線寬的緞帶＋尾端箭頭、脈衝光點、前三大弧頂人數。
-// 只吃 views.ts 的 FlowSource／FlowFrame（AD-19）；線寬、前 12 大、光點換算都在 views.ts。
-// draw call（AD-6）：所有緞帶本體合成一個 mesh、所有箭頭一個 mesh、所有光點一個 InstancedMesh，共 3 個。
-// 減少動態：箭紋不捲動、光點等距靜止（依人數的顆數不變，圖例照樣成立）。
+// 只吃 views.ts 的 FlowSource／FlowFrame（AD-19）；線寬、前 12 大、光點換算、光帶分級都在 views.ts。
+// draw call（AD-6）：所有緞帶本體合成一個 mesh、所有箭頭一個 mesh、所有光點一個 InstancedMesh；
+// 靜態模式（3.3，減少動態時開場就開）把光點換成依人數分級粗細的靜態光帶（一個合併 mesh），兩者不同時畫，總數不變。
+// 靜態模式中箭紋不捲動。
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import {
@@ -24,7 +25,7 @@ import {
   SRGBColorSpace,
   Vector3,
 } from "three";
-import { DOT_CAP, ribbonWidth, type BaseView, type FlowFrame, type FlowSource } from "../data/views";
+import { bandWidth, DOT_CAP, ribbonWidth, type BaseView, type FlowFrame, type FlowSource } from "../data/views";
 import { useView } from "../state/view";
 import type { LabelBoard } from "./DistrictLabels";
 import { placeLabel } from "./labelPlace";
@@ -52,6 +53,8 @@ export interface Arc {
   phase: number;
   /** 光點數（views.ts dotScale） */
   n: number;
+  /** 靜態模式的光帶寬（場景單位，views.ts bandWidth）；0＝不畫 */
+  band: number;
 }
 
 function bez(a: Arc, u: number, out: Vector3): Vector3 {
@@ -122,7 +125,13 @@ function anchorsOf(view: BaseView): Map<string, Vector3> {
 }
 
 /** FlowFrame → 曲線。沒有端點（不在底圖的區）就略過。 */
-export function arcsOf(flows: FlowFrame[], counts: number[], max: number, anchors: Map<string, Vector3>): Arc[] {
+export function arcsOf(
+  flows: FlowFrame[],
+  counts: number[],
+  max: number,
+  anchors: Map<string, Vector3>,
+  legend: readonly [number, number, number] = [max, max, max],
+): Arc[] {
   const arcs: Arc[] = [];
   flows.forEach((flow, k) => {
     const a0 = anchors.get(flow.from);
@@ -141,13 +150,14 @@ export function arcsOf(flows: FlowFrame[], counts: number[], max: number, anchor
       len: dist * 1.15 + 1,
       phase: fract(h(flow.from) * 0.37 + h(flow.to) * 0.61),
       n: counts[k] ?? 0,
+      band: bandWidth(flow.value, legend, max),
     });
   });
   return arcs;
 }
 
-/** 所有緞帶本體與箭頭合成兩個 geometry（粗的先寫進 buffer，先畫，細的疊在上面）。 */
-function ribbonGeometries(arcs: Arc[]): [Scalable, Scalable] {
+/** 所有緞帶本體、箭頭與靜態光帶各合成一個 geometry（粗的先寫進 buffer，先畫，細的疊在上面）。 */
+function ribbonGeometries(arcs: Arc[]): [Scalable, Scalable, Scalable] {
   const N = 44;
   const U0 = 0.05;
   const U1 = 0.84;
@@ -159,6 +169,9 @@ function ribbonGeometries(arcs: Arc[]): [Scalable, Scalable] {
   // 每個頂點存「中心線上的點」與「往側邊的偏移（半寬）」；實際位置＝中心＋偏移×k（放大時的線寬上限）
   const body = { c: [] as number[], o: [] as number[], uv: [] as number[], idx: [] as number[] };
   const head = { c: [] as number[], o: [] as number[] };
+  // 光帶：緞帶中線上一條較窄的亮帶，寬度依人數分級（views.ts bandWidth），稍微抬高免得和緞帶打架
+  const band = { c: [] as number[], o: [] as number[], idx: [] as number[] };
+  const LIFT = 0.02;
   const sorted = [...arcs].sort((a, b) => b.w - a.w);
   for (const a of sorted) {
     const last = new Vector3(1, 0, 0);
@@ -172,6 +185,8 @@ function ribbonGeometries(arcs: Arc[]): [Scalable, Scalable] {
     };
     const period = a.w * 2.4 + 0.8;
     const base = body.c.length / 3;
+    const bandBase = band.c.length / 3;
+    const bw = a.band / 2;
     const prev = new Vector3();
     let acc = 0;
     const hw = a.w / 2;
@@ -188,6 +203,14 @@ function ribbonGeometries(arcs: Arc[]): [Scalable, Scalable] {
         const b = base + k * 2;
         body.idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
       }
+      if (bw > 0) {
+        band.c.push(P.x, P.y + LIFT, P.z, P.x, P.y + LIFT, P.z);
+        band.o.push(SIDE.x * bw, 0, SIDE.z * bw, -SIDE.x * bw, 0, -SIDE.z * bw);
+        if (k < N) {
+          const b = bandBase + k * 2;
+          band.idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+        }
+      }
     }
     bez(a, U1, P);
     sideAt(U1);
@@ -202,9 +225,13 @@ function ribbonGeometries(arcs: Arc[]): [Scalable, Scalable] {
   g.setIndex(body.idx);
   const h = new BufferGeometry();
   h.setAttribute("position", new Float32BufferAttribute(head.c, 3));
-  const out: [Scalable, Scalable] = [
+  const s = new BufferGeometry();
+  s.setAttribute("position", new Float32BufferAttribute(band.c, 3));
+  s.setIndex(band.idx);
+  const out: [Scalable, Scalable, Scalable] = [
     { geo: g, c: new Float32Array(body.c), o: new Float32Array(body.o), k: -1 },
     { geo: h, c: new Float32Array(head.c), o: new Float32Array(head.o), k: -1 },
+    { geo: s, c: new Float32Array(band.c), o: new Float32Array(band.o), k: -1 },
   ];
   for (const s of out) scaleTo(s, 1);
   return out;
@@ -257,15 +284,15 @@ export function FlowLabelLayer({ els }: { els: FlowLabelEls }) {
 interface FlowsProps {
   view: BaseView;
   source: FlowSource;
-  reduced: boolean;
   labels: FlowLabelEls;
   board: LabelBoard;
   /** ScaleProbe 每格寫入的緞帶縮放倍數 */
   scale: { k: number };
 }
 
-export function Flows({ view, source, reduced, labels, board, scale }: FlowsProps) {
+export function Flows({ view, source, labels, board, scale }: FlowsProps) {
   const hour = useView((s) => s.hour);
+  const still = useView((s) => s.still);
   const dayType = useView((s) => s.dayType);
   const visible = useView((s) => s.layers.flow);
   const color = useTokenColor("--flow-neutral");
@@ -274,43 +301,53 @@ export function Flows({ view, source, reduced, labels, board, scale }: FlowsProp
   const names = useMemo(() => new Map(view.districts.map((d) => [d.id, d.label])), [view]);
   const now = source.at(dayType, hour);
   const arcs = useMemo(
-    () => (now.flows ? arcsOf(now.flows, now.counts, source.max, anchors) : []),
+    () => (now.flows ? arcsOf(now.flows, now.counts, source.max, anchors, source.legend) : []),
     [now, source, anchors],
   );
 
   const chev = useMemo(chevronTexture, []);
   useEffect(() => () => chev.dispose(), [chev]);
 
-  const [bodyMat, headMat] = useMemo(() => {
+  const [bodyMat, headMat, bandMat] = useMemo(() => {
     // 雙面透明材質預設畫兩次（背面再正面）；緞帶是平的，一次就夠（AD-6）
     const common = { transparent: true, opacity: OPACITY, side: DoubleSide, forceSinglePass: true, depthWrite: false } as const;
-    return [new MeshBasicMaterial({ ...common, map: chev }), new MeshBasicMaterial({ ...common })];
+    return [
+      new MeshBasicMaterial({ ...common, map: chev }),
+      new MeshBasicMaterial({ ...common }),
+      new MeshBasicMaterial({ ...common, opacity: 0.95 }),
+    ];
   }, [chev]);
   useEffect(() => {
     bodyMat.color.copy(color);
     headMat.color.copy(color);
-  }, [bodyMat, headMat, color]);
+    // 光帶＝緞帶色往光點亮色推（和光點頭的亮度相同），日夜都亮在緞帶上
+    bandMat.color.copy(color).lerp(hi, 0.7);
+  }, [bodyMat, headMat, bandMat, color, hi]);
   useEffect(
     () => () => {
       bodyMat.dispose();
       headMat.dispose();
+      bandMat.dispose();
     },
-    [bodyMat, headMat],
+    [bodyMat, headMat, bandMat],
   );
 
   const ribbons = useMemo(() => {
-    const [g, h] = ribbonGeometries(arcs);
+    const [g, h, s] = ribbonGeometries(arcs);
     const body = new Mesh(g.geo, bodyMat);
     const head = new Mesh(h.geo, headMat);
+    const band = new Mesh(s.geo, bandMat);
     body.renderOrder = 4;
     head.renderOrder = 5;
-    for (const m of [body, head]) m.matrixAutoUpdate = false;
-    return { body, head, scalable: [g, h] };
-  }, [arcs, bodyMat, headMat]);
+    band.renderOrder = 6;
+    for (const m of [body, head, band]) m.matrixAutoUpdate = false;
+    return { body, head, band, scalable: [g, h, s] };
+  }, [arcs, bodyMat, headMat, bandMat]);
   useEffect(
     () => () => {
       ribbons.body.geometry.dispose();
       ribbons.head.geometry.dispose();
+      ribbons.band.geometry.dispose();
     },
     [ribbons],
   );
@@ -335,31 +372,28 @@ export function Flows({ view, source, reduced, labels, board, scale }: FlowsProp
     [dots],
   );
 
-  // 光點：脈衝一波波湧出，頭亮尾淡（diorama-game-juice「光點」）；減少動態時等距靜止，只在流向變了才重寫
-  const tmp = useMemo(
-    () => ({ o: new Object3D(), P: new Vector3(), T: new Vector3(), c: new Color(), t: 0, staticFor: null as Arc[] | null, k: 1 }),
-    [],
-  );
+  // 光點：脈衝一波波湧出，頭亮尾淡（diorama-game-juice「光點」）。靜態模式不畫光點（換成光帶）。
+  const tmp = useMemo(() => ({ o: new Object3D(), P: new Vector3(), T: new Vector3(), c: new Color(), t: 0 }), []);
   useFrame((_, dt) => {
     if (!visible) return;
-    // 放大時的線寬上限（ScaleProbe 在前面算好 k）：緞帶與光點同一個倍數
+    // 放大時的線寬上限（ScaleProbe 在前面算好 k）：緞帶、光帶與光點同一個倍數
     const k = scale.k;
     for (const s of ribbons.scalable) scaleTo(s, k);
-    const still = reduced;
-    if (!still) tmp.t += Math.min(dt, 0.1);
     const fast = rush(hour);
-    chev.offset.x = still ? 0 : -tmp.t * (fast ? 1.3 : 0.7);
-    if (still && tmp.staticFor === arcs && Math.abs(k - tmp.k) <= tmp.k * 0.01) return;
-    tmp.staticFor = still ? arcs : null;
-    tmp.k = k;
+    if (still) {
+      chev.offset.x = 0;
+      return;
+    }
+    tmp.t += Math.min(dt, 0.1);
+    chev.offset.x = -tmp.t * (fast ? 1.3 : 0.7);
     const speed = 7 * (fast ? 1.6 : 1);
     const rate = 0.55 * (fast ? 1.6 : 1);
     const { o, P, T, c } = tmp;
     let n = 0;
     for (const a of arcs) {
       for (let i = 0; i < a.n && n < DOT_CAP; i++) {
-        const u = still ? 0.05 + (0.9 * (i + 0.5)) / a.n : 0.05 + 0.9 * fract(i / a.n + (tmp.t * speed) / a.len + a.phase);
-        const pulse = still ? 0.4 : Math.pow(fract(tmp.t * rate - u * 1.6 + a.phase), 3);
+        const u = 0.05 + 0.9 * fract(i / a.n + (tmp.t * speed) / a.len + a.phase);
+        const pulse = Math.pow(fract(tmp.t * rate - u * 1.6 + a.phase), 3);
         bez(a, u, P);
         bezTan(a, u, T);
         o.position.set(P.x, P.y + 0.12, P.z);
@@ -376,16 +410,12 @@ export function Flows({ view, source, reduced, labels, board, scale }: FlowsProp
     if (dots.instanceColor) dots.instanceColor.needsUpdate = true;
   });
 
-  // 換了流向或顏色：靜止的光點要重寫一次
-  useEffect(() => {
-    tmp.staticFor = null;
-  }, [arcs, color, hi, tmp]);
-
   return (
     <group visible={visible}>
       <primitive object={ribbons.body} />
       <primitive object={ribbons.head} />
-      <primitive object={dots} />
+      <primitive object={ribbons.band} visible={still} />
+      <primitive object={dots} visible={!still} />
       <FlowLabelProjector arcs={arcs} names={names} els={labels} board={board} visible={visible} />
     </group>
   );

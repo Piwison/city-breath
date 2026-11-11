@@ -4,9 +4,16 @@ import tokensCss from "../styles/tokens.css?raw";
 import { cssTokenReader, parseColor } from "../styles/tokens";
 import type { BasemapFile, DistrictFlowsFile, DistrictMatrix, DistrictsFile } from "./types";
 import {
+  BAND_MAX_OF_RIBBON,
+  BAND_W,
+  bandCuts,
+  bandTier,
+  bandWidth,
   baseView,
   dotScale,
+  FLOW_KEYS,
   flowMax,
+  flowSource,
   legendValues,
   lineToken,
   PEOPLE_PER_DOT,
@@ -210,5 +217,56 @@ describe("legendValues（圖例用同一個線寬公式）", () => {
     const max = flowMax(flows);
     const [, , top] = legendValues(max);
     expect(top).toBeLessThanOrEqual(max);
+  });
+});
+
+describe("flowSource.operating（停止營運只看資料）", () => {
+  it("整格 null 的小時是停止營運", () => {
+    const src = flowSource(synthetic([[null, 20, null], [null, null, null], [null, null, null]]));
+    expect(src.operating("weekday", 0)).toBe(true);
+    expect(src.operating("weekday", 1)).toBe(false);
+    expect(src.operating("holiday", 2)).toBe(true);
+  });
+  it("2026-09 兩種日型都是 2–4 點停止營運", () => {
+    const src = flowSource(flows);
+    for (const day of ["weekday", "holiday"] as const) {
+      const closed = Array.from({ length: 24 }, (_, h) => h).filter((h) => !src.operating(day, h));
+      expect(closed).toEqual([2, 3, 4]);
+    }
+  });
+});
+
+describe("bandTier（靜態模式的光帶分三級）", () => {
+  const legend: [number, number, number] = [1000, 3000, 6000];
+  it("門檻是圖例相鄰兩值的中點", () => {
+    expect(bandCuts(legend)).toEqual([2000, 4500]);
+  });
+  it("依人數分級；null 與 0 不畫", () => {
+    expect(bandTier(null, legend)).toBe(0);
+    expect(bandTier(0, legend)).toBe(0);
+    expect(bandTier(10, legend)).toBe(1);
+    expect(bandTier(1999, legend)).toBe(1);
+    expect(bandTier(2000, legend)).toBe(2);
+    expect(bandTier(4499, legend)).toBe(2);
+    expect(bandTier(4500, legend)).toBe(3);
+    expect(bandTier(9000, legend)).toBe(3);
+  });
+  it("光帶寬＝等級寬，但不超過緞帶寬的 BAND_MAX_OF_RIBBON", () => {
+    expect(bandWidth(null, legend, 6582)).toBe(0);
+    expect(bandWidth(5912, legend, 6582)).toBe(BAND_W[3]);
+    expect(bandWidth(3143, legend, 6582)).toBe(BAND_W[2]);
+    expect(bandWidth(10, legend, 6582)).toBeCloseTo(ribbonWidth(10, 6582) * BAND_MAX_OF_RIBBON, 9);
+  });
+  it("2026-09 平日 8 點的前 12 大分成兩級以上（光帶看得出差別）", () => {
+    const src = flowSource(flows);
+    const tiers = new Set(src.at("weekday", 8).flows!.map((f) => bandTier(f.value, src.legend)));
+    expect(tiers.size).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("FLOW_KEYS（圖例寫明顏色代表什麼）", () => {
+  it("全城模式：橘＝全城流向，用 --flow-neutral", () => {
+    expect(FLOW_KEYS.city).toEqual([{ token: "--flow-neutral", label: "橘＝全城流向" }]);
+    expect(cssTokenReader(tokensCss)("--flow-neutral")).toBeTruthy();
   });
 });

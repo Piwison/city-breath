@@ -176,6 +176,8 @@ export interface FlowSource {
   max: number;
   legend: [number, number, number];
   at(dayType: DayType, hour: number): FlowHour;
+  /** 這個小時有沒有營運（整格 null＝停止營運，AD-5） */
+  operating(dayType: DayType, hour: number): boolean;
 }
 
 export function flowSource(file: DistrictFlowsFile): FlowSource {
@@ -185,6 +187,9 @@ export function flowSource(file: DistrictFlowsFile): FlowSource {
     month: file.month,
     max,
     legend: legendValues(max),
+    operating(dayType, hour) {
+      return file[dayType][((Math.floor(hour) % 24) + 24) % 24] !== null;
+    },
     at(dayType, hour) {
       const key = `${dayType}:${hour}`;
       let v = cache.get(key);
@@ -204,3 +209,37 @@ export function legendValues(max: number): [number, number, number] {
   const top = Math.max(1, Math.floor(max / p) * p);
   return [Math.round(top / 6 / 100) * 100 || 100, Math.round(top / 2 / 100) * 100 || 100, top];
 }
+
+// ── 靜態模式的光帶（3.3）：光點換成依人數分級粗細的靜態光帶（diorama-game-juice「減少動態」） ──
+
+/** 光帶三級的寬（場景單位）；索引 0 不用（null 不畫）。 */
+export const BAND_W = [0, 0.2, 0.45, 0.75] as const;
+/** 光帶不超過緞帶寬的幾成：兩側留著緞帶色，圖例「橘＝全城流向」仍成立。 */
+export const BAND_MAX_OF_RIBBON = 0.55;
+
+/** 光帶分級的兩個門檻：圖例三值相鄰兩個的中點（例 1 千／3 千／6 千 → 2 千、4.5 千），都由當月最大推得。 */
+export function bandCuts(legend: readonly [number, number, number]): [number, number] {
+  return [(legend[0] + legend[1]) / 2, (legend[1] + legend[2]) / 2];
+}
+
+/** 光帶等級：1／2／3；null（少於 10 人）與 0 不畫，回傳 0（AD-3、AD-19）。 */
+export function bandTier(value: number | null, legend: readonly [number, number, number]): 0 | 1 | 2 | 3 {
+  if (value === null || value <= 0) return 0;
+  const [a, b] = bandCuts(legend);
+  return value >= b ? 3 : value >= a ? 2 : 1;
+}
+
+/** 某條流向的光帶寬（場景單位）：等級的寬，但不超過緞帶寬的 BAND_MAX_OF_RIBBON。 */
+export function bandWidth(value: number | null, legend: readonly [number, number, number], max: number): number {
+  const t = bandTier(value, legend);
+  if (!t || value === null) return 0;
+  return Math.min(BAND_W[t], ribbonWidth(value, max) * BAND_MAX_OF_RIBBON);
+}
+
+// ── 圖例的顏色說明（3.3；走查 F5）：文字跟著模式換。3.6 加選區模式（藍＝這區的人去哪、橘紅＝誰來這裡）。 ──
+
+export type FlowMode = "city";
+
+export const FLOW_KEYS: Record<FlowMode, { token: string; label: string }[]> = {
+  city: [{ token: "--flow-neutral", label: "橘＝全城流向" }],
+};
