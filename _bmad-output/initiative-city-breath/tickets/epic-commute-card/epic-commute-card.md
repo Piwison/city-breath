@@ -61,4 +61,6 @@ R4 (parent R21): 使用者從行政區卡、通勤卡、活動卡與沒開卡的
 - Decision: 2026-11-10 拿掉本 epic 檔頭的整個 epic 閘門（原本要等 epic-data-pipeline、epic-visual-system 全部完成），改由各 story 的 after 指定真正要等的票（4.3 等 2.2、4.2 等 1.5、4.1 等 3.5 與 3.12），否則分享卡會被 1.12、1.13、1.6 與 2.3 卡住，無法往前做。
 - Decision: 2026-11-10 tracer bullet 改為 4.3：最薄的一條從資料到可下載圖片的路徑。
 - Decision: 2026-11-11 replan（第一次使用者走查；Piwi 決定 3）：分享與網站說明要在車站卡之後就做，4.5 行政區卡分享移到 epic-city-breath-home 成 3.16（首頁 epic 在建置順序裡排在本 epic 之前，留在這裡會等到首頁 epic 全部做完）；4.4 改名「下載與分享計數」、加連結分享事件，排到本 epic 第一張未做的票，等 3.15、3.16；4.1 依路線分組、最近用過的站、預設不放無關站、時段選單標停止營運（F3、小問題）；4.2 接 3.15 的分享鈕並把通勤起訖寫進網址；本 epic 加 R4（parent R21）。
-- Open question: 4.1「最近用過的站」要不要跨次造訪保存：AD-16 不保存選過的站、AD-22 只允許徽章進度與首次提示；要保存就請 Winston 改 AD-22。預設只記這次造訪。
+- Decision: 2026-11-11 4.1「最近用過的站」跨次造訪記住（Piwi）：Winston 改了 AD-22（與 AD-16 的例外），最多 5 站、只存站 ID、不存任何人數，經 state/progress.ts 存在同一個鍵，localStorage 不能用時退回記憶體；4.1 的 description／verify 同步。原 Open question 結案。
+- Decision: 2026-11-11 4.1 加等 3.11：progress.ts 由 3.11 建立（「看過開場」），4.1 在同一個模組加欄位，排成一條線避免兩張票各建一份；3.9 之後也改它，加欄位不互相覆寫。
+- Decision: 2026-11-11 4.4 不寫 after 6.2：epic-source-and-launch 在建置順序裡排在本 epic 之後（6.3 正式上線要等本 epic），寫了會 order_conflict。改在 4.4 與 6.2 的描述互相寫明交接：Web Analytics 由 6.2 打開，4.4 的「分析工具看得到事件」在 6.2 的部署上驗。

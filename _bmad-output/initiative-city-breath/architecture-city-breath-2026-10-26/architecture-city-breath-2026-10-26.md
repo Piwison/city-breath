@@ -4,18 +4,18 @@ type: architecture-spine
 purpose: build-substrate
 altitude: feature
 paradigm: pipes-and-filters（離線批次）＋靜態資料契約＋純前端 SPA（Three.js 場景）
-scope: 城市呼吸第一版：月度彙總管線、靜態資料契約（v2，1.13 起 v3）與底圖檔、微縮城市網站（天光）
+scope: 城市呼吸第一版：月度彙總管線、靜態資料契約（v2，1.13 起 v3，3.20 起 v4）與底圖檔、微縮城市網站（天光）、Vercel 部署
 status: final
 created: 2026-10-26
 updated: 2026-11-11
-binds: [R1, R2, R3, R4, R5, R10, R11, R12, R13, R17, R18, R19, R20]
+binds: [R1, R2, R3, R4, R5, R10, R11, R12, R13, R17, R18, R19, R20, R21, R23]
 sources: [../initiative-city-breath.md, ../prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, ../user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md, ../../../DESIGN.md]
 companions: [../../../docs/data-contract.md]
 ---
 
 # Architecture Spine — 城市呼吸
 
-> 2026-11-03 更新：配合 initiative replan（行政區流向、活動日、hallmark 移除），渲染改為 Three.js 微縮城市，資料契約升到 v2，並依兩份審查（reviews/）補上 AD-14 到 AD-20。2026-11-10 更新：2.1 定案天光（DESIGN.md），加上底圖檔（AD-21）、唯一的持久化狀態（AD-22）、示意物件（AD-23）、音效（AD-24）、地標（AD-25）、站的特質與徽章（AD-26），並改寫 AD-8、AD-11 的光照與 AD-12 的高程。2026-11-11 更新：1.6 車站類型改成固定類型、每月歸類（AD-27）。`[ASSUMPTION]` 標記待 Piwi 確認。
+> 2026-11-03 更新：配合 initiative replan（行政區流向、活動日、hallmark 移除），渲染改為 Three.js 微縮城市，資料契約升到 v2，並依兩份審查（reviews/）補上 AD-14 到 AD-20。2026-11-10 更新：2.1 定案天光（DESIGN.md），加上底圖檔（AD-21）、唯一的持久化狀態（AD-22）、示意物件（AD-23）、音效（AD-24）、地標（AD-25）、站的特質與徽章（AD-26），並改寫 AD-8、AD-11 的光照與 AD-12 的高程。2026-11-11 更新：1.6 車站類型改成固定類型、每月歸類（AD-27）；同日依 Piwi 的決定，AD-10 加契約 v4 的行政區總量（3.20），AD-22 加最近用過的站（4.1），AD-18 補預覽部署與分享網址的網域，AD-6 註明實測時機。`[ASSUMPTION]` 標記待 Piwi 確認。
 
 ## Design Paradigm
 
@@ -81,7 +81,7 @@ flowchart LR
 ### AD-6 — 依需要載入，場景有預算
 - **Binds:** 首頁、通勤卡、活動日
 - **Prevents:** 首頁一次載入所有分片；手機卡頓
-- **Rule:** 首頁只載 `stations.json`、`districts.json`、`district-flows.json`（合計目標 ≤ 300 KB）[ASSUMPTION]，以及 `basemap.json`（目標 ≤ 1 MB 未壓縮）[ASSUMPTION]。`od/{stationId}.json` 在選了起站才載、`inbound/{stationId}.json` 在打開車站卡的「誰來」才載；`daily/{YYYY-MM-DD}.json` 在進入某一天才載。場景預算：DPR ≤ 2、同時粒子 ≤ 3,000、中階 Android 30 fps 以上 [ASSUMPTION]；街廓、樹、列車、站柱都用 InstancedMesh。
+- **Rule:** 首頁只載 `stations.json`、`districts.json`、`district-flows.json`（合計目標 ≤ 300 KB）[ASSUMPTION]，以及 `basemap.json`（目標 ≤ 1 MB 未壓縮）[ASSUMPTION]。`od/{stationId}.json` 在選了起站才載、`inbound/{stationId}.json` 在打開車站卡的「誰來」才載；`daily/{YYYY-MM-DD}.json` 在進入某一天才載。場景預算：DPR ≤ 2、同時粒子 ≤ 3,000、中階 Android 30 fps 以上 [ASSUMPTION]；街廓、樹、列車、站柱都用 InstancedMesh。預算的第一次實機量測在 6.2 預覽部署上由 Piwi 用 iPhone 做、6.3 上線前再測，不達標開新票。
 
 ### AD-7 — 平均的分母
 - **Binds:** 所有平均值
@@ -114,6 +114,10 @@ flowchart LR
   - `stations.json` 的 `topDestinations` 由前 5 擴成前 10。
   - 7.6 在 `events.json` 加每小時平常與場館周邊站（AD-14）；與 1.13 同期就併入 v3，否則再升一版。
 
+  v4（3.20 起）：
+  - `districts.json` 每區加 `weekday`／`holiday` 的 `{ entries[24], exits[24] }`：照 AD-7，區內各站當月整數總人次先加總、再除該日型天數、四捨五入；停止營運為 `null`（AD-5）；`exits` 只算出站有紀錄的站，`inflowPartial` 的區少算。這些就是 `suppress.py` 行政區列、欄組已當作公開的總量，不新增隱藏組、不改任何已公開的格（AD-3）。前端的區排名只讀這兩個陣列，不把 `stations.json` 的站平均相加。
+  - 7.6 改 `events.json` 的形狀時再升一版（v5）。
+
   不分月份的 `basemap.json` 見 AD-21。
 
 ### AD-11 — 場景用 Three.js
@@ -144,7 +148,7 @@ flowchart LR
 ### AD-16 — 畫面狀態只有一份，網址是它的序列化
 - **Binds:** R1、R2、R3、R4、R5、R13
 - **Prevents:** 時間軸、行政區、站、活動日、通勤卡各存一份狀態，彼此不同步；分享連結各自拼
-- **Rule:** `web/src/state/` 是唯一的畫面狀態：`month`、`dayType`、`hour`（整數）、`district`、`station`、`date`、`commute{o,d,h}`，元件與場景只透過它的 action 修改。播放用的連續時間 `t` 存在同一個 store 的非 React 欄位，由一個 clock 推進；場景在 `useFrame` 讀 `t`，React 只訂閱 `hour`。網址只用 query string，讀寫只在 `state/url.ts`；分享卡印的網址由同一個函式產生。唯一跨工作階段保存的狀態見 AD-22，其他畫面狀態（圖層開關、音效、選過的站）不保存。
+- **Rule:** `web/src/state/` 是唯一的畫面狀態：`month`、`dayType`、`hour`（整數）、`district`、`station`、`date`、`commute{o,d,h}`，元件與場景只透過它的 action 修改。播放用的連續時間 `t` 存在同一個 store 的非 React 欄位，由一個 clock 推進；場景在 `useFrame` 讀 `t`，React 只訂閱 `hour`。網址只用 query string，讀寫只在 `state/url.ts`；分享卡印的網址由同一個函式產生。唯一跨工作階段保存的狀態見 AD-22，其他畫面狀態（圖層開關、音效、目前選的站與行政區）不保存。
 
 ### AD-17 — 分享圖由資料重畫，不截場景
 - **Binds:** R2、R5、R17 的分享（通勤卡、行政區卡、活動卡）
@@ -154,7 +158,7 @@ flowchart LR
 ### AD-18 — 契約版本、月份資料與部署
 - **Binds:** R10、所有月份資料夾、部署
 - **Prevents:** 多月份混用不同契約版本；更正後使用者看到舊資料
-- **Rule:** 網站一次只支援一個契約版本；升版的 PR 必須把 `web/public/data/` 下所有月份與 `basemap.json` 重建成新版本。CI 掃過所有 JSON 檢查 `v` 與 `CONTRACT_VERSION` 一致。月份資料夾上線後不可變，更正就整月重建並在 `meta.json` 加 `revision`。`web/public/data/**` 短快取（`max-age=300`），Vite 雜湊資源長快取，設定在 `vercel.json`。
+- **Rule:** 網站一次只支援一個契約版本；升版的 PR 必須把 `web/public/data/` 下所有月份與 `basemap.json` 重建成新版本。CI 掃過所有 JSON 檢查 `v` 與 `CONTRACT_VERSION` 一致。月份資料夾上線後不可變，更正就整月重建並在 `meta.json` 加 `revision`。`web/public/data/**` 短快取（`max-age=300`），Vite 雜湊資源長快取，設定在 `vercel.json`。部署只從 `main` 到 Vercel（PR 的 Preview 部署只供審查）；6.2 預覽部署（`*.vercel.app`）到 6.3 正式上線之間，`vercel.json` 對整站送 `X-Robots-Tag: noindex` [ASSUMPTION]，6.3 拿掉。分享網址只由 `state/url.ts` 依目前網址的 origin 產生，不寫死網域；綁自訂網域後保留 `*.vercel.app`，預覽期分享出去的連結仍打得開。
 
 ### AD-19 — 場景圖層只吃檢視模型
 - **Binds:** AD-11 所列的所有場景
@@ -172,9 +176,9 @@ flowchart LR
 - **Rule:** 底圖只有 `web/public/data/basemap.json`，不分月份，只由管線（`city-breath fetch-basemap` 下載到 `data/raw/basemap/`，網址、取得日期、sha256 記在 `pipeline/config/basemap_sources.csv`；`build` 產生）。內容：地形六層台地（40／120／250／400／600／850 公尺，存公尺）與高程等級格網、海與底座外的河、依行政區切開的河川與綠地、捷運軌道（路網圖缺段以直線補並標 `approx`）、每站所屬路線（站 ID，AD-2）、各線平日／假日每小時班距（營運外 `null`）、地標（AD-25）、`sources[]`。路線 ID 固定為 `BR`、`R`、`R-3`、`G`、`G-3`、`O`、`BL`、`Y`，顏色只走 token `--line-` 加小寫、去連字號的 ID（`R-3` → `--line-r3`），JSON 裡不放色碼。幾何一律經緯度（AD-12）。檔案帶 `v`＝`CONTRACT_VERSION` 與 `basemapRevision`：新增這個檔本身不升版（現有檔案不變）；改形狀照 AD-18 升版；只換內容（新的 DEM、河道）加 `basemapRevision`。只用標明開放授權的來源；新北河川用水利署河川河道（data.gov.tw 25781）。契約寫在 `docs/data-contract.md`。
 
 ### AD-22 — 唯一跨工作階段保存的狀態
-- **Binds:** 徽章（3.9）、第一次開啟提示（3.11）
+- **Binds:** 徽章（3.9）、第一次開啟提示（3.11）、找車站的最近用過的站（4.1）
 - **Prevents:** 各功能各自寫 localStorage、鍵名打架；隱私模式或封鎖儲存時畫面壞掉；保存的東西偷偷進網址、分享卡或計數
-- **Rule:** 只有徽章進度（依月份記已解鎖的徽章 ID）與「看過第一次提示」可以跨工作階段保存，只在 `web/src/state/progress.ts` 讀寫 localStorage 的一個鍵 `city-breath:progress:v1`。每次讀寫包在 try/catch；不可用、讀到壞資料或寫入失敗時退回記憶體，畫面照常運作（只是不保存）。它不進網址、不進分享卡、不送 `track()`。這是 AD-16 唯一的例外。
+- **Rule:** 只有三樣可以跨工作階段保存：徽章進度（依月份記已解鎖的徽章 ID）、「看過第一次提示」，以及找車站的「最近用過的站」（Piwi 2026-11-11：最多 5 個站 ID，新的在前、不重複；站 ID 見 AD-2，跨月份通用；不存人數、時段、起訖組合或任何數字；讀出時略過目前月份 `stations.json` 沒有的站）。三樣都只在 `web/src/state/progress.ts` 讀寫 localStorage 的同一個鍵 `city-breath:progress:v1`（先上線的 3.11 建立這個模組，後來的票加欄位，不另開鍵）；每次寫入都讀出整個物件、只改自己那一欄再寫回，不認得的欄位原樣保留，某一欄壞了只把那一欄當空的。每次讀寫包在 try/catch；不可用、讀到壞資料或寫入失敗時退回記憶體，畫面照常運作（只是不保存）。它不進網址、不進分享卡、不送 `track()`。這是 AD-16 唯一的例外。
 
 ### AD-23 — 示意物件不承載資料數字
 - **Binds:** 街廓、樹、列車、雲、地標造型（3.8、3.13、3.14）、圖例、資料來源頁
@@ -260,7 +264,7 @@ city-breath/
 | --- | --- | --- |
 | R3 首頁行政區流向 | web/src/scene、views.ts、districts.json、district-flows.json | AD-1、AD-5、AD-6、AD-8、AD-9、AD-11、AD-12、AD-15、AD-16、AD-19 |
 | R13 點行政區看去哪、誰來 | web/src/scene、district-flows.json、stations.json | AD-3、AD-7、AD-9、AD-10、AD-16 |
-| R1／R2 通勤同路人卡 | web/src/data/commute.ts、od/{id}.json、web/src/share | AD-3、AD-6、AD-16、AD-17、AD-20 |
+| R1／R2 通勤同路人卡 | web/src/data/commute.ts、od/{id}.json、web/src/share、state/progress.ts（最近用過的站） | AD-3、AD-6、AD-16、AD-17、AD-20、AD-22 |
 | R4 車站個性卡 | pipeline/cluster.py、config/station_type_centroids.json、station_types.csv、stations.json | AD-2、AD-4、AD-27 |
 | R5 活動日 | pipeline/anomaly.py、events.json、daily/{date}.json | AD-3、AD-4、AD-6、AD-13、AD-14、AD-19 |
 | R10 每月管線 | pipeline/、data/raw/、web/public/data/ | AD-1、AD-18、每月更新 |
@@ -268,6 +272,8 @@ city-breath/
 | R17 行政區卡與活動卡分享 | web/src/share | AD-17、AD-20 |
 | R18 誰來這站、整天前 10 | pipeline/export.py、inbound/{id}.json、stations.json | AD-3、AD-6、AD-10 |
 | R19 地標、徽章、此刻最忙 | pipeline/config/landmarks.csv、basemap.json、web/src/data/traits.ts、badges.ts、state/progress.ts | AD-22、AD-25、AD-26 |
+| R21 分享入口與網址 | web/src/state/url.ts、vercel.json | AD-16、AD-17、AD-18 |
+| R23 假日熱門 5 站／5 區 | pipeline/export.py、districts.json（v4 區總量）、web/src/data/traits.ts | AD-3、AD-7、AD-10、AD-26 |
 | R20 台北盆地底圖與示意界線 | pipeline basemap、basemap.json、web/src/scene | AD-8、AD-11、AD-12、AD-21、AD-23、AD-24 |
 
 ## Deferred

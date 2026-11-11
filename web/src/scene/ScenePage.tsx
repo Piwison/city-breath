@@ -13,6 +13,7 @@ import { baseView, flowSource, stationIndex, type BaseView, type FlowSource, typ
 import { startClock } from "../state/clock";
 import { readQuery, syncUrl } from "../state/url";
 import { setDayType, setPlaying, useView } from "../state/view";
+import { Blocks } from "./Blocks";
 import { CameraRig, type CameraLink } from "./CameraRig";
 import { CommuteEntry } from "./CommuteEntry";
 import { Daylight, type FrameLight } from "./Daylight";
@@ -21,6 +22,7 @@ import { DistrictLift, type PressLink } from "./DistrictLift";
 import { DistrictStations, StationLabelLayer, type StationLink } from "./DistrictStations";
 import { FlowLegend, ScaleProbe, type LegendLink } from "./FlowLegend";
 import { FlowLabelLayer, Flows, type FlowLabelEls } from "./Flows";
+import { lifts } from "./lift";
 import { LayerPanel } from "./LayerPanel";
 import { PeriodToast } from "./PeriodToast";
 import { Plinth, plinthBox, type PlinthBox } from "./Plinth";
@@ -224,7 +226,7 @@ export default function ScenePage() {
             shadows="percentage"
             gl={GL}
             camera={CAMERA}
-            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線，以及 ${data.month} 各行政區之間人數最多的流向；點一個行政區看這區的人去哪、誰來這裡`}
+            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線、示意的建築與樹，以及 ${data.month} 各行政區之間人數最多的流向；點一個行政區看這區的人去哪、誰來這裡`}
             role="img"
             onPointerDown={() => setPlaying(false)}
           >
@@ -236,6 +238,9 @@ export default function ScenePage() {
               reduced={reduced}
               overlays={overlays}
             />
+            {/* 選區時建築與樹跟著區一起彈起（DistrictLift 寫 lifts.ref） */}
+            <Blocks view={data.view} month={data.month} reduced={reduced} lift={lifts.ref} />
+
           </Canvas>
         )}
       </SceneBoundary>

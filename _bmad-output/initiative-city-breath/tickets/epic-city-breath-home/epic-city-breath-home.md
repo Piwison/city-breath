@@ -36,7 +36,7 @@ R10 (parent R24): 使用者看得懂畫面上的線寬、光點、顏色（全�
 
 - 起訖人次少於 10 人一律不顯示數字（initiative Constraints；architecture AD-3）。
 - 顏色與字型只透過 `:root` token，每個動畫有 reduced-motion 版本，不編造數字（initiative Constraints；hallmark 已移除）。
-- 示意物件不承載數字；唯一跨工作階段保存的是徽章進度與首次提示；音效預設關閉不載音檔；站的特質與之最只在 traits.ts（architecture AD-22 到 AD-26）。
+- 示意物件不承載數字；跨工作階段保存的只有徽章進度、首次提示與最近用過的站（4.1），都經 state/progress.ts；音效預設關閉不載音檔；站的特質與之最只在 traits.ts（architecture AD-22 到 AD-26）。
 
 ## Done when
 
@@ -60,6 +60,8 @@ R10 (parent R24): 使用者看得懂畫面上的線寬、光點、顏色（全�
 - 「下載與分享」的計數由 epic-commute-card 4.4 做。
 - R5 分享入口與網址：本 epic 做入口、共用卡框的分享鈕與站、行政區、時段、日型的網址（3.15）；通勤卡（4.2）與活動卡（7.4、7.7）各自接上並把通勤起訖、日期寫進網址。R7 資料來源頁的內容由本 epic 3.17 做，上線前核對由 epic-source-and-launch。
 - Touch point: basemap.json（地形、軌道、班距、地標）— 由 epic-data-pipeline 1.12 產生，本 epic 只讀。
+- 管線例外：districts.json 的區總量（契約 v4）由本 epic 3.20 在管線產生，因為 epic-data-pipeline 已完成（2026-11-11），不重開。
+- 部署：公開網址由 epic-source-and-launch 6.2 預覽部署，在 3.15 之後就做；正式上線是 6.3。
 
 ## References
 
@@ -85,8 +87,10 @@ R10 (parent R24): 使用者看得懂畫面上的線寬、光點、顏色（全�
 - Decision: 2026-11-11 3.16 不再寫 after 4.3：4.3 已完成，版型已在 main；首頁 epic 在建置順序裡排在 epic-commute-card 之前，保留這條會讓首頁 epic 等後面的 epic（order_conflict）。描述裡寫明沿用 4.3 的 render.ts。
 - Decision: 2026-11-11 依賴檢查：3.8 加等 3.11（兩張都改第一次提示的文字）；3.15 等 3.3、3.6、3.12（網址要記的時段、行政區、站都要先有）；3.17 等 3.15（都在上方第一排加按鈕）；3.18 等 3.4（都在時間軸上加東西）並排在 3.4 之後；4.1 加等 3.17（同一排按鈕）。3.18 升契約 v4，7.6 之後再升一版（7.6 受首頁 epic 閘門，不會同時改）。
 - Decision: 2026-11-11 3.5 正在另一個分支建（story/3.5-district-flows），只改票面的 description 與 verify，不動它的 plan；鏡頭與 F8 已另外交代給它。
-- Assumption: 3.10 皇冠幾乎永遠在台北車站：皇冠照資料不改，點名牌先列此刻前 3 名再進車站卡（Sofia 的建議，原本是點了直接開車站卡），待 Piwi 確認。
-- Open question: 3.18 的前 5 區預設走管線新輸出（districts.json 加區總量、契約升 v4、12 個月重建，AD-7、AD-18）；較省的做法是前端把站平均相加、數字顯示到百位，但要 Winston 在 AD-7 開例外。待 Piwi 決定。
-- Open question: 3.11 的一句話說明定稿（票面的例句由 Piwi 改）。
+- Decision: 2026-11-11 3.10 皇冠照資料不改，點名牌先列此刻進出前 3 名再進車站卡（Piwi 同意 Sofia 的建議；原 Assumption）。
+- Decision: 2026-11-11 3.18 的前 5 區走管線（Piwi）：districts.json 加區總量、契約升 v4、12 個月重建（AD-1、AD-3、AD-7、AD-10、AD-18，Winston 已改 AD-10）。不在前端把站平均相加，AD-7 不開例外。
+- Decision: 2026-11-11 3.18 拆成兩張（Sofia）：管線與契約（升版、12 個月重建、pytest）本身就是一次 session 的量（同 1.13），和畫面寫在同一張會超過一次 session，且兩邊改的程式不重疊；拆出 3.20「行政區總量輸出（契約 v4）」，3.18 等它。3.20 放在本 epic、不放 epic-data-pipeline：該 epic 已完成並標 done（2026-11-11），加票就得重開，而 tickets.py 以 epic 狀態做閘門，重開會把首頁、車站個性、活動日三個 epic 的所有票一起卡住（含進行中的 3.6、3.13）；已完成的 epic 不改。3.20 不等任何票（after 空），排在 3.6 之後，可和 3.6、3.13 並行；它只碰 export.py、types.ts、load.ts、data-contract，和 3.6 可能同改 types.ts，合併時是新增欄位。
+- Decision: 2026-11-11 3.11 的一句話定稿為「台北捷運的一天：每小時誰去了哪」，網站名「城市呼吸」（Piwi；寫進 DESIGN.md 互動的開場）。
+- Decision: 2026-11-11 6.2 Vercel 預覽部署提前到 3.15 之後（Piwi：分享連結要有公開網址、要用 iPhone 實測效能）；6.2 留在 epic-source-and-launch，該 epic 改成由各票指定要等什麼（見該 epic Notes），本 epic 不加票。
 - Open question: 本 epic 現在有 18 張有效 story；2026-11-10 那條「把地標、徽章、皇冠、首次提示拆成探索捷徑 epic」仍待 Piwi，這次把分享與說明放進來是為了排在車站卡之後就做，不拆。
 - Decision: 2026-11-11 3.5 合併（PR #32）：原 verify「8 點平日可看到永和往中山、中正、大安、信義」與「全市只畫前 12 大」衝突（全市第 12 名 3,143 人，永和各條都低於此），改成核對前 12 大，永和的查核移到 3.6（點永和看去哪）。
