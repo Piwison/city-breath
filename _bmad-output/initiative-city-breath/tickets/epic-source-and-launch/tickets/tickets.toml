@@ -1,15 +1,26 @@
-# 網站公開上線並交代資料來源 的 stories，依建置順序。
+# 網站公開上線並交代資料來源 的 stories，依建置順序。2026-11-11 Piwi 決定：6.2 預覽部署提前到 3.15 之後，正式上線另開 6.3。
 
-next_id = 3
+next_id = 4
 
 [[entry]]
 id = 2
 type = "story"
-title = "Vercel 部署"
-description = "以靜態網站部署到 Vercel。"
-verify = "公開網址可開啟並載入最新月份。"
+title = "Vercel 預覽部署"
+description = "這是預覽部署，不是正式上線（Piwi 2026-11-11 決定提前：分享連結要有公開網址，Piwi 也要用 iPhone 實測效能）。3.15 合併後就把網站以靜態網站部署到 Vercel：Piwi 在 Vercel 建專案並連上 GitHub repo（hitl），`main` 每次合併自動部署到專案的 `*.vercel.app` 網址；這個網址就是預覽期的公開網址，分享連結與分享卡上的網址都用它（url.ts 用目前網址的 origin，不寫死網域，AD-16、AD-18）。PR 另有 Vercel 的 Preview 部署，只給審查用、不拿來分享。repo 根目錄加 vercel.json：建置 web/（npm ci、npm run build，輸出 web/dist）、`web/public/data/**` 短快取 max-age=300、Vite 雜湊資源長快取（AD-18）；預覽期整站加 `X-Robots-Tag: noindex`，不讓搜尋引擎收錄，6.3 正式上線時拿掉。打開 Vercel Web Analytics（AD-20 的出口；事件由 4.4 接）。不綁自訂網域、不對外宣傳；網址要分享給 Piwi 以外的人，等 3.17（關於與資料來源）合併後，畫面上才有完整出處與授權（政府資料開放授權條款要求標示出處）。上線前檢查：CI 三項通過；部署網址打得開、載入 months.json 的最新月份、沒有 404 的資料檔；在部署網址上用 3.15 分享一張行政區卡，用另一台手機打開回到同一張卡；回應標頭有上述快取與 noindex。AD-6 手機效能實測交給 Piwi（hitl）：用自己的 iPhone 在部署網址上看開場自動播放、拖時間軸、點區與點站是否順暢，記下機型與 iOS 版本、首次載入大概幾秒、有沒有明顯掉格；結果寫進 design/reviews/6.2-device-check-YYYY-MM-DD.md 並更新 DESIGN.md 待辦的「手機效能實測」。不達 AD-6 預算時開新票處理，不在本票修。"
+verify = "`main` 合併後 Vercel 自動部署成功；`*.vercel.app` 網址打開首頁、載入最新月份；在該網址分享的行政區卡連結從另一台手機打開回到同一張卡、同一時段與日型；`curl -I` 看到 data/ 的 max-age=300、雜湊資源的長快取與 X-Robots-Tag: noindex；Piwi 的 iPhone 實測紀錄已寫進 design/reviews/ 並更新 DESIGN.md 待辦。"
 covers = ["R1"]
-after = []
-hitl = false
+after = ["3.15"]
+hitl = true
 risk = "low"
 v6_key = "5-2"
+
+[[entry]]
+id = 3
+type = "story"
+title = "正式上線"
+description = "首頁、通勤卡、活動日三個 epic 都完成後，把 6.2 的預覽部署轉成正式上線：拿掉 vercel.json 的 noindex；要不要綁自訂網域由 Piwi 決定（綁了也保留 *.vercel.app，預覽期分享出去的連結仍打得開，AD-18）。上線前檢查：「關於與資料來源」（3.17）列齊上線當月所有 epic 用到的來源（meta.json 與 basemap.json 的 sources，含活動日的場館檔期與人工補的來源）、四項說明與環狀線限制；從行政區卡、車站卡、通勤卡、活動卡與「分享這一刻」各分享一次，連結在正式網址打開回到同一個畫面，存成的圖上網址是正式網址；Piwi 再用 iPhone 做一次 AD-6 實測（含街廓、列車、徽章都上線後的完整場景），有中階 Android 也一起測，結果寫進 design/reviews/；Vercel Web Analytics 收得到 4.4 的事件。"
+verify = "正式網址回應不再帶 X-Robots-Tag: noindex；關於頁的來源清單與所有月份的 meta.json、basemap.json 的 sources 一致；五種分享入口的連結在正式網址都回到同一個畫面；Piwi 的上線前實測紀錄在 design/reviews/；分析工具看得到下載與分享事件。"
+covers = ["R1"]
+after = [2, "epic-city-breath-home", "epic-commute-card", "epic-event-days"]
+hitl = true
+risk = "low"
