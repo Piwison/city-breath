@@ -9,6 +9,18 @@ import { TILE_TOP } from "./Terrain";
 
 export type LabelEls = MutableRefObject<(HTMLDivElement | null)[]>;
 
+/**
+ * 已被流向標籤佔走的螢幕矩形（中心 x、中心 y、寬、高）：流向標籤先放，區名避開它們（原型 updateLabels(taken)）。
+ * version 每次改寫加一，區名據此重算。
+ */
+export interface LabelBoard {
+  rects: [number, number, number, number][];
+  version: number;
+  /** 流向標籤可放的上下界（螢幕像素）：上方 HUD 的下緣、時間軸的上緣；ScenePage 量 */
+  safeTop: number;
+  safeBottom: number;
+}
+
 /** Canvas 外的 DOM：每區一個標籤。 */
 export function DistrictLabelLayer({ view, els, visible }: { view: BaseView; els: LabelEls; visible: boolean }) {
   return (
@@ -29,7 +41,17 @@ export function DistrictLabelLayer({ view, els, visible }: { view: BaseView; els
 }
 
 /** Canvas 內：投影並避開重疊。 */
-export function DistrictLabelProjector({ view, els, visible }: { view: BaseView; els: LabelEls; visible: boolean }) {
+export function DistrictLabelProjector({
+  view,
+  els,
+  visible,
+  board,
+}: {
+  view: BaseView;
+  els: LabelEls;
+  visible: boolean;
+  board?: LabelBoard;
+}) {
   const anchors = useMemo(
     () =>
       view.districts.map((d) => {
@@ -45,7 +67,7 @@ export function DistrictLabelProjector({ view, els, visible }: { view: BaseView;
     [view],
   );
   const P = useMemo(() => new Vector3(), []);
-  const last = useRef({ m: new Matrix4(), w: 0, h: 0, visible: false });
+  const last = useRef({ m: new Matrix4(), w: 0, h: 0, visible: false, board: -1 });
 
   useFrame(({ camera, size }) => {
     const L = last.current;
@@ -53,12 +75,14 @@ export function DistrictLabelProjector({ view, els, visible }: { view: BaseView;
       L.visible = false;
       return;
     }
-    if (L.visible && L.w === size.width && L.h === size.height && L.m.equals(camera.matrixWorld)) return;
+    const bv = board?.version ?? 0;
+    if (L.visible && L.board === bv && L.w === size.width && L.h === size.height && L.m.equals(camera.matrixWorld)) return;
     L.m.copy(camera.matrixWorld);
     L.w = size.width;
     L.h = size.height;
     L.visible = true;
-    const placed: [number, number, number, number][] = [];
+    L.board = bv;
+    const placed: [number, number, number, number][] = [...(board?.rects ?? [])];
     for (const i of order) {
       const el = els.current[i];
       if (!el) continue;

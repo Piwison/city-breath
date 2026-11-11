@@ -1,4 +1,4 @@
-/* 微縮城市場景預覽（2.3）。只用 tokens.css 的 token；版面照 DESIGN.md（手機 390×844、按鈕 40px、HUD ≤ 35%）。 */
+/* 微縮城市場景（2.3 基底，3.5 起是首頁）。只用 tokens.css 的 token；版面照 DESIGN.md（手機 390×844、按鈕 40px、HUD ≤ 35%）。 */
 
 .scene-page {
   position: fixed;
@@ -42,6 +42,34 @@
   will-change: transform;
 }
 
+/* 上方 HUD 第一排的範圍（流向標籤的安全區從它的下緣開始）；只有按鈕與面板接手指，其餘讓給場景 */
+.scene-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 12px + var(--tap));
+  pointer-events: none;
+}
+.scene-top .hud { pointer-events: auto; }
+
+/* 右上：回到全景（圖層按鈕左邊）。減少動態時鏡頭直接切回（CameraRig），按鈕只有按壓回饋 */
+.scene-home-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(12px + var(--tap) + 8px);
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-quick) var(--ease-out);
+}
+.scene-home-btn svg { width: 16px; height: 16px; }
+.scene-home-btn:active:not(:disabled) { transform: scale(0.96); }
+.scene-home-btn:disabled { opacity: 0.5; cursor: default; }
+
 /* 右上：圖層 */
 .scene-layer-btn {
   position: absolute;
@@ -84,6 +112,7 @@
 .scene-layer-panel small { color: var(--hud-muted); font-size: var(--text-2xs); }
 .scene-layer-panel .sw { width: 18px; height: 18px; border-radius: 6px; }
 .scene-layer-panel .sw-rail { background: linear-gradient(135deg, var(--line-r) 0 25%, var(--line-bl) 25% 50%, var(--line-g) 50% 75%, var(--line-o) 75%); }
+.scene-layer-panel .sw-flow { background: linear-gradient(180deg, transparent 0 30%, var(--flow-neutral) 30% 70%, transparent 70%); }
 .scene-layer-panel .sw-water { background: var(--water); }
 .scene-layer-panel .sw-green { background: var(--green); }
 .scene-layer-panel .sw-label {
@@ -121,7 +150,7 @@
 .scene-layer-panel input:checked::after { transform: translateX(14px); background: var(--hud-on); }
 .scene-layer-panel .src { margin: 6px 6px 2px; font-size: var(--text-2xs); line-height: 1.5; color: var(--hud-muted); }
 
-/* 下方：時間軸（預覽版） */
+/* 下方：時間軸（3.5 最小版：播放、時間、平日／假日、拖曳條、圖例） */
 .scene-dock {
   position: absolute;
   left: 12px;
@@ -130,10 +159,73 @@
   max-width: 640px;
   margin: 0 auto;
   padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+.scene-dock .row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.scene-dock .when { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.scene-dock .sub {
+  font-size: var(--text-xs);
+  color: var(--hud-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scene-dock .seg { flex: none; display: flex; padding: 2px; border-radius: var(--radius-sm); background: var(--hud-chip); }
+.scene-dock .seg button {
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: var(--text-xs);
+  color: var(--hud-muted);
+  transition: background-color var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
+}
+.scene-dock .seg button[aria-pressed="true"] { background: var(--hud-bg); color: var(--hud-ink); font-weight: 700; }
+
+/* 圖例：線寬＝每小時人次（高度由 FlowLegend 依鏡頭換算）、一顆光點＝N 人 */
+.legend {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 16px;
+  font-size: var(--text-2xs);
+  line-height: 1;
+  color: var(--hud-muted);
 }
+.legend .item { display: inline-flex; align-items: center; gap: 4px; }
+.legend .bar { display: inline-block; width: 22px; border-radius: var(--radius-pill); background: var(--flow-neutral); }
+.legend .dotk { width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--flow-neutral); box-shadow: 0 0 0 2px var(--hud-chip); }
+.legend .sep { width: 1px; height: 10px; background: var(--hud-line); }
+
+/* 前三大流向的人數標籤（弧頂） */
+.flabel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-line);
+  box-shadow: 0 3px 10px var(--hud-shadow);
+  color: var(--hud-ink);
+  font-size: var(--text-2xs);
+  line-height: 1.35;
+  white-space: nowrap;
+  will-change: transform;
+}
+.flabel .route::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 2px;
+  background: var(--flow-neutral);
+}
+.flabel b { font-size: var(--text-xs); }
 .scene-dock .play {
   flex: none;
   width: var(--tap);
@@ -180,6 +272,71 @@
   border: 2px solid var(--hud-ink);
 }
 
+/* 左上：「找你的通勤」入口與表單（4.1 換成正式的搜尋入口與通勤卡） */
+.commute-pill {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 12px;
+  height: var(--tap);
+  padding: 0 16px 0 12px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
+}
+.commute-pill svg { width: 16px; height: 16px; color: var(--commute); }
+.commute-pill[aria-expanded="true"] { border-color: var(--commute); }
+.commute-pill:active { transform: scale(0.97); }
+
+.commute-panel {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  left: 12px;
+  width: min(380px, calc(100vw - 24px));
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 220px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+}
+.commute-panel .close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+.commute-panel .close svg { width: 14px; height: 14px; }
+.commute-form { display: grid; gap: 10px; }
+.commute-form h2 { font-size: var(--text-md); padding-right: 36px; }
+.commute-form .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.commute-form select {
+  min-height: var(--tap);
+  min-width: 0;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hud-line);
+  background: var(--hud-chip);
+  font-size: 16px; /* 16px 以上 iOS 才不會放大頁面 */
+}
+.commute-submit {
+  min-height: var(--tap);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--hud-accent);
+  color: var(--hud-on);
+  font-weight: 700;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.commute-submit:active { transform: scale(0.97); }
+.commute-note, .commute-status { font-size: var(--text-xs); color: var(--hud-muted); }
+
 /* WebGL 不可用時的替代畫面（AD-11） */
 .scene-fallback {
   min-height: 100dvh;
@@ -190,16 +347,4 @@
 }
 .scene-fallback-card { max-width: 420px; padding: 20px; display: grid; gap: 12px; }
 .scene-fallback-card h1 { font-size: var(--text-md); }
-.scene-fallback-link {
-  justify-self: start;
-  display: inline-grid;
-  place-items: center;
-  min-height: var(--tap);
-  padding: 0 18px;
-  border-radius: var(--radius-pill);
-  background: var(--hud-accent);
-  color: var(--hud-on);
-  font-weight: 700;
-  text-decoration: none;
-}
 .scene-fallback-note { font-size: var(--text-xs); color: var(--hud-muted); }

@@ -1,11 +1,15 @@
 @import "./tokens.css";
 @import "./base.css";
 
-/* 開發骨架的版面（App.tsx），正式畫面在 3.5 換成微縮城市場景。 */
-.shell { display: grid; gap: 12px; padding: 16px; max-width: 960px; margin: 0 auto; }
-.city-map { height: 60vh; min-height: 320px; }
-.controls, .panel { display: grid; gap: 8px; }
-.controls p, .bar p { color: var(--hud-muted); }
+/* 場景分包載入前的提示（main.tsx）；場景本身的版面在 scene/scene.css。 */
+.boot-status {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  font-size: var(--text-sm);
+  color: var(--hud-muted);
+}
 
 /* 存成圖片（4.3）：通勤色的主要按鈕 40px，按下壓一下；時長走 token，reduced-motion 時直接切換 */
 .share { display: grid; gap: 6px; justify-items: start; }
