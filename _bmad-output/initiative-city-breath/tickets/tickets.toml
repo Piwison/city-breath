@@ -1,4 +1,4 @@
-# 城市呼吸 initiative 的 epics，依建置順序。由 v6 epics.md 遷移（2026-10-29），2026-11-03 replan，2026-11-10 replan（天光定案），2026-11-11 replan（第一次使用者走查）。
+# 城市呼吸 initiative 的 epics，依建置順序。由 v6 epics.md 遷移（2026-10-29），2026-11-03 replan，2026-11-10 replan（天光定案），2026-11-11 replan（第一次使用者走查）；2026-11-11 Piwi 決定（3.20 區總量、6.2 預覽部署提前、6.3 正式上線）。
 
 [[epic]]
 id = 1
@@ -57,7 +57,7 @@ after = [{ epic = 1, needs = "人工定名的車站類型與每站來源（1.13�
 id = 6
 slug = "epic-source-and-launch"
 title = "網站公開上線並交代資料來源"
-description = "網站部署到 Vercel，上線前確認「關於／資料來源」（2026-11-11 移到首頁 epic 3.17）列齊所有出處與限制。"
+description = "分享入口與網址（3.15）做好後先預覽部署到 Vercel（6.2，公開的 *.vercel.app 網址，Piwi 用 iPhone 實測效能）；三個功能 epic 完成後正式上線（6.3），上線前確認「關於／資料來源」（3.17）列齊所有出處與限制。"
 covers = ["R11"]
-after = [{ epic = 3, needs = "首頁" }, { epic = 4, needs = "通勤卡" }, { epic = 7, needs = "活動日" }]
+after = [{ epic = 3, needs = "6.2 預覽部署等分享入口與網址（3.15）；6.3 正式上線等整個首頁" }, { epic = 4, needs = "6.3 正式上線等通勤卡" }, { epic = 7, needs = "6.3 正式上線等活動日" }]
 # v6: Epic 5
