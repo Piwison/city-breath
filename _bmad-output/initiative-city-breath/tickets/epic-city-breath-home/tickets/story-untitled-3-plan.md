@@ -3,7 +3,7 @@ title: '時間軸播放與日型切換'
 type: 'feature'
 ticket: '3'
 created: '2026-11-11'
-status: 'built'
+status: done
 baseline_revision: 'e87978a8cf7c206aa34de49bf940a55c6515ae59'
 route: 'full'
 route_source: 'auto'
