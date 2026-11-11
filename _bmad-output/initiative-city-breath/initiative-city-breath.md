@@ -87,7 +87,7 @@ R24 (第一次使用者走查 F5): 使用者看得懂畫面上的線寬、光點
 ## Notes
 
 - Parked: R6、R7 為 P1，R8、R9 為 P2；R14（目標 2027 年 1 月推出 2026 回顧）、R15 為 P1，R16 為 P2。這一版上線、通勤卡有人用之後再切成 epics（PRD 里程碑關卡）。
-- Open question: 品牌名稱是否就叫「城市呼吸」。
+- Decision: 2026-11-11 網站名用「城市呼吸」，開場一句話「台北捷運的一天：每小時誰去了哪」（Piwi 定 3.11 時確認；原 Open question 品牌名稱結案）。
 - Open question: 2017 年至今各月檔欄位與站名是否一致（影響 R9）。
 - Open question: 渲染方式是 Three.js 微縮城市還是 MapLibre＋deck.gl；交給 bmad-architecture。
 - Open question: 大巨蛋賽程與活動的穩定來源（臺北市平台沒有）。
@@ -103,3 +103,5 @@ R24 (第一次使用者走查 F5): 使用者看得懂畫面上的線寬、光點
 - Open question: R18 的 D1、F2 屬於不主動設計的族群（決定 1），這次因為 C5 一起做；若 Piwi 只要 C5，1.13 可縮成整天前 10 目的地。
 - Decision: 2026-11-11 replan（第一次使用者走查，design/reviews/2.1-first-time-user-2026-11-11.md）。需求有變：新增 R21 分享入口與網址、R22 開場說明與關於、R23 假日熱門、R24 怎麼看這張圖。做法也變：分享與網站說明提前到首頁 epic 的車站卡（3.12）之後（Piwi 決定 3），行政區卡分享 4.5 移成 3.16、資料來源頁 6.1 移成 3.17；新增 3.15、3.18、3.19；鏡頭改成地圖手勢（3.5，Piwi 決定 2）；開場維持清晨自動播放（Piwi 決定 1）；不開車站卡分享（Piwi 決定 4）。已完成的票不動。
 - Decision: 2026-11-11 architecture 不必為已定的事改：網址記站與行政區已在 AD-16 的狀態清單；提示等點了才收、「看過」仍只存 AD-22 的鍵；鏡頭手勢屬 AD-11 的 CameraControls 設定，細則在 DESIGN.md 與 diorama-game-juice。要動 AD 的只有三件，都還待 Piwi 決定（見首頁 epic Notes）：3.18 的 5 區若走管線要升契約 v4（AD-1、AD-7、AD-10、AD-18）、4.4 的連結分享事件要加進 AD-20、4.1 的「最近用過的站」若要跨工作階段保存要改 AD-16／AD-22。
+- Decision: 2026-11-11 Piwi 回覆 PR #31 replan 報告的五個決定，只改做法、不改需求（R1–R24 不變）：(1) 3.18 的前 5 區走管線，districts.json 加區總量、契約升 v4、12 個月重建；管線部分拆成首頁 epic 的 3.20（epic-data-pipeline 已完成，不重開），3.18 等它。(2) 4.1「最近用過的站」跨次記住，Winston 改 AD-22。(3) 3.10 點皇冠先列前 3 名（原 Assumption 轉 Decision）。(4) 3.11 一句話定稿「台北捷運的一天：每小時誰去了哪」，寫進 DESIGN.md。(5) 6.2 Vercel 預覽部署提前到 3.15 之後，epic-source-and-launch 拿掉整個 epic 閘門、改由各票指定，新增 6.3 正式上線。已完成的票不動；3.5 緞帶放大上限與雙向分車道、3.3 播放中是否寫網址兩件仍待 Piwi。
+- Decision: 2026-11-11 architecture 已由 Winston 在同一個 PR 更新：AD-10 加 v4 的區總量、AD-22 加最近用過的站（AD-16 例外同步）、AD-18 補部署（預覽期 noindex、分享網址不寫死網域）、AD-6 註明實測由 Piwi 在 6.2、6.3 做。4.4 的連結分享事件仍由 4.4 寫回 AD-20。
