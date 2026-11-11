@@ -2,7 +2,20 @@ import { describe, expect, it } from "vitest";
 import tokensCss from "../styles/tokens.css?raw";
 import designMd from "../../../DESIGN.md?raw";
 import { cssTokenReader, parseColor, type TokenReader } from "../styles/tokens";
-import { LIGHT, PHASE_KEYS, SUNRISE, SUNSET, lightingAt, phaseAt, phaseSpan, skyDiscs, sunAt, tokenAt } from "./daylight";
+import {
+  LIGHT,
+  PHASE_KEYS,
+  SUNRISE,
+  SUNSET,
+  WINDOW_GLOW,
+  lightingAt,
+  phaseAt,
+  phaseSpan,
+  skyDiscs,
+  sunAt,
+  tokenAt,
+  windowsAt,
+} from "./daylight";
 
 const reader = (vars: Record<string, string>): TokenReader => (name) => vars[name] ?? "";
 const css = cssTokenReader(tokensCss, "day");
@@ -140,5 +153,23 @@ describe("skyDiscs", () => {
     expect(night.sun.alpha).toBe(0);
     expect(night.moon.alpha).toBe(1);
     expect(night.stars).toBeCloseTo(0.9, 6);
+  });
+});
+
+describe("windowsAt（3.13 街廓窗光）", () => {
+  it("正午不亮、入夜亮到上限", () => {
+    expect(windowsAt(12).glow).toBe(0);
+    expect(windowsAt(22).glow).toBeCloseTo(WINDOW_GLOW, 6);
+  });
+  it("黃昏帶一點暖光", () => {
+    expect(windowsAt(18.3).glow).toBeGreaterThan(0.1);
+    expect(windowsAt(18.3).glow).toBeLessThan(WINDOW_GLOW);
+  });
+  it("亮著的窗：20 點 0.62，深夜漸少到 0.30，白天回到 0.62", () => {
+    expect(windowsAt(20).lit).toBeCloseTo(0.62, 6);
+    expect(windowsAt(22).lit).toBeLessThan(windowsAt(20).lit);
+    expect(windowsAt(2).lit).toBeCloseTo(0.3, 6);
+    expect(windowsAt(2).lit).toBeLessThan(windowsAt(22).lit);
+    expect(windowsAt(12).lit).toBeCloseTo(0.62, 6);
   });
 });

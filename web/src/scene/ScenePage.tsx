@@ -9,6 +9,7 @@ import { baseView, flowSource, type BaseView, type FlowSource } from "../data/vi
 import { startClock } from "../state/clock";
 import { readQuery, syncUrl } from "../state/url";
 import { setDayType, setPlaying, useView } from "../state/view";
+import { Blocks } from "./Blocks";
 import { CameraRig, type CameraLink } from "./CameraRig";
 import { CommuteEntry } from "./CommuteEntry";
 import { Daylight, type FrameLight } from "./Daylight";
@@ -157,11 +158,12 @@ export default function ScenePage() {
             shadows="percentage"
             gl={GL}
             camera={CAMERA}
-            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線，以及 ${data.month} 各行政區之間人數最多的流向`}
+            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線、示意的建築與樹，以及 ${data.month} 各行政區之間人數最多的流向`}
             role="img"
             onPointerDown={() => setPlaying(false)}
           >
             <World view={data.view} flows={data.flows} box={data.box} reduced={reduced} overlays={overlays} />
+            <Blocks view={data.view} month={data.month} reduced={reduced} />
           </Canvas>
         )}
       </SceneBoundary>
