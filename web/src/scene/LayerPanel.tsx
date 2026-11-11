@@ -1,9 +1,10 @@
-// 圖層面板（右上）：河川、綠地、捷運路線、區名的開關。開關是畫面狀態，只在 state/view.ts，不保存（AD-16）。
-// 流向、車站、列車、建築、雲、音效的開關由之後的票加進 LAYERS。
+// 圖層面板（右上）：流向、河川、綠地、捷運路線、區名的開關。開關是畫面狀態，只在 state/view.ts，不保存（AD-16）。
+// 車站、列車、建築、雲、音效的開關由之後的票加進 LAYERS。
 import { useId, useState } from "react";
 import { setLayer, useView, type LayerKey } from "../state/view";
 
 const LAYERS: { key: LayerKey; name: string; note?: string }[] = [
+  { key: "flow", name: "行政區流向", note: "前 12 大" },
   { key: "rail", name: "捷運路線" },
   { key: "water", name: "河川" },
   { key: "green", name: "公園綠地", note: "僅臺北市" },
@@ -44,7 +45,7 @@ export function LayerPanel() {
           </label>
         ))}
         <p className="src">
-          地形：Copernicus DEM GLO-30（ESA），切成六層台地，垂直誇張 1.5 倍。捷運路線：臺北市政府捷運工程局路網圖，路線色取自臺北捷運路線資料服務（環狀線暫定）。河川：臺北市政府工務局水利工程處、經濟部水利署。綠地：臺北市政府工務局，新北市沒有公開範圍。
+          流向：臺北大眾捷運公司「每日分時各站 OD 流量統計資料」，依行政區加總後取該月平日或假日平均（小時是進站時段）；線寬與人數成正比，少於 10 人的不顯示。地形：Copernicus DEM GLO-30（ESA），切成六層台地，垂直誇張 1.5 倍。捷運路線：臺北市政府捷運工程局路網圖，路線色取自臺北捷運路線資料服務（環狀線暫定）。河川：臺北市政府工務局水利工程處、經濟部水利署。綠地：臺北市政府工務局，新北市沒有公開範圍。
         </p>
       </div>
     </>

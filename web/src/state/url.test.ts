@@ -2,19 +2,22 @@ import { describe, expect, it } from "vitest";
 import { readQuery, shareUrl, siteLabel, toQuery } from "./url";
 
 describe("readQuery", () => {
-  it("讀 hour 與 scene", () => {
-    expect(readQuery("?scene=1&hour=6")).toEqual({ scene: true, hour: 6 });
+  it("讀 hour 與 day", () => {
+    expect(readQuery("?hour=6&day=holiday")).toEqual({ hour: 6, dayType: "holiday" });
     expect(readQuery("hour=0")).toEqual({ hour: 0 });
     expect(readQuery("")).toEqual({});
   });
-  it("hour 不是 0–23 的整數就忽略", () => {
+  it("首頁就是場景：舊的 ?scene=1 不再有作用", () => {
+    expect(readQuery("?scene=1")).toEqual({});
+  });
+  it("hour 不是 0–23 的整數、day 不是平日／假日就忽略", () => {
     expect(readQuery("?hour=24")).toEqual({});
     expect(readQuery("?hour=6.5")).toEqual({});
     expect(readQuery("?hour=-1")).toEqual({});
-    expect(readQuery("?hour=abc&scene=0")).toEqual({});
+    expect(readQuery("?hour=abc&day=event")).toEqual({});
   });
   it("和 toQuery 來回一致", () => {
-    expect(readQuery(toQuery({ hour: 17 }))).toEqual({ hour: 17 });
+    expect(readQuery(toQuery({ hour: 17, dayType: "weekday" }))).toEqual({ hour: 17, dayType: "weekday" });
   });
 });
 

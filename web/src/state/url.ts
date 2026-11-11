@@ -1,5 +1,5 @@
 // 網址是畫面狀態的序列化，只在這裡讀寫（AD-16）。
-// 4.3 先放分享卡要用的寫出函式；時間軸那張票（3.x）把畫面狀態 store 與讀回網址接上時擴充這裡，鍵名不變。
+// 4.3 先放分享卡要用的寫出函式；3.5 開場讀回 hour 與 day；時間軸那張票（3.3）把畫面狀態寫回網址時擴充這裡，鍵名不變。
 // 車站在網址裡用站 ID（AD-2），不用陣列索引；索引跨月份不通用。
 import type { DayType } from "../data/types";
 
@@ -40,11 +40,8 @@ export function shareUrl(s: UrlState, base: string = siteBase()): string {
   return u.toString();
 }
 
-/** 從網址讀回的畫面狀態（目前只有時刻）與開發用的開關。 */
-export interface UrlRead extends UrlState {
-  /** `?scene=1`：預覽微縮城市場景（2.3）；3.5 首頁換成場景後拿掉 */
-  scene?: boolean;
-}
+/** 從網址讀回的畫面狀態（目前是時刻與日型；寫回網址由 3.3 接上）。 */
+export type UrlRead = Pick<UrlState, "hour" | "dayType">;
 
 /** 讀網址 query（AD-16：網址只在這裡讀寫）。不合法的值忽略，不丟錯。 */
 export function readQuery(search: string): UrlRead {
@@ -52,7 +49,8 @@ export function readQuery(search: string): UrlRead {
   const out: UrlRead = {};
   const hour = q.get("hour");
   if (hour !== null && /^\d{1,2}$/.test(hour) && Number(hour) <= 23) out.hour = Number(hour);
-  if (q.get("scene") === "1") out.scene = true;
+  const day = q.get("day");
+  if (day === "weekday" || day === "holiday") out.dayType = day;
   return out;
 }
 
