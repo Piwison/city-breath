@@ -1,16 +1,6 @@
 # 網站公開上線並交代資料來源 的 stories，依建置順序。
 
-[[entry]]
-id = 1
-type = "story"
-title = "資料來源頁"
-description = "說明出處、授權、OD 非路徑、少於 10 人規則與環狀線限制，以及活動日資料的出處（臺北市資料大平臺、人工補的來源）；來源清單只從 meta.json 與 basemap.json 的 sources 產生（含 Copernicus DEM、捷運路網圖、河川、綠地、班距、地標位置），並說明畫面上哪些是示意（街廓、樹、地標造型、列車位置、雲）、徽章進度只存在使用者的瀏覽器。"
-verify = "頁面含五項說明、底圖來源與示意說明，並可從首頁到達；來源清單與兩個 JSON 的 sources 一致。"
-covers = ["R1"]
-after = []
-hitl = false
-risk = "low"
-v6_key = "5-1"
+next_id = 3
 
 [[entry]]
 id = 2

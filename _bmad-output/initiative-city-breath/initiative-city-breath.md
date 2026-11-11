@@ -1,7 +1,7 @@
 ---
 type: initiative
 title: "台北人看得到自己在城市作息裡的位置，並把它分享出去"
-sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, _bmad-output/initiative-city-breath/user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md, DESIGN.md, design/reviews/2.1-user-story-walkthrough-2026-11-10.md]
+sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, _bmad-output/initiative-city-breath/user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md, DESIGN.md, design/reviews/2.1-user-story-walkthrough-2026-11-10.md, design/reviews/2.1-first-time-user-2026-11-11.md]
 companions: [_bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/architecture-city-breath-2026-10-26.md, docs/data-contract.md, DESIGN.md]
 after: []
 status: in-progress
@@ -40,6 +40,10 @@ R17 (user-stories B2、C6；走查結論 1): 使用者把行政區卡與活動�
 R18 (user-stories C5、D1、F2；走查結論 2): 使用者點一個站，看到整天最常去的 10 站，以及每小時來這站的人從哪幾站、哪幾區來。
 R19 (DESIGN.md 原則 5、互動): 使用者能從有故事的地標、城市徽章與「此刻最忙」找到值得看的站；地標故事、徽章與此刻最忙都由當月資料算出，不寫死數字。
 R20 (DESIGN.md 原則 1、2、場景的層): 首頁場景以真實地形、海、河川、綠地、捷運路線與路線色呈現台北盆地；畫面上每樣東西不是真實資料就是明白標成示意，示意物件不承載數字。
+R21 (第一次使用者走查 B1): 使用者從行政區卡、通勤卡、活動卡與沒開卡的首頁都找得到分享入口；分享出去的連結打開時回到同一個站或行政區、同一時段與日型。
+R22 (第一次使用者走查 B2): 第一次打開的人看得到網站名與一句話說明，提示在使用者點了之前不消失，任何時候都找得到「關於／資料來源」。
+R23 (第一次使用者走查 F6): 假日時使用者直接看到大家都去哪：假日人最多與比平日熱鬧的前 5 站、前 5 區，點了開那站或那區。
+R24 (第一次使用者走查 F5): 使用者看得懂畫面上的線寬、光點、顏色（全城／去哪／誰來）、車站柱、寶石與皇冠各代表什麼，說明在場景裡示範、可跳過，不只是文字。
 
 ## Constraints
 
@@ -55,6 +59,7 @@ R20 (DESIGN.md 原則 1、2、場景的層): 首頁場景以真實地形、海�
 - 首頁（台北盆地底圖、行政區流向、地標、徽章、此刻最忙）、點行政區看流向、車站卡（含誰來這站）、通勤同路人卡、活動日、資料來源頁在手機上可用，並部署成公開網址。
 - 通勤卡、行政區卡、活動卡都能存成直式圖，圖上附日期或月份、來源與網址。
 - 通勤卡可一鍵下載，且「下載分享卡」次數可被計數。
+- 第一次打開的人看得到網站名、一句話與「關於／資料來源」；從任何一張卡都分享得出去，連結打開回到同一個畫面。
 - 每月的活動日清單有自動對上的場館檔期與人工補的來源，對不到的標「原因未查證」。
 - 上線首月檢視成功指標：通勤卡 500 次、輸入完成率 60%、每位訪客開 3 個站、次月回訪 15%（PRD 成功指標，假設值）。
 - 每月新資料能用一個指令重跑彙總並更新網站。
@@ -77,6 +82,7 @@ R20 (DESIGN.md 原則 1、2、場景的層): 首頁場景以真實地形、海�
 - user-stories (original) — https://claude.ai/artifact/Ss7vdA4Mv3iH3uPm1XEDdG
 - design — DESIGN.md（2026-11-10 天光定案：原則、色票、場景各層真實／示意界線、互動、版面）
 - walkthrough — design/reviews/2.1-user-story-walkthrough-2026-11-10.md（原型對 user stories 的走查與缺口）
+- walkthrough — design/reviews/2.1-first-time-user-2026-11-11.md（沒有背景知識的使用者第一次試用；每條問題對到的票）
 
 ## Notes
 
@@ -95,3 +101,5 @@ R20 (DESIGN.md 原則 1、2、場景的層): 首頁場景以真實地形、海�
 - Decision: 2026-11-10 architecture 受影響：底圖檔的契約與版本、地形垂直誇張與 projection.ts、地標位置與所屬行政區、徽章進度的 localStorage、音效、示意物件規則；由 Winston（bmad-architecture）在同一個 PR 更新 spine。
 - Open question: B3（同場散場同站回家）要活動日逐日起訖、A5／D3／H1 要路網距離；走查建議的這兩項新計算這次不開票，留在 Parked 的 R6 與之後的 replan。
 - Open question: R18 的 D1、F2 屬於不主動設計的族群（決定 1），這次因為 C5 一起做；若 Piwi 只要 C5，1.13 可縮成整天前 10 目的地。
+- Decision: 2026-11-11 replan（第一次使用者走查，design/reviews/2.1-first-time-user-2026-11-11.md）。需求有變：新增 R21 分享入口與網址、R22 開場說明與關於、R23 假日熱門、R24 怎麼看這張圖。做法也變：分享與網站說明提前到首頁 epic 的車站卡（3.12）之後（Piwi 決定 3），行政區卡分享 4.5 移成 3.16、資料來源頁 6.1 移成 3.17；新增 3.15、3.18、3.19；鏡頭改成地圖手勢（3.5，Piwi 決定 2）；開場維持清晨自動播放（Piwi 決定 1）；不開車站卡分享（Piwi 決定 4）。已完成的票不動。
+- Decision: 2026-11-11 architecture 不必為已定的事改：網址記站與行政區已在 AD-16 的狀態清單；提示等點了才收、「看過」仍只存 AD-22 的鍵；鏡頭手勢屬 AD-11 的 CameraControls 設定，細則在 DESIGN.md 與 diorama-game-juice。要動 AD 的只有三件，都還待 Piwi 決定（見首頁 epic Notes）：3.18 的 5 區若走管線要升契約 v4（AD-1、AD-7、AD-10、AD-18）、4.4 的連結分享事件要加進 AD-20、4.1 的「最近用過的站」若要跨工作階段保存要改 AD-16／AD-22。
