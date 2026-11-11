@@ -2,7 +2,7 @@
 type: epic
 title: "使用者看得到上個月哪幾天特別不一樣、為什麼"
 parent: initiative-city-breath
-covers: [R5, R17]
+covers: [R5, R17, R21]
 sources: [_bmad-output/initiative-city-breath/user-stories-city-breath-2026-11-03/user-stories-city-breath-2026-11-03.md]
 companions: [DESIGN.md]
 after: [epic-data-pipeline, epic-city-breath-home]
@@ -23,6 +23,7 @@ risk: medium
 
 R1 (parent R5): 每月自動列出異常日並對上小巨蛋、花博、中山堂的檔期；大巨蛋、展覽館、封街活動每月人工補 3–5 場並附來源；對不到的標「原因未查證」；使用者看得到該日與平常的差異，以及人從哪些區來。
 R2 (parent R17): 把活動卡存成直式圖分享，圖上附活動日期、活動來源（或「原因未查證」）、資料來源與網址。
+R3 (parent R21): 使用者從行政區卡、通勤卡、活動卡與沒開卡的首頁都找得到分享入口；分享出去的連結打開時回到同一個站或行政區、同一時段與日型。本 epic 負責活動卡：分享鈕與網址記日期（7.4）；入口本身由 epic-city-breath-home 3.15 做。
 
 ## Constraints
 
@@ -67,3 +68,4 @@ R2 (parent R17): 把活動卡存成直式圖分享，圖上附活動日期、活
 - Decision: 2026-11-10 replan（天光定案與走查）：7.4 依原型寫清楚（大日子清單含原因未查證與全城異常日、活動卡整天曲線對照平常、散場高峰周邊站、各區來的人）；原型已涵蓋並經走查，7.4 不再先做 prototype，hitl 改 false（取代 2026-11-04 那條「先做 prototype」）。
 - Decision: 2026-11-10 新增 7.6：原型的「平常」用月平均、周邊站在前端用距離挑，都違反 AD-14（平常只在 anomaly.py）；改由管線輸出每小時平常與周邊站，7.4 等它。新增 7.7 活動卡分享（B2），共用 4.3 的版型，所以本 epic 也等 epic-commute-card 的 4.3。
 - Decision: 2026-11-10 依賴檢查：7.6 等 7.2、7.3（都改 events.json 的輸出）。
+- Decision: 2026-11-11 replan（第一次使用者走查）：7.4 卡上的小時都跟同一個 hour、date 寫進網址、活動卡用首頁 3.15 的分享鈕（7.4 加等 3.15）；7.7 接 3.15 的分享選單、下載經 4.4 計數（7.7 加等 4.4、3.15）。
