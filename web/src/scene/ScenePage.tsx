@@ -1,4 +1,4 @@
-// 首頁：微縮城市場景（2.3 基底：台北盆地與天光）＋行政區流向（3.5）。
+// 首頁：微縮城市場景（2.3 基底：台北盆地與天光）＋行政區流向（3.5）＋時間軸（3.3）。
 // 底層：底座、地形台地、海、行政區薄片、河川、綠地、捷運路線、天空與光；上面是全市前 12 大流向。
 // 建築、車站、列車、點行政區等是之後的票。
 import { Canvas, useThree } from "@react-three/fiber";
@@ -7,7 +7,7 @@ import { NeutralToneMapping } from "three";
 import { loadBasemap, loadDistrictFlows, loadDistricts, loadMonths } from "../data/load";
 import { baseView, flowSource, type BaseView, type FlowSource } from "../data/views";
 import { startClock } from "../state/clock";
-import { readQuery } from "../state/url";
+import { readQuery, syncUrl } from "../state/url";
 import { setDayType, setPlaying, useView } from "../state/view";
 import { CameraRig, type CameraLink } from "./CameraRig";
 import { CommuteEntry } from "./CommuteEntry";
@@ -16,6 +16,7 @@ import { DistrictLabelLayer, DistrictLabelProjector, type LabelBoard, type Label
 import { FlowLegend, ScaleProbe, type LegendLink } from "./FlowLegend";
 import { FlowLabelLayer, Flows, type FlowLabelEls } from "./Flows";
 import { LayerPanel } from "./LayerPanel";
+import { PeriodToast } from "./PeriodToast";
 import { Plinth, plinthBox, type PlinthBox } from "./Plinth";
 import { Rails } from "./Rails";
 import { SceneBoundary, SceneFallback } from "./SceneFallback";
@@ -64,11 +65,10 @@ function World({
       <Terrain view={view} />
       <Rails tracks={view.tracks} />
       {/* 先量縮放倍數（緞帶、光點、圖例同一格用），再畫流向；流向標籤先放，區名再避開它們 */}
-      <ScaleProbe source={flows} link={overlays.legend} />
+      <ScaleProbe link={overlays.legend} />
       <Flows
         view={view}
         source={flows}
-        reduced={reduced}
         labels={overlays.flowLabels}
         board={overlays.board}
         scale={overlays.legend}
@@ -102,10 +102,12 @@ export default function ScenePage() {
   const top = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
 
+  // 開場讀網址（停在網址的時刻與日型），之後畫面狀態的 hour、dayType 寫回網址（AD-16）
   useEffect(() => {
     const q = readQuery(location.search);
     if (q.dayType) setDayType(q.dayType);
     startClock({ hour: q.hour, reducedMotion: reduced });
+    return syncUrl();
   }, [reduced]);
 
   // 流向標籤的安全區：上方 HUD 的下緣到時間軸的上緣；畫面或 HUD 大小變了就重量
@@ -165,6 +167,7 @@ export default function ScenePage() {
       </SceneBoundary>
       {data && <DistrictLabelLayer view={data.view} els={labels} visible={showLabels} />}
       {data && <FlowLabelLayer els={flowLabels} />}
+      {data && <PeriodToast source={data.flows} />}
       {!data && !error && <p className="scene-status">載入台北盆地中…</p>}
       {error && (
         <p className="scene-status" role="alert">
@@ -196,7 +199,7 @@ export default function ScenePage() {
         <LayerPanel />
       </div>
       <div ref={dock}>
-        <TimeBar month={data?.month}>
+        <TimeBar month={data?.month} source={data?.flows}>
           <FlowLegend source={data?.flows} link={overlays.legend} />
         </TimeBar>
       </div>

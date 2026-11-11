@@ -2,11 +2,12 @@
 // 手機：單指拖曳＝平移（貼著地面走）；雙指＝捏合縮放，同時拖動＝旋轉／傾斜。
 // 滑鼠：左鍵平移、右鍵或 Ctrl（Mac 也可 ⌘）＋左鍵拖曳旋轉、滾輪縮放；縮放朝手指中點或游標位置。
 // 傾角有上下限（不翻到接近水平），平移時鏡頭看著的點不離開底座。
-// 「回到全景」由 link.home() 觸發；減少動態時直接切回、不飛。
+// 「回到全景」由 link.home() 觸發；減少動態或靜態模式時直接切回、不飛。
 import { CameraControls, CameraControlsImpl } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Box3, Vector3 } from "three";
+import { useView } from "../state/view";
 import type { PlinthBox } from "./Plinth";
 
 const { ACTION } = CameraControlsImpl;
@@ -27,8 +28,10 @@ export interface CameraLink {
   home?: () => void;
 }
 
-export function CameraRig({ reduced, box, link }: { reduced: boolean; box: PlinthBox; link: CameraLink }) {
+export function CameraRig({ reduced: reducedMotion, box, link }: { reduced: boolean; box: PlinthBox; link: CameraLink }) {
   const ref = useRef<CameraControls>(null);
+  const still = useView((s) => s.still);
+  const reduced = reducedMotion || still;
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const narrow = aspect < 0.8;
 

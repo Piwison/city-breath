@@ -26,6 +26,7 @@
   --dur-press: 120ms;
   --dur-quick: 160ms;
   --dur-phase: 600ms;    /* HUD 日夜換色 */
+  --dur-enter: 220ms;    /* 浮出提示的進出（時段名，3.3） */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-pop: cubic-bezier(0.2, 1.6, 0.4, 1);
 
@@ -47,6 +48,7 @@
   --commute: #d63a48;
   --ripple: #ffd9a0;
   --particle-hi: #fffaf0;
+  --scrub-closed: rgba(251, 247, 239, 0.5); /* 拖曳條上停止營運時段的斜紋（3.3），疊在夜色上 */
   --shadow: #1c160c;
 
   /* ── 天空與光（四相位，tokenAt() 內插） ── */
@@ -132,5 +134,6 @@
     --dur-press: 0ms;
     --dur-quick: 0ms;
     --dur-phase: 0ms;
+    --dur-enter: 0ms;
   }
 }

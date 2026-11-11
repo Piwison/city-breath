@@ -1,10 +1,13 @@
-// 最小可用的時間軸（下方，3.5）：播放／暫停、時間、平日／假日、天色漸層的拖曳條、流向圖例。
-// 時段名、網址同步、速度、大日子是 3.3 以後的事。
-// 拖動時呼叫 clock 的 seek()；時間文字與滑桿位置每格直接從 time.t 寫進 DOM，不讓 React 每格重繪（AD-16）。
+// 下方時間軸（3.5 最小版，3.3 補齊）：播放／暫停、時間與時段名、平日／假日、天色漸層的拖曳條（標出停止營運）、
+// 刻度、播放速度、靜態模式、流向圖例。「大日子」由 7.4 加在日子切換。
+// 拖動時呼叫 clock 的 seek()；時間文字與滑桿位置每格直接從 time.t 寫進 DOM，不讓 React 每格重繪（AD-16）；
+// 時段名只訂閱整數 hour，播放中一天只重繪 24 次。
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { closedRanges, periodName } from "../data/periods";
 import type { DayType } from "../data/types";
-import { seek } from "../state/clock";
-import { setDayType, setPlaying, time, useView } from "../state/view";
+import type { FlowSource } from "../data/views";
+import { seek, setStillMode, togglePlay } from "../state/clock";
+import { setDayType, setPlaying, setSpeed, time, useView } from "../state/view";
 import { canvasColor, mixRgba } from "../styles/tokens";
 import { sunAt, tokenAt } from "./daylight";
 
@@ -12,6 +15,13 @@ const DAYS: { key: DayType; name: string }[] = [
   { key: "weekday", name: "平日" },
   { key: "holiday", name: "假日" },
 ];
+
+/** 拖曳條的值域（時）；刻度與停止營運斜紋依滑桿圓鈕中心的位置換算，和圓鈕對齊。 */
+const MAX_T = 23.95;
+/** 位置：圓鈕寬 22px（scene.css .scrub 的 thumb），中心從 11px 走到 寬−11px。 */
+const at = (h: number) => `calc(11px + (100% - 22px) * ${(Math.min(h, MAX_T) / MAX_T).toFixed(4)})`;
+const span = (a: number, b: number) => `calc((100% - 22px) * ${((Math.min(b, MAX_T) - a) / MAX_T).toFixed(4)})`;
+const TICKS = [0, 6, 12, 18];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -25,13 +35,34 @@ function skyGradient(): string {
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
-export function TimeBar({ month, children }: { month?: string; children?: ReactNode }) {
+const monthLabel = (month?: string) => (month ? `${Number(month.slice(5))} 月` : "");
+
+/** 副標：「9 月平日平均・早晨通勤尖峰」。只訂閱 hour 與 dayType。 */
+function Sub({ month, source }: { month?: string; source?: FlowSource }) {
+  const hour = useView((s) => s.hour);
+  const dayType = useView((s) => s.dayType);
+  const name = DAYS.find((d) => d.key === dayType)!.name;
+  const period = source ? periodName(hour, dayType, source.operating(dayType, hour)) : "";
+  return (
+    <span className="sub">
+      {monthLabel(month)}
+      {name}平均{period && `・${period}`}
+    </span>
+  );
+}
+
+export function TimeBar({ month, source, children }: { month?: string; source?: FlowSource; children?: ReactNode }) {
   const playing = useView((s) => s.playing);
   const dayType = useView((s) => s.dayType);
+  const speed = useView((s) => s.speed);
+  const still = useView((s) => s.still);
   const hm = useRef<HTMLSpanElement>(null);
   const orb = useRef<HTMLElement>(null);
   const scrub = useRef<HTMLInputElement>(null);
   const background = useMemo(skyGradient, []);
+  const closed = useMemo(() => (source ? closedRanges((h) => source.operating(dayType, h)) : []), [source, dayType]);
+  const closedRef = useRef(closed);
+  closedRef.current = closed;
 
   useEffect(() => {
     let raf = 0;
@@ -43,7 +74,8 @@ export function TimeBar({ month, children }: { month?: string; children?: ReactN
       if (text !== shown && hm.current && orb.current) {
         shown = text;
         hm.current.textContent = text;
-        scrub.current?.setAttribute("aria-valuetext", text);
+        const off = closedRef.current.some(([a, b]) => t >= a && t < b);
+        scrub.current?.setAttribute("aria-valuetext", off ? `${text} 停止營運` : text);
         orb.current.className = `orb ${sunAt(t).isDay ? "sun" : "moon"}`;
       }
       if (scrub.current && document.activeElement !== scrub.current) scrub.current.value = t.toFixed(2);
@@ -55,7 +87,7 @@ export function TimeBar({ month, children }: { month?: string; children?: ReactN
   return (
     <section className="hud scene-dock" aria-label="時間軸">
       <div className="row">
-        <button type="button" className="play" aria-label={playing ? "暫停" : "播放一整天"} onClick={() => setPlaying(!playing)}>
+        <button type="button" className="play" aria-label={playing ? "暫停" : "播放一整天"} onClick={togglePlay}>
           {playing ? (
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor" />
@@ -71,10 +103,7 @@ export function TimeBar({ month, children }: { month?: string; children?: ReactN
             <i ref={orb} className="orb sun" aria-hidden="true" />
             <span ref={hm} />
           </span>
-          <span className="sub">
-            {month ? `${month.replace("-", " 年 ").replace(/ 0?(\d+)$/, " $1")} 月` : ""}
-            {DAYS.find((d) => d.key === dayType)!.name}平均
-          </span>
+          <Sub month={month} source={source} />
         </div>
         <div className="seg" role="group" aria-label="日子">
           {DAYS.map((d) => (
@@ -84,21 +113,58 @@ export function TimeBar({ month, children }: { month?: string; children?: ReactN
           ))}
         </div>
       </div>
-      <input
-        ref={scrub}
-        className="scrub"
-        type="range"
-        min={0}
-        max={23.95}
-        step={0.05}
-        defaultValue={time.t}
-        aria-label="時間"
-        style={{ background }}
-        onChange={(e) => {
-          setPlaying(false);
-          seek(Number(e.target.value));
-        }}
-      />
+      <div className="row scrub-row">
+        <div className="scrub-wrap">
+          <input
+            ref={scrub}
+            className="scrub"
+            type="range"
+            min={0}
+            max={MAX_T}
+            step={0.05}
+            defaultValue={time.t}
+            aria-label="時間"
+            style={{ background }}
+            onChange={(e) => {
+              setPlaying(false);
+              seek(Number(e.target.value));
+            }}
+          />
+          {closed.map(([a, b]) => (
+            <i key={a} className="scrub-closed" aria-hidden="true" style={{ left: at(a), width: span(a, b) }} />
+          ))}
+          <div className="ticks" aria-hidden="true">
+            {TICKS.map((h) => (
+              <span key={h} className="num" style={{ left: at(h) }}>
+                {h}
+              </span>
+            ))}
+            {closed.map(([a, b]) => (
+              <span key={`c${a}`} className="off" style={{ left: at((a + b) / 2) }}>
+                停駛
+              </span>
+            ))}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="mini num"
+          aria-label={`播放速度 ${speed} 倍，按一下換成 ${speed === 1 ? 2 : 1} 倍`}
+          onClick={() => setSpeed(speed === 1 ? 2 : 1)}
+        >
+          {speed}x
+        </button>
+        <button
+          type="button"
+          className="mini still"
+          aria-pressed={still}
+          aria-label="靜態模式"
+          title={still ? "靜態模式開：停在 8 點、光點換成光帶" : "靜態模式關"}
+          onClick={() => setStillMode(!still)}
+        >
+          靜態<b>{still ? "開" : "關"}</b>
+        </button>
+      </div>
       {children}
     </section>
   );

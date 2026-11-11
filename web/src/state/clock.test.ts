@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { advance, HOURS_PER_SECOND, PLAY_FROM, seek, startClock, STILL_AT } from "./clock";
-import { getView, setPlaying, time } from "./view";
+import { advance, HOURS_PER_SECOND, PLAY_FROM, seek, setStillMode, startClock, STILL_AT, togglePlay } from "./clock";
+import { getView, setPlaying, setSpeed, setStill, time } from "./view";
 
 describe("clock", () => {
   beforeEach(() => {
     setPlaying(false);
+    setStill(false);
+    setSpeed(1);
     seek(0);
   });
 
@@ -14,10 +16,16 @@ describe("clock", () => {
     expect(getView()).toMatchObject({ hour: 6, playing: false });
   });
 
-  it("減少動態：停在 8 點，不自動播放", () => {
+  it("減少動態：開靜態模式、停在 8 點，不自動播放", () => {
     startClock({ reducedMotion: true });
     expect(time.t).toBe(STILL_AT);
-    expect(getView().playing).toBe(false);
+    expect(getView()).toMatchObject({ playing: false, still: true });
+  });
+
+  it("減少動態＋網址有 hour：靜態模式、停在網址的時刻", () => {
+    startClock({ hour: 14, reducedMotion: true });
+    expect(time.t).toBe(14);
+    expect(getView()).toMatchObject({ playing: false, still: true });
   });
 
   it("一般情況：從清晨自動播放，48 秒一天", () => {
@@ -44,5 +52,55 @@ describe("clock", () => {
     setPlaying(true);
     advance(5);
     expect(time.t).toBeCloseTo(10 + 0.1 * HOURS_PER_SECOND, 9);
+  });
+
+  it("2x：同樣的時間走兩倍", () => {
+    seek(10);
+    setPlaying(true);
+    setSpeed(2);
+    advance(0.1);
+    expect(time.t).toBeCloseTo(10 + 0.1 * HOURS_PER_SECOND * 2, 9);
+  });
+});
+
+describe("靜態模式", () => {
+  beforeEach(() => {
+    setPlaying(false);
+    setStill(false);
+    setSpeed(1);
+    seek(0);
+  });
+
+  it("開：停止播放、跳到 8 點、旗標開", () => {
+    seek(14.3);
+    setPlaying(true);
+    setStillMode(true);
+    expect(time.t).toBe(STILL_AT);
+    expect(getView()).toMatchObject({ playing: false, still: true, hour: 8 });
+  });
+
+  it("靜態中 advance 不動；拖時間軸照樣換時刻", () => {
+    setStillMode(true);
+    setPlaying(true);
+    advance(0.1);
+    expect(time.t).toBe(STILL_AT);
+    seek(3);
+    expect(getView()).toMatchObject({ hour: 3, still: true });
+  });
+
+  it("關：只關旗標，維持暫停在原時刻", () => {
+    setStillMode(true);
+    seek(11);
+    setStillMode(false);
+    expect(time.t).toBe(11);
+    expect(getView()).toMatchObject({ playing: false, still: false });
+  });
+
+  it("靜態中按播放：先關靜態再播放；一般時候切換播放／暫停", () => {
+    setStillMode(true);
+    togglePlay();
+    expect(getView()).toMatchObject({ playing: true, still: false });
+    togglePlay();
+    expect(getView()).toMatchObject({ playing: false, still: false });
   });
 });
