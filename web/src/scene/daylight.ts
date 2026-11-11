@@ -146,6 +146,21 @@ export function lightingAt(h: number, read: TokenReader = readCssToken): Lightin
   };
 }
 
+/** 窗光的強度上限（原型天光 winNight）。 */
+export const WINDOW_GLOW = 2.2;
+
+/**
+ * 街廓窗戶在時刻 h 的光（3.13，原型 frame()）：入夜亮起、黃昏帶一點暖光（glow 乘到 `--window` 自發光），
+ * 亮著的窗比例 lit 從 20 點的 0.62 在 4 小時內降到 0.30，到 6 點回來；材質顏色不動（天光：日夜只靠光）。
+ */
+export function windowsAt(h: number): { glow: number; lit: number } {
+  const x = wrapHour(h);
+  const sun = sunAt(x);
+  const golden = clamp(1 - Math.abs(sun.elevation - 0.1) / 0.3, 0, 1) * (sun.elevation > -0.15 ? 1 : 0);
+  const late = x < 6 || x >= 20 ? smooth(0, 4, (x + 24 - 20) % 24) : 0;
+  return { glow: WINDOW_GLOW * smooth(0.25, 0.9, sun.night) + 0.15 * golden, lit: 0.62 - 0.32 * late };
+}
+
 export interface SkyDiscs {
   /** 太陽中心：x 為畫面寬的比例、y 為距畫面上緣的 px；alpha 0–1 */
   sun: { x: number; y: number; alpha: number };

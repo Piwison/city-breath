@@ -6,7 +6,7 @@ import type { DayType } from "../data/types";
 
 export type Speed = 1 | 2;
 
-export type LayerKey = "flow" | "water" | "green" | "rail" | "label";
+export type LayerKey = "flow" | "water" | "green" | "rail" | "building" | "label";
 
 export interface ViewState {
   /** 進站時段 0–23（AD-15），由 t 取整 */
@@ -31,7 +31,7 @@ let state: ViewState = {
   speed: 1,
   still: false,
   dayType: "weekday",
-  layers: { flow: true, water: true, green: true, rail: true, label: true },
+  layers: { flow: true, water: true, green: true, rail: true, building: true, label: true },
 };
 const listeners = new Set<() => void>();
 

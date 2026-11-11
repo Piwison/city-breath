@@ -115,6 +115,7 @@
 .scene-layer-panel .sw-flow { background: linear-gradient(180deg, transparent 0 30%, var(--flow-neutral) 30% 70%, transparent 70%); }
 .scene-layer-panel .sw-water { background: var(--water); }
 .scene-layer-panel .sw-green { background: var(--green); }
+.scene-layer-panel .sw-building { background: linear-gradient(90deg, var(--roof) 0 55%, var(--tree) 55%); border: 1px solid var(--hud-muted); }
 .scene-layer-panel .sw-label {
   border: 1px solid var(--hud-muted);
   font-size: var(--text-2xs);
