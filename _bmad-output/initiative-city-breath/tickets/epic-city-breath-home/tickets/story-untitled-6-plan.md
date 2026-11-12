@@ -3,7 +3,7 @@ title: '點行政區看去哪、誰來並展開站'
 type: 'feature'
 ticket: '6'
 created: '2026-11-11'
-status: 'built'
+status: done
 baseline_revision: '9be96ae70a388a68b0b729dc877277915b7e6044'
 route: 'full'
 route_source: 'auto'
