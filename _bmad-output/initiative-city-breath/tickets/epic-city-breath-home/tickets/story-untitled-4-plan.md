@@ -3,7 +3,7 @@ title: '城市睡覺狀態'
 type: 'feature'
 ticket: '4'
 created: '2026-11-12'
-status: 'built'
+status: done
 baseline_revision: 'dcf2355127edc29756362319ff72483b1a2878cc'
 route: 'full'
 route_source: 'auto'

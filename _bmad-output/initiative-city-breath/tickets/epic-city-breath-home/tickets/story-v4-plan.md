@@ -3,7 +3,7 @@ title: '3.20 行政區總量輸出（契約 v4）'
 type: 'feature'
 ticket: '20'
 created: '2026-11-12'
-status: 'built'
+status: done
 baseline_revision: '30308aa1b55a4cebad23a657f247cf424767fe1b'
 route: 'full'
 route_source: 'auto'
