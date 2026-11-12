@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLOSED, closedRanges, periodHint, periodName, shouldToast } from "./periods";
+import { CLOSED, closedRanges, periodHint, periodName, shouldToast, whenLabel } from "./periods";
 
 describe("periodName", () => {
   it("平日與假日的尖峰名不同", () => {
@@ -47,5 +47,16 @@ describe("closedRanges", () => {
       [0, 1],
       [23, 24],
     ]);
+  });
+});
+
+describe("whenLabel（小卡標明時段與日型，走查 F1）", () => {
+  it("平日 8 點、假日整天", () => {
+    expect(whenLabel("weekday", 8)).toBe("平日 8 點");
+    expect(whenLabel("holiday", "day")).toBe("假日整天");
+    expect(whenLabel("holiday", 18.7)).toBe("假日 18 點");
+  });
+  it("停止營運的小時加註", () => {
+    expect(whenLabel("weekday", 3, false)).toBe("平日 3 點・停止營運");
   });
 });

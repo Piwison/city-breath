@@ -3,7 +3,7 @@ title: '街廓建築與樹（示意）'
 type: 'feature'
 ticket: '13'
 created: '2026-11-11'
-status: 'built'
+status: done
 baseline_revision: '9be96ae70a388a68b0b729dc877277915b7e6044'
 route: 'full'
 route_source: 'auto'
