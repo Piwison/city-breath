@@ -37,6 +37,17 @@ export function shouldToast(prev: string | null, next: string, playing: boolean)
   return playing && prev !== null && prev !== next;
 }
 
+/**
+ * 小卡標題列上「正在看的時段與日型」（3.6 共用卡框；走查 2026-11-11 F1）：
+ * 「平日 8 點」「假日整天」；停止營運的小時加「・停止營運」。車站、通勤、活動卡共用。
+ */
+export function whenLabel(dayType: DayType, hour: number | "day", operating = true): string {
+  const day = dayType === "weekday" ? "平日" : "假日";
+  if (hour === "day") return `${day}整天`;
+  const h = ((Math.floor(hour) % 24) + 24) % 24;
+  return `${day} ${h} 點${operating ? "" : `・${CLOSED}`}`;
+}
+
 /** 停止營運的區段（半開區間 [起, 迄)，小時），給拖曳條標示；全天營運回傳空陣列。 */
 export function closedRanges(isOpen: (hour: number) => boolean): [number, number][] {
   const out: [number, number][] = [];

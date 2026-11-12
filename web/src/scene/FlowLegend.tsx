@@ -24,16 +24,24 @@ const people = (v: number) => (v >= 1000 ? `${v / 1000} 千` : String(v));
 /** 光帶圖例的短寫（手機一行放得下）：2000 → 2千 */
 const short = (v: number) => (v >= 1000 ? `${v / 1000}千` : String(v));
 
-export function FlowLegend({ source, link, mode = "city" }: { source?: FlowSource; link: LegendLink; mode?: FlowMode }) {
+export function FlowLegend({ source, link }: { source?: FlowSource; link: LegendLink }) {
   const hour = useView((s) => s.hour);
   const dayType = useView((s) => s.dayType);
   const on = useView((s) => s.layers.flow);
   const still = useView((s) => s.still);
+  // 選了區：圖例換成選區模式（藍＝這區的人去哪、橘紅＝誰來這裡，走查 F5），光點換算用畫面上那一組
+  const district = useView((s) => s.district);
+  const mode: FlowMode = district === null ? "city" : "district";
   if (!source) return <div className="legend" />;
   if (!on) return <div className="legend">流向已關閉，可從右上角「圖層」打開</div>;
-  const now = source.at(dayType, hour);
+  const now = district === null ? source.at(dayType, hour) : source.district(dayType, hour, district);
   if (now.flows === null) return <div className="legend">停止營運：這個時段沒有列車</div>;
-  if (now.flows.length === 0) return <div className="legend">這一小時，各區之間的流向都少於 10 人</div>;
+  if (now.flows.length === 0)
+    return (
+      <div className="legend">
+        {district === null ? "這一小時，各區之間的流向都少於 10 人" : "這一小時，這區往來各區都少於 10 人"}
+      </div>
+    );
   link.bars.length = 0;
   let n = 0;
   const bar = (w: number, cls: string) => {

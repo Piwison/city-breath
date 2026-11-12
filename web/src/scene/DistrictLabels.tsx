@@ -4,6 +4,8 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, type MutableRefObject } from "react";
 import { Matrix4, Vector3 } from "three";
 import type { BaseView } from "../data/views";
+import { useView } from "../state/view";
+import { liftOf, lifts } from "./lift";
 import { levelHeight, project, terrainLevelAt } from "./projection";
 import { TILE_TOP } from "./Terrain";
 
@@ -67,7 +69,9 @@ export function DistrictLabelProjector({
     [view],
   );
   const P = useMemo(() => new Vector3(), []);
-  const last = useRef({ m: new Matrix4(), w: 0, h: 0, visible: false, board: -1 });
+  const last = useRef({ m: new Matrix4(), w: 0, h: 0, visible: false, board: -1, lift: -1, selected: null as string | null });
+  // 選中的區名藏起來（卡片標題就是它，原型 updateLabels）；其他區名跟著區抬起／微沉（lift.ts）
+  const selected = useView((s) => s.district);
 
   useFrame(({ camera, size }) => {
     const L = last.current;
@@ -76,17 +80,35 @@ export function DistrictLabelProjector({
       return;
     }
     const bv = board?.version ?? 0;
-    if (L.visible && L.board === bv && L.w === size.width && L.h === size.height && L.m.equals(camera.matrixWorld)) return;
+    if (
+      L.visible &&
+      L.board === bv &&
+      L.lift === lifts.frame &&
+      L.selected === selected &&
+      L.w === size.width &&
+      L.h === size.height &&
+      L.m.equals(camera.matrixWorld)
+    )
+      return;
     L.m.copy(camera.matrixWorld);
     L.w = size.width;
     L.h = size.height;
     L.visible = true;
     L.board = bv;
+    L.lift = lifts.frame;
+    L.selected = selected;
     const placed: [number, number, number, number][] = [...(board?.rects ?? [])];
     for (const i of order) {
       const el = els.current[i];
       if (!el) continue;
-      P.copy(anchors[i]).project(camera);
+      const id = view.districts[i].id;
+      if (id === selected) {
+        el.hidden = true;
+        continue;
+      }
+      P.copy(anchors[i]);
+      P.y += liftOf(id);
+      P.project(camera);
       const sx = (P.x * 0.5 + 0.5) * size.width;
       const sy = (-P.y * 0.5 + 0.5) * size.height;
       const w = (el.textContent?.length ?? 2) * 12 + 6;

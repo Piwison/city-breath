@@ -10,3 +10,9 @@
 - source_plan: `_bmad-output/initiative-city-breath/tickets/epic-city-breath-home/tickets/story-untitled-plan.md`
   summary: A→B 與 B→A 的流向緞帶走同一條曲線、互相疊住（原型也是），可考慮分左右車道；落點漣漪也還沒做。
   evidence: 2026-09 平日 18 點前三有大安→中正與中正→大安，兩條緞帶與光點重疊；漣漪原型用 16 個獨立 mesh，3.5 為守 draw call 預算沒做，可在 3.6 或 3.7 以 InstancedMesh 補。
+- source_plan: `_bmad-output/initiative-city-breath/tickets/epic-city-breath-home/tickets/story-untitled-6-plan.md`
+  summary: 行政區只能用指標點畫布選取，鍵盤與螢幕報讀沒有進入行政區卡的路（原型同樣）。
+  evidence: 3.6 的選取在 `web/src/scene/Selection.tsx` 只聽畫布的 pointer 事件；可由 4.1 的找車站搜尋加上行政區、或 3.15 的網址直接開卡補上。
+- source_plan: `_bmad-output/initiative-city-breath/tickets/epic-city-breath-home/tickets/story-untitled-6-plan.md`
+  summary: 按下行政區時的壓扁只作用在 Terrain 的 `district-<id>` group，3.13 的建築與樹只跟著抬起、不跟著壓扁。
+  evidence: `DistrictLift` 改 group 的 scale.y；`Blocks` 的 shader 只讀 `lift`（`lifts.ref`），沒有按壓比例。要一起壓扁得在 Blocks 加一個 uniform。

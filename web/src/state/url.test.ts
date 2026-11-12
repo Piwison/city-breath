@@ -114,6 +114,40 @@ describe("syncUrl（畫面狀態 → 網址）", () => {
     expect(readQuery(search)).toEqual({ hour: 17, dayType: "holiday" });
   });
 
+  it("播放中整點變了不寫；按播放把 hour 拿掉、暫停再寫回（Piwi 2026-11-12）", () => {
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    setPlaying(true);
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(writes).toEqual(["day=weekday&hour=8&ref=share", "day=weekday&ref=share"]);
+    for (let t = 8; t <= 14; t += 0.25) {
+      seek(t);
+      vi.advanceTimersByTime(URL_WRITE_MS);
+    }
+    expect(writes).toHaveLength(2);
+    // 播放中重新整理：網址沒有 hour，照原本從清晨自動播放
+    expect(readQuery(search).hour).toBeUndefined();
+    setDayType("holiday");
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(writes.at(-1)).toBe("day=holiday&ref=share");
+    setPlaying(false);
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(writes.at(-1)).toBe("day=holiday&hour=14&ref=share");
+  });
+
+  it("開場自動播放時不寫網址", () => {
+    stop();
+    writes.length = 0;
+    setPlaying(true);
+    stop = syncUrl(
+      (s) => writes.push(s),
+      () => "",
+    );
+    vi.advanceTimersByTime(URL_WRITE_MS * 3);
+    seek(9);
+    vi.advanceTimersByTime(URL_WRITE_MS * 3);
+    expect(writes).toEqual([]);
+  });
+
   it("取消後不再寫", () => {
     stop();
     seek(3);

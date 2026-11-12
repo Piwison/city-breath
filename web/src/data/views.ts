@@ -1,6 +1,18 @@
 // 檢視模型（AD-19）：場景圖層不 import 契約型別，只吃這裡產生的形狀。
-// 2.3 底圖：basemap.json＋districts.json → BaseView；3.5 流向：district-flows.json → FlowFrame。車站的 frame 由之後的票加在這裡。
-import type { BasemapFile, DayType, DistrictFlowsFile, DistrictsFile, LineId, LonLat, MultiPolygonCoords } from "./types";
+// 2.3 底圖：basemap.json＋districts.json → BaseView；3.5 流向：district-flows.json → FlowFrame；
+// 3.6 選區：去哪／誰來（FlowFrame.kind）、卡片排名（DistrictRanks）、展開的站（StationFrame）。
+import { stationVolume } from "./traits";
+import type {
+  BasemapFile,
+  DayType,
+  DistrictFlowsFile,
+  DistrictsFile,
+  LineId,
+  LonLat,
+  MultiPolygonCoords,
+  Station,
+  StationsFile,
+} from "./types";
 
 export interface BaseDistrictView {
   /** 8 碼行政區代碼（AD-9） */
@@ -75,11 +87,28 @@ export function baseView(basemap: BasemapFile, districts: DistrictsFile): BaseVi
 
 // ── 行政區流向（3.5）：首頁、行政區展開、活動日共用同一種 frame、同一個線寬與光點換算（AD-19） ──
 
+/** 流向的種類：選了區時，out＝這區的人去哪（藍）、in＝誰來這裡（橘紅）；沒有＝全城（橘）。 */
+export type FlowKind = "out" | "in";
+
 /** 一條流向：from、to 為 8 碼行政區代碼（AD-9）；value 為該小時平均人次，null＝少於 10 人（AD-3）。 */
 export interface FlowFrame {
   from: string;
   to: string;
   value: number | null;
+  /** 選區模式的去哪／誰來（3.6）；全城模式不設 */
+  kind?: FlowKind;
+}
+
+/** 一條流向的鍵（聚焦用）：「起區>迄區」。 */
+export const flowKey = (f: Pick<FlowFrame, "from" | "to">) => `${f.from}>${f.to}`;
+
+/**
+ * 雙向車道（Piwi 2026-11-12）：同時要畫 A→B 與 B→A 的流向鍵。這些緞帶各往自己前進方向的右側偏移，
+ * 不再疊在一起；只有單向的不偏移。null 不畫，所以也不算。
+ */
+export function twoWay(frames: readonly FlowFrame[]): Set<string> {
+  const drawn = new Set(frames.filter((f) => f.value !== null && f.from !== f.to).map(flowKey));
+  return new Set([...drawn].filter((k) => drawn.has(k.split(">").reverse().join(">"))));
 }
 
 /** 線寬（場景單位）：最細與最粗（原型 W_MIN、W_MAX）。人數決定的寬度不是高程，不經 elevation()（AD-12）。 */
@@ -111,8 +140,8 @@ export function flowMax(file: Pick<DistrictFlowsFile, "weekday" | "holiday">): n
   return max || 1;
 }
 
-/** 最粗的緞帶在螢幕上最多幾像素（Piwi 2026-11-11：放大後緞帶不能粗到蓋住街區）。 */
-export const RIBBON_MAX_PX = 18;
+/** 最粗的緞帶在螢幕上最多幾像素（Piwi 2026-11-11：放大後緞帶不能粗到蓋住街區；2026-11-12 由 18 改 24）。 */
+export const RIBBON_MAX_PX = 24;
 
 /**
  * 依鏡頭的縮放倍數 k（0–1]：一個場景單位在畫面上約 pxPerUnit 像素時，最粗的緞帶 W_MAX 不超過 maxPx 像素。
@@ -178,6 +207,10 @@ export interface FlowSource {
   at(dayType: DayType, hour: number): FlowHour;
   /** 這個小時有沒有營運（整格 null＝停止營運，AD-5） */
   operating(dayType: DayType, hour: number): boolean;
+  /** 選了某區時要畫的流向：這區前 5 去哪＋前 5 誰來（3.6）；光點換算與全城同一個函式 */
+  district(dayType: DayType, hour: number, id: string): FlowHour;
+  /** 一對區某小時的人數（聚焦的那條不在前 5 時補畫用）；null＝少於 10 人或停止營運 */
+  pair(dayType: DayType, hour: number, from: string, to: string): number | null;
 }
 
 export function flowSource(file: DistrictFlowsFile): FlowSource {
@@ -200,7 +233,107 @@ export function flowSource(file: DistrictFlowsFile): FlowSource {
       }
       return v;
     },
+    district(dayType, hour, id) {
+      const key = `${dayType}:${hour}:${id}`;
+      let v = cache.get(key);
+      if (!v) {
+        const flows = districtFlows(file, dayType, hour, id);
+        v = flows ? { flows, ...dotScale(flows) } : { flows: null, perDot: PEOPLE_PER_DOT, counts: [] };
+        cache.set(key, v);
+      }
+      return v;
+    },
+    pair(dayType, hour, from, to) {
+      const i = file.districts.indexOf(from);
+      const j = file.districts.indexOf(to);
+      return i < 0 || j < 0 ? null : (file[dayType][hour]?.[i][j] ?? null);
+    },
   };
+}
+
+// ── 選了一區（3.6）：地圖畫這區前 5 去哪、前 5 誰來；卡片列去哪、誰來前 3（這一小時或整天） ──
+
+/** 選區時地圖上每個方向畫幾條（diorama-game-juice「數量要少」）。 */
+export const DISTRICT_FLOWS = 5;
+
+/**
+ * 某區某小時要畫的流向：去哪（from＝這區）前 n、誰來（to＝這區）前 n，跨區才畫（區內沒有緞帶）。
+ * null 不排名、不當 0；停止營運回傳 null（AD-5）；這區不在矩陣裡回傳空陣列。
+ */
+export function districtFlows(
+  file: DistrictFlowsFile,
+  dayType: DayType,
+  hour: number,
+  id: string,
+  n: number = DISTRICT_FLOWS,
+): FlowFrame[] | null {
+  const m = file[dayType][hour];
+  if (!m) return null;
+  const i = file.districts.indexOf(id);
+  if (i < 0) return [];
+  const ids = file.districts;
+  const pick = (kind: FlowKind) =>
+    ids
+      .map((other, j) => ({ j, other, value: kind === "out" ? m[i][j] : m[j][i] }))
+      .filter((x): x is { j: number; other: string; value: number } => x.j !== i && x.value !== null && x.value > 0)
+      .sort((a, b) => b.value - a.value || a.other.localeCompare(b.other))
+      .slice(0, n)
+      .map(({ other, value }): FlowFrame =>
+        kind === "out" ? { from: id, to: other, value, kind } : { from: other, to: id, value, kind },
+      );
+  return [...pick("out"), ...pick("in")];
+}
+
+/** 卡片的範圍：這一小時，或整天（各小時平均人次加總）。 */
+export type DistrictRange = "hour" | "day";
+
+/** 卡片上的一列：另一區（可能就是這區自己＝區內）與人數。 */
+export interface DistrictRank {
+  id: string;
+  value: number;
+  /** 區內移動（起訖都在這區） */
+  self: boolean;
+}
+
+export interface DistrictRanks {
+  /** 這一小時停止營運（整天模式永遠 true） */
+  operating: boolean;
+  /** 這區的人去哪（含區內），由大到小；少於 10 人（null）不列 */
+  out: DistrictRank[];
+  /** 誰來這裡（含區內），由大到小 */
+  in: DistrictRank[];
+}
+
+/**
+ * 去哪／誰來的排名（卡片用）。這一小時：直接讀矩陣；整天：每格只加有公開人數的小時（null 不當 0，
+ * 停止營運的小時跳過），全部小時都是 null 的格才算「少於 10 人」、不列。區內（大安→大安）也列，
+ * 因為「我住的區的人去哪」包含留在區內的人（3.6 verify：大安假日整天前三是中正、大安、信義）。
+ */
+export function districtRanks(file: DistrictFlowsFile, dayType: DayType, range: DistrictRange, hour: number, id: string): DistrictRanks {
+  const ids = file.districts;
+  const i = ids.indexOf(id);
+  const hours = range === "day" ? file[dayType].map((_, h) => h) : [((Math.floor(hour) % 24) + 24) % 24];
+  const out = new Map<number, number>();
+  const inn = new Map<number, number>();
+  let operating = range === "day";
+  if (i >= 0)
+    for (const h of hours) {
+      const m = file[dayType][h];
+      if (!m) continue;
+      operating = true;
+      for (let j = 0; j < ids.length; j++) {
+        const a = m[i][j];
+        const b = m[j][i];
+        if (a !== null) out.set(j, (out.get(j) ?? 0) + a);
+        if (b !== null) inn.set(j, (inn.get(j) ?? 0) + b);
+      }
+    }
+  const ranked = (map: Map<number, number>) =>
+    [...map.entries()]
+      .filter(([, v]) => v > 0)
+      .map(([j, value]) => ({ id: ids[j], value, self: j === i }))
+      .sort((a, b) => b.value - a.value || a.id.localeCompare(b.id));
+  return { operating, out: ranked(out), in: ranked(inn) };
 }
 
 /** 圖例的三個人數：當月最大取首位數（例 6,582 → 6,000），再取約 1/6、1/2，進位到百人。 */
@@ -238,8 +371,91 @@ export function bandWidth(value: number | null, legend: readonly [number, number
 
 // ── 圖例的顏色說明（3.3；走查 F5）：文字跟著模式換。3.6 加選區模式（藍＝這區的人去哪、橘紅＝誰來這裡）。 ──
 
-export type FlowMode = "city";
+export type FlowMode = "city" | "district";
 
 export const FLOW_KEYS: Record<FlowMode, { token: string; label: string }[]> = {
   city: [{ token: "--flow-neutral", label: "橘＝全城流向" }],
+  district: [
+    { token: "--flow-out", label: "藍＝這區的人去哪" },
+    { token: "--flow-in", label: "橘紅＝誰來這裡" },
+  ],
 };
+
+/** 緞帶、光點、標籤的顏色 token：去哪藍、誰來橘紅、全城橘（DESIGN.md 色票）。 */
+export function flowToken(kind?: FlowKind): string {
+  return kind === "out" ? "--flow-out" : kind === "in" ? "--flow-in" : "--flow-neutral";
+}
+
+// ── 展開一區的站（3.6）：站珠的檢視模型（AD-19 的 StationFrame） ──
+
+/** 一個要畫的站：站在 stations.json 的索引、位置、路線色 token 與這一小時的進出人數。 */
+export interface StationFrame {
+  index: number;
+  id: string;
+  /** 畫面上的短名（去掉括號裡的路線） */
+  label: string;
+  lon: number;
+  lat: number;
+  /** 第一條路線的色 token（AD-21），沒有路線資料時用 --station */
+  token: string;
+  /** 此刻進出人數（traits.ts stationVolume）；停止營運為 null */
+  value: number | null;
+}
+
+/** 畫面上的站名：去掉括號裡的路線（板橋（板南線）→ 板橋）；同名站靠位置與路線色分辨。 */
+export const stationLabel = (display: string) => display.replace(/（.*）$/, "");
+
+/** 首頁要用的車站索引：依行政區分組（stations.json 的 district，AD-9）、站 ID 對索引、每站的路線。 */
+export interface StationIndex {
+  month: string;
+  stations: Station[];
+  byDistrict: Map<string, number[]>;
+  byId: Map<string, number>;
+  /** 第一條路線的色 token；沒有路線資料時 --station */
+  token(i: number): string;
+  /** 每站的路線（basemap.json stationLines，AD-21） */
+  lines(i: number): LineId[];
+  /** 當月單一站單一小時的最大進出（兩種日型）；站珠大小的分母 */
+  peak: number;
+}
+
+export function stationIndex(file: StationsFile, stationLines: Record<string, LineId[]>): StationIndex {
+  const byDistrict = new Map<string, number[]>();
+  file.stations.forEach((s, i) => {
+    const list = byDistrict.get(s.district);
+    if (list) list.push(i);
+    else byDistrict.set(s.district, [i]);
+  });
+  let peak = 1;
+  for (const s of file.stations)
+    for (const day of ["weekday", "holiday"] as const)
+      for (let h = 0; h < 24; h++) peak = Math.max(peak, stationVolume(s, day, h).value ?? 0);
+  return {
+    peak,
+    month: file.month,
+    stations: file.stations,
+    byDistrict,
+    byId: new Map(file.stations.map((s, i) => [s.id, i])),
+    lines: (i) => stationLines[file.stations[i]?.id] ?? [],
+    token(i) {
+      const l = stationLines[file.stations[i]?.id]?.[0];
+      return l ? lineToken(l) : "--station";
+    },
+  };
+}
+
+/** 一區的站珠（3.6 展開該區的站）：位置、路線色與此刻進出（traits.ts，AD-26）。 */
+export function stationFrames(index: StationIndex, district: string, dayType: DayType, hour: number): StationFrame[] {
+  return (index.byDistrict.get(district) ?? []).map((i) => {
+    const s = index.stations[i];
+    return {
+      index: i,
+      id: s.id,
+      label: stationLabel(s.display),
+      lon: s.lon,
+      lat: s.lat,
+      token: index.token(i),
+      value: stationVolume(s, dayType, hour).value,
+    };
+  });
+}
