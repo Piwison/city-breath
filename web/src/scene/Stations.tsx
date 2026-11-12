@@ -216,6 +216,7 @@ export function Stations({
     colors: null as unknown,
     colorStation: undefined as string | null | undefined,
     index: null as StationIndex | null,
+    meshes: null as unknown,
   });
   const o = useMemo(() => new Object3D(), []);
   const P = useMemo(() => new Vector3(), []);
@@ -226,12 +227,13 @@ export function Stations({
   useFrame(({ camera, size }, dt) => {
     const S = st.current;
     const n = frames.length;
-    // frames 每個整點換一份（value 變了），站的順序不變；換了一組站（換月份）才從頭來、不緩動
-    const reset = S.index !== index || S.shown.length !== n;
+    // frames 每個整點換一份（value 變了），站的順序不變；換了一組站（換月份）或換了等級（重建網格）才從頭來、不緩動
+    const reset = S.index !== index || S.meshes !== meshes || S.shown.length !== n;
     if (reset) {
       S.shown = new Float32Array(n);
       S.open = new Float32Array(n);
       S.index = index;
+      S.meshes = meshes;
     }
     if (!visible) {
       link.spots = [];

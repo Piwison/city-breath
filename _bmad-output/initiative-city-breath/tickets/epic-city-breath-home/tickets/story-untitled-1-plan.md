@@ -3,14 +3,14 @@ title: '車站柱與站珠'
 type: 'feature'
 ticket: '1'
 created: '2026-11-12'
-status: 'in-progress'
+status: 'built'
 baseline_revision: 'b7ce6a6aae61ec69dd9b32e289cbf503cbd23575'
 route: 'full'
 route_source: 'auto'
 risk: 'low'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-game-juice/SKILL.md']
 ---
@@ -63,11 +63,11 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `web/src/data/views.ts`、`data/district.test.ts` -- 柱高、內插、null、環狀線、全部站
-- [ ] `web/src/scene/stationRules.ts`、`stationRules.test.ts` -- 放大判斷、可點規則、名牌挑選
-- [ ] `web/src/scene/Stations.tsx`、刪 `DistrictStations.tsx`、`Selection.tsx`、`DistrictLabels.tsx`、`ScenePage.tsx` -- 場景
-- [ ] `web/src/state/view.ts`、`LayerPanel.tsx`、`scene.css` -- 圖層
-- [ ] `design/reviews/3.1-stations/` -- Playwright 截圖與原型並排；draw call／三角形
+- [x] `web/src/data/views.ts`、`data/stations.test.ts`（新） -- 柱高、內插、null、環狀線、全部站
+- [x] `web/src/scene/stationRules.ts`、`stationRules.test.ts` -- 放大判斷、可點規則、名牌挑選
+- [x] `web/src/scene/Stations.tsx`、刪 `DistrictStations.tsx`、`Selection.tsx`、`DistrictLabels.tsx`、`ScenePage.tsx` -- 場景
+- [x] `web/src/state/view.ts`、`LayerPanel.tsx`、`scene.css` -- 圖層
+- [x] `design/reviews/3.1-stations/` -- Playwright 截圖與原型並排；draw call／三角形
 
 **Acceptance Criteria:**
 - Given 首頁全城 8 點, then 每站有柱，市中心的柱明顯比郊區高。
@@ -78,9 +78,36 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 
 ## Implementation Notes
 
+- 沒有 subagent 工具：實作與 Quick lens 自審都在這個 session 做（同 3.5、3.6、3.13）。Checkpoint 由協調者的委派訊息代替人工核准；要 Piwi 決定的列在 PR 說明。
+- **協調者 2026-11-12 補充（合併 origin/main 17c3c1a，含 3.4 城市睡覺與 3.20 契約 v4）**：站柱接上 3.4 的 `state/service.ts sleepAt(time.t, dayType, calm)`，柱高與站燈都乘上 1 − 入睡程度，停駛前和流向一起淡出、減少動態時直接切換。因此 `pillarAt` 播放中遇到「下一小時停駛」時維持這一小時的高度（不再往 0 內插），淡出交給 sleepAt；矩陣「播放中：一邊 null 柱從廣場長出」改成「停駛的那一小時沒有柱，清晨開始營運時柱以 HEIGHT_RATE 緩動長出、減少動態直接出現」（凍結區塊未改，記在這裡）。
+- **全部站都畫**（原型相同）：全城視角是細小的柱，放大或選區才點得到、才標名。3.6 的 `DistrictStations`（選區才出現、大小依人數的站珠）刪除，改由 `Stations.tsx` 提供；站珠大小固定（選中 ×1.6），人數只看柱高。
+- **柱高**：`views.ts pillarHeight = 0.35 + 2.1·√(min(1, v/P))`（原型），P＝當月單站單小時最大進出；`null` → 沒有柱、站珠往 `--station` 褪 65%、自發光乘上營運比例。播放中依 time.t 內插，暫停或減少動態用整點（與小卡「平日 8 點」同值）；柱高以 `1 − e^(−9·dt)` 追目標，減少動態或靜態模式直接切換。環狀線站 `entriesOnly`，只算進站，圖層說明寫明。
+- **顏色**：站珠＝第一條路線 `--line-*`、廣場＝最後一條路線（轉乘站看得到兩色）、細柱 `--station`、站珠自發光 `--station-glow` 乘路線色（原型 tintEmissive），強度 (0.25 + 1.5·night)·營運比例。
+- **名牌規則**（`stationRules.ts`）：全城沒放大（< 11 px／單位）不標；放大沒選區時依這個日型的全日進出取前 10 個放得下的（穩定，不隨播放跳動；原型用此刻進出前 12）；選了區只標這區的站（別區不標）；選中的站一定標，碰到流向標籤時上下每 4px 挪開最多 64px，挪不開才壓上。名牌避開流向標籤、HUD、時間軸／小卡與畫面邊緣；區名再避開站名（`LabelBoard.stationRects`）。
+- **點擊**：`stationPickable`：放大、站在選中的區、或已選一站時可點；命中半徑 22px（44px 目標），站名中心也算一個點擊位置。順序 站 > 緞帶（目前不能點，從卡片聚焦）> 區；按在站上時不壓扁後面的區。
+- **站珠彈一下**：gsap 0.4 → 1，`elastic.out(1.3, 0.35)` 0.7 秒（原型 stPop）；減少動態或靜態模式時直接 1。
+- **效能**：三個 InstancedMesh（廣場、細柱、站珠），draw call +3；full 每站 372 個三角形（廣場 20 段、柱 10 段、站珠 14×10）＝120 站 44,640；lite 每站 144（10、6、8×6）＝17,280，且 lite 不投影（陰影 pass 少 2 個 call）。Playwright（390×844、DPR 2、swiftshader、暫停在平日 8 點）整個畫面：關車站 69 call → 開車站 72 call。`performance.getEntriesByName('stations:build')` 記等級與每站三角形。矩陣只在柱高、抬起、選取或彈跳在變時上傳；名牌只在鏡頭、畫面、柱高或流向標籤變了才重算。
+- bundle：ScenePage 1,151 KB → 1,159 KB（含 main 的 3.4）。
+- 無頭 swiftshader 約 0.5–2 fps；截圖等 25–70 秒。真機 fps 沒量（6.2 預覽部署後 Piwi 用 iPhone 實測）。
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+Quick lens（本 session 自審，含 Playwright 截圖發現的問題）：high 0、medium 3、low 2、false 0、maybe-false 0。
+
+| 判定 | 去向 | 發現與證據 |
+| --- | --- | --- |
+| medium | patch | 矩陣變更判斷和名牌重算共用 `last.key`，兩邊寫的字串不同，矩陣每格都重傳並要求陰影重畫（實測開車站多 11 個 call）；拆成 `matKey`。 |
+| medium | patch | `frames` 每個整點換一份，狀態跟著重設，暫停換時段時柱高沒有緩動；改成換月份或重建網格才重設。 |
+| medium | patch | 換等級（lite）重建網格時狀態沒重設，新網格的 instance 數維持 0、站全部消失；重設條件加上網格。 |
+| low | patch | 選中的站名被流向標籤蓋住（截圖：大安區選公館）；選中的站名上下每 4px 找空位。 |
+| low | patch | 站名本身點不到（在站珠上方約 20px，超出命中半徑）；名牌中心加進點擊位置。 |
+
+## Design Notes
+
+- 選區時只有部分站有名牌：流向標籤先放，站名避開它們（大安區平日 8 點只標得出 3／11 站，選了公館後 5 站）；選中的站一定標。
+- 3.6 的站珠大小依人數，3.1 改成柱高表現人數、站珠固定大小（原型）。
 
 ## Verification
 

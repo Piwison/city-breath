@@ -54,6 +54,22 @@ describe("chooseStationLabels（避開重疊、只標重要的）", () => {
     const out = chooseStationLabels([cand("big", 200, 300, 1, 99), cand("me", 205, 300, 0, 1)], area, []);
     expect(out.map((p) => p.id)).toEqual(["me"]);
   });
+  it("選中的站碰到流向標籤時上下挪開；挪不開才壓在上面", () => {
+    const flow: [number, number, number, number] = [200, 291, 120, 20];
+    const out = chooseStationLabels([cand("me", 200, 300, 0)], area, [flow]);
+    expect(out).toHaveLength(1);
+    const [, y, , h] = out[0].rect;
+    expect(Math.abs(y - flow[1]) >= (h + flow[3]) / 2).toBe(true);
+    // 實測（大安區選公館）：兩個流向標籤中間只剩一條窄縫，也要擠得進去
+    const two: [number, number, number, number][] = [
+      [178, 135, 91, 39],
+      [188, 200, 91, 39],
+    ];
+    const [snug] = chooseStationLabels([cand("me", 195, 189, 0)], area, two);
+    for (const [qx, qy, qw, qh] of two) expect(Math.abs(qx - snug.rect[0]) < (qw + 60) / 2 && Math.abs(qy - snug.rect[1]) < (qh + 18) / 2).toBe(false);
+    const crowded = { ...area, top: 270, bottom: 310 };
+    expect(chooseStationLabels([cand("me", 200, 300, 0)], crowded, [flow]).map((p) => p.y)).toEqual([300]);
+  });
   it("一般站名最多 GENERAL_LABELS 個，選區的站不受此限", () => {
     const many = Array.from({ length: 30 }, (_, i) => cand(`g${i}`, 40 + (i % 5) * 70, 120 + Math.floor(i / 5) * 40, 2, i));
     expect(chooseStationLabels(many, area, [])).toHaveLength(GENERAL_LABELS);

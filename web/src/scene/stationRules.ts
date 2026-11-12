@@ -1,6 +1,6 @@
 // 車站的點擊與名牌規則（3.1，純函式、可測）：什麼時候點得到站、標哪些站名。
 // 原型：放大到看得見站名、或站所在的區已選取時才點得到（全城視角點下去是選區）；站名只標重要的，避免一片字。
-import type { Rect, SafeArea } from "./labelPlace";
+import { EDGE, type Rect, type SafeArea } from "./labelPlace";
 
 /**
  * 「放大了」：鏡頭看著的那一點，一個場景單位至少幾像素（ScaleProbe 量的 px）。
@@ -68,7 +68,8 @@ export interface PlacedLabel {
 /**
  * 挑出要標的站名並避開重疊（原型 updateLabels 的站名部分）：
  * 依等級、再依重要性排序；名牌整個要在安全區（上方 HUD 之下、時間軸或小卡之上、左右不出畫面）。
- * 選中的站一定標（壓在別人上面也標）；其餘和已佔用的矩形（流向標籤、先放的站名）重疊就略過；一般站名最多 cap 個。
+ * 選中的站一定標：先試著上下挪開（每次 4px，最多 NUDGE_PX）避開流向標籤與別的名牌，挪不開才壓在上面；
+ * 其餘和已佔用的矩形（流向標籤、先放的站名）重疊就略過；一般站名最多 cap 個。
  */
 export function chooseStationLabels(
   cands: readonly LabelCandidate[],
@@ -83,14 +84,40 @@ export function chooseStationLabels(
   for (const c of order) {
     if (c.tier === 2 && general >= cap) continue;
     if (!c.front) continue;
+    if (c.tier === 0) {
+      const moved = nudge(c, area, rects);
+      if (moved) {
+        rects.push(moved.rect);
+        placed.push({ id: c.id, ...moved });
+        continue;
+      }
+    }
     const inside = c.x - c.w / 2 >= 0 && c.x + c.w / 2 <= area.width && c.y - c.h >= area.top && c.y <= area.bottom;
     if (!inside) continue;
     const rect: Rect = [c.x, c.y - c.h / 2, c.w, c.h];
-    const hit = rects.some(([qx, qy, qw, qh]) => Math.abs(qx - rect[0]) < (qw + c.w) / 2 && Math.abs(qy - rect[1]) < (qh + c.h) / 2);
-    if (hit && c.tier !== 0) continue;
+    if (c.tier !== 0 && overlaps(rect, rects)) continue;
     rects.push(rect);
     placed.push({ id: c.id, x: c.x, y: c.y, rect });
     if (c.tier === 2) general++;
   }
   return placed;
+}
+
+/** 選中的站名最多上下挪多遠（px）。 */
+export const NUDGE_PX = 64;
+
+const overlaps = (r: Rect, rects: readonly Rect[]) =>
+  rects.some(([qx, qy, qw, qh]) => Math.abs(qx - r[0]) < (qw + r[2]) / 2 && Math.abs(qy - r[1]) < (qh + r[3]) / 2);
+
+/** 從原位開始上下交替找最近的空位（左右夾在畫面內）；找不到回傳 null。 */
+function nudge(c: LabelCandidate, area: SafeArea, rects: readonly Rect[]): { x: number; y: number; rect: Rect } | null {
+  if (!(c.x >= 0 && c.x <= area.width)) return null;
+  const x = Math.min(Math.max(c.x, EDGE + c.w / 2), area.width - EDGE - c.w / 2);
+  for (let d = 0; d <= NUDGE_PX; d += 4)
+    for (const y of d ? [c.y - d, c.y + d] : [c.y]) {
+      if (y - c.h < area.top || y > area.bottom) continue;
+      const rect: Rect = [x, y - c.h / 2, c.w, c.h];
+      if (!overlaps(rect, rects)) return { x, y, rect };
+    }
+  return null;
 }
