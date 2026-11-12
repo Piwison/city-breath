@@ -3,7 +3,7 @@ title: '車站柱與站珠'
 type: 'feature'
 ticket: '1'
 created: '2026-11-12'
-status: 'built'
+status: done
 baseline_revision: 'b7ce6a6aae61ec69dd9b32e289cbf503cbd23575'
 route: 'full'
 route_source: 'auto'
