@@ -1,4 +1,4 @@
-// 資料契約 v3 的型別。來源：pipeline/src/city_breath_pipeline/export.py
+// 資料契約 v4 的型別。來源：pipeline/src/city_breath_pipeline/export.py
 // 契約說明：docs/data-contract.md。改這裡就要一起改 pipeline（AD-1）。
 
 export type DayType = "weekday" | "holiday";
@@ -117,6 +117,13 @@ export interface District {
   inflowPartial: boolean;
   /** 簡化後的界線，GeoJSON MultiPolygon 座標（經緯度）；經 project() 轉場景座標（AD-12） */
   polygon: LonLat[][][];
+  /**
+   * 區總量（v4，3.20）：區內車站每小時的平均進站、出站人次。照 AD-7 由各站整數總人次先加總再除天數，
+   * 區排名只讀這裡，不把 stations.json 的站平均相加。停止營運為 null（AD-5）。exits 只算出站有紀錄的站，
+   * inflowPartial 的區少算（要附說明）。沒有車站的區為 null。
+   */
+  weekday: Profile | null;
+  holiday: Profile | null;
 }
 
 export interface DistrictsFile {

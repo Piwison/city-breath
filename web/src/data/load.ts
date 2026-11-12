@@ -8,10 +8,11 @@ import type {
   MetaFile,
   MonthsFile,
   OdShard,
+  Profile,
   StationsFile,
 } from "./types";
 
-export const CONTRACT_VERSION = 3;
+export const CONTRACT_VERSION = 4;
 const BASE = `${import.meta.env.BASE_URL}data`;
 
 const cache = new Map<string, Promise<unknown>>();
@@ -36,7 +37,24 @@ async function getJson<T>(path: string): Promise<T> {
 export const loadMonths = () => getJson<MonthsFile>("months.json");
 export const loadMeta = (month: string) => getJson<MetaFile>(`${month}/meta.json`);
 export const loadStations = (month: string) => getJson<StationsFile>(`${month}/stations.json`);
-export const loadDistricts = (month: string) => getJson<DistrictsFile>(`${month}/districts.json`);
+/**
+ * 行政區界線與區總量（v4）。版本由 getJson 驗；另外檢查每個有車站的區都有 weekday／holiday 的
+ * entries、exits 各 24 格，沒有車站的區為 null（區排名只讀這裡，AD-7）。
+ */
+export async function loadDistricts(month: string): Promise<DistrictsFile> {
+  const body = await getJson<DistrictsFile>(`${month}/districts.json`);
+  const profileOk = (p: Profile | null | undefined) =>
+    !!p && p.entries?.length === 24 && p.exits?.length === 24;
+  const ok =
+    body.v === CONTRACT_VERSION &&
+    body.month === month &&
+    Array.isArray(body.districts) &&
+    body.districts.every((d) =>
+      d.stations?.length ? profileOk(d.weekday) && profileOk(d.holiday) : d.weekday === null && d.holiday === null,
+    );
+  if (!ok) throw new Error(`${month} 的 districts.json 的形狀與資料契約不符`);
+  return body;
+}
 /** 行政區×行政區×小時×日型（約 72 KB），首頁與行政區展開用 */
 export const loadDistrictFlows = (month: string) => getJson<DistrictFlowsFile>(`${month}/district-flows.json`);
 /**

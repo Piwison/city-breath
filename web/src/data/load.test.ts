@@ -298,3 +298,49 @@ describe("loadBasemap", () => {
     await expect((await fresh())()).rejects.toThrow("形狀");
   });
 });
+
+describe("loadDistricts", () => {
+  const profile = () => ({ entries: hours(), exits: hours() });
+  const districts = (month: string, over: Record<string, unknown> = {}) => ({
+    v: CONTRACT_VERSION,
+    month,
+    districts: [
+      { id: "63000010", stations: [0], weekday: profile(), holiday: profile() } as Record<string, unknown>,
+      { id: "65000300", stations: [], weekday: null, holiday: null } as Record<string, unknown>,
+    ],
+    ...over,
+  });
+  const fresh = async () => {
+    vi.resetModules();
+    return (await import("./load")).loadDistricts;
+  };
+
+  it("v4：有車站的區帶平日／假日 24 格區總量，沒有車站的區為 null", async () => {
+    mockFetch({ "2031-01/districts.json": districts("2031-01") });
+    const d = await (await fresh())("2031-01");
+    expect(d.districts[0].weekday?.entries).toHaveLength(24);
+    expect(d.districts[1].holiday).toBeNull();
+  });
+
+  it("舊版（v3）、缺區總量或不是 24 格就報錯", async () => {
+    mockFetch({ "2031-02/districts.json": districts("2031-02", { v: 3 }) });
+    await expect((await fresh())("2031-02")).rejects.toThrow("版本");
+    const missing = districts("2031-03");
+    delete missing.districts[0].holiday;
+    mockFetch({ "2031-03/districts.json": missing });
+    await expect((await fresh())("2031-03")).rejects.toThrow("形狀");
+    const short = districts("2031-04");
+    short.districts[0].weekday = { entries: [1], exits: hours() };
+    mockFetch({ "2031-04/districts.json": short });
+    await expect((await fresh())("2031-04")).rejects.toThrow("形狀");
+  });
+
+  it("所有已輸出月份的 districts.json 都通過檢查", async () => {
+    const files = import.meta.glob("../../public/data/*/districts.json", { import: "default", eager: true });
+    const months = Object.keys(files).map((k) => k.split("/").at(-2)!);
+    expect(months.length).toBeGreaterThan(0);
+    mockFetch(Object.fromEntries(Object.entries(files).map(([k, v]) => [k.replace("../../public/data/", ""), v])));
+    const load = await fresh();
+    for (const m of months) await expect(load(m)).resolves.toMatchObject({ month: m, v: CONTRACT_VERSION });
+  });
+});
