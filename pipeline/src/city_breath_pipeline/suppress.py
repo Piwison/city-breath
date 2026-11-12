@@ -192,6 +192,9 @@ def district_groups(
        也能把 od 加總反推它。所以 od 與行政區格要在同一次 ``apply`` 一起處理（兩種鍵形狀不同，不會撞）。
 
     沒有「全日」組：district-flows.json 之外沒有公開任何行政區的全日總量。
+
+    契約 v4（3.20）在 districts.json 公開每區每小時的 ``entries``／``exits``：恰是 1. 列、2. 欄的總量
+    （區內各站 ``entries[h]``、出站有紀錄各站 ``exits[h]`` 之和），本來就當作已公開，所以不新增組、不新藏格。
     """
     origins_in: dict[int, list[int]] = {}
     for oi in origins:

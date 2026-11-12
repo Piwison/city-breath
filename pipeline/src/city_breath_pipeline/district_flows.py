@@ -72,6 +72,46 @@ def district_raw(
     return index, dest, raw
 
 
+def district_profiles(
+    station_hourly: Iterable[tuple],
+    stations: list[Station],
+    codes: Mapping[str, str],
+    day_counts: Mapping[str, int],
+    service_hours: list[int],
+) -> dict[str, dict[str, dict[str, list[int | None]]]]:
+    """districts.json 的區總量（3.20，契約 v4）：區代碼 → 日型 → ``{"entries": [24], "exits": [24]}``。
+
+    ``station_hourly`` 是 ``MonthAggregate.station_hourly``（站、日型、小時、平均進、平均出）。照 AD-7，
+    區內各站的整數總人次先加總、再除以該日型天數、最後四捨五入；停止營運的小時（不在 ``service_hours``）
+    為 ``None``（AD-5）。``exits`` 只算出站有紀錄的站（環狀線站的出站不在資料中，``inflowPartial`` 的區少算）。
+    只列有車站的區；區內沒有任何出站有紀錄的站時無法給出站量，丟 ``ValueError``。
+
+    這兩個陣列都是已公開的站總量之和（AD-3 的「已公開的總量」），也正是 suppress.py 行政區列組、欄組的總量。
+    """
+    by_name = {s.name: s for s in stations}
+    members = {codes[s.name] for s in stations}
+    recorded = {codes[s.name] for s in stations if s.exits_recorded}
+    if members - recorded:
+        raise ValueError(f"這些區沒有出站有紀錄的站，無法輸出區的出站量：{sorted(members - recorded)}")
+    service = set(service_hours)
+    totals: dict[tuple[str, str, str, int], int] = defaultdict(int)  # (區, 日型, entries|exits, 小時) → 人次
+    for name, t, h, ent, ext in station_hourly:
+        code = codes[name]
+        totals[(code, t, "entries", h)] += total_count(ent, day_counts[t])
+        if by_name[name].exits_recorded:
+            totals[(code, t, "exits", h)] += total_count(ext, day_counts[t])
+    return {
+        code: {
+            t: {
+                m: [round(totals.get((code, t, m, h), 0) / day_counts[t]) if h in service else None for h in range(24)]
+                for m in ("entries", "exits")
+            }
+            for t in DAY_TYPES
+        }
+        for code in sorted(members)
+    }
+
+
 def inbound_raw(
     od_hourly: Iterable[tuple],
     stations: list[Station],
