@@ -346,8 +346,10 @@
 .scene-dock .mini.still[aria-pressed="true"] { background: var(--hud-accent); border-color: transparent; color: var(--hud-on); }
 .scene-dock .mini.still[aria-pressed="true"] b { color: var(--hud-on); }
 
-/* 時段名浮出（3.3）：上方第二排（此刻最忙，3.10）之下；收起時看不見、不接手指 */
-.period-toast {
+/* 時段名浮出（3.3）與停駛時的睡覺提示（3.4）：上方第二排（此刻最忙，3.10）之下的同一個位置；
+   停駛時段名不浮出，所以兩個不會同時出現。收起時看不見、不接手指 */
+.period-toast,
+.sleep-hint {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + 12px + var(--tap) + 8px + 34px + 8px);
   left: 50%;
@@ -367,7 +369,8 @@
   transition: opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out),
     visibility var(--dur-enter) step-end;
 }
-.period-toast[data-open="true"] {
+.period-toast[data-open="true"],
+.sleep-hint[data-open="true"] {
   opacity: 1;
   visibility: visible;
   transform: translate(-50%, 0);
@@ -376,6 +379,17 @@
 }
 .period-toast b { font-weight: 700; }
 .period-toast small { font-size: var(--text-xs); color: var(--hud-muted); }
+/* 睡覺提示：比時段名安靜（不浮出又收起，整段停駛都在），一彎月亮＋字，不搶畫面 */
+.sleep-hint { align-items: center; gap: 6px; }
+.sleep-hint b { font-weight: 600; }
+.sleep-hint small { font-size: var(--text-xs); color: var(--hud-muted); }
+.sleep-hint .moon {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  box-shadow: inset -4px 2px 0 0 var(--moon-disc);
+}
 
 /* 左上：「找你的通勤」入口與表單（4.1 換成正式的搜尋入口與通勤卡） */
 .commute-pill {
