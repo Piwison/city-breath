@@ -1,7 +1,9 @@
-// 點行政區、點站（3.6）：點擊判斷與選取後的鏡頭。
-// 點擊：按下到放開移動 < 6px、只有一根手指才算點（拖曳、捏合交給鏡頭）。先看站珠（螢幕距離 22px 內，
-// 手機 44px 的目標），再用 raycaster 打 21 區的地塊（一個平面陣列、不遞迴，threejs-core-raycaster）；
-// 點到空白處關卡。按下時那區微微壓扁、放開彈回（DistrictLift），Android 輕震。
+// 點行政區、點站（3.6、3.1）：點擊判斷與選取後的鏡頭。
+// 點擊：按下到放開移動 < 6px、只有一根手指才算點（拖曳、捏合交給鏡頭）。
+// 優先順序：站 > 緞帶 > 區。先看站珠（螢幕距離 22px 內＝手機 44px 的目標；放大或選了區才有可點的站，
+// stationRules.ts），緞帶目前不能點（聚焦從行政區卡點，之後加在這一步），再用 raycaster 打 21 區的地塊
+// （一個平面陣列、不遞迴，threejs-core-raycaster）；點到空白處關卡。
+// 按下時那區微微壓扁、放開彈回（DistrictLift），按在站上時不壓區；Android 輕震。
 // 鏡頭：選區飛到那區、選站飛到那站、聚焦一條流向飛到它的中點，關卡回到全景；減少動態或靜態模式時直接切換。
 // 手機上目標往南偏，讓主體落在小卡之上（原型 lookAt）。
 import type { CameraControls } from "@react-three/drei";
@@ -12,7 +14,7 @@ import type { BaseView, StationIndex } from "../data/views";
 import { closeCard, getView, selectDistrict, selectStation, useView } from "../state/view";
 import { home } from "./CameraRig";
 import type { PressLink } from "./DistrictLift";
-import type { StationLink } from "./DistrictStations";
+import type { StationLink } from "./Stations";
 import { project } from "./projection";
 
 /** 移動超過幾像素就不算點。 */
@@ -79,7 +81,10 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
         release();
         return;
       }
-      const id = districtAt(e);
+      // 按在可點的站上：之後放開會選站，不壓扁後面的區
+      const r = el.getBoundingClientRect();
+      const onStation = nearestSpot(stations.spots, e.clientX - r.left, e.clientY - r.top) !== null;
+      const id = onStation ? null : districtAt(e);
       down = { x: e.clientX, y: e.clientY, id };
       if (id) press.press?.(id, true);
     };
@@ -91,13 +96,14 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
       if (!d || e.target !== el || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return;
       const v = getView();
       const r = el.getBoundingClientRect();
-      // 站珠只在選了區時出現；手指在站珠附近就算點站
-      const sid = v.district ? nearestSpot(stations.spots, e.clientX - r.left, e.clientY - r.top) : null;
+      // 1. 站：spots 只有此刻點得到的站（放大、選中的區、已選站），手指在站珠 22px 內就算點站
+      const sid = nearestSpot(stations.spots, e.clientX - r.left, e.clientY - r.top);
       if (sid) {
         navigator.vibrate?.(6);
         selectStation(sid);
         return;
       }
+      // 2. 緞帶：目前不能點（3.5、3.6 從卡片聚焦）；3. 區
       const id = districtAt(e);
       if (id) {
         navigator.vibrate?.(6);
