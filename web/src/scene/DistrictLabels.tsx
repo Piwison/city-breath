@@ -18,6 +18,9 @@ export type LabelEls = MutableRefObject<(HTMLDivElement | null)[]>;
 export interface LabelBoard {
   rects: [number, number, number, number][];
   version: number;
+  /** 已放的站名（3.1 Stations 在流向標籤之後、區名之前放）；stationVersion 每次改寫加一 */
+  stationRects: [number, number, number, number][];
+  stationVersion: number;
   /** 流向標籤可放的上下界（螢幕像素）：上方 HUD 的下緣、時間軸的上緣；ScenePage 量 */
   safeTop: number;
   safeBottom: number;
@@ -70,6 +73,7 @@ export function DistrictLabelProjector({
   );
   const P = useMemo(() => new Vector3(), []);
   const last = useRef({ m: new Matrix4(), w: 0, h: 0, visible: false, board: -1, lift: -1, selected: null as string | null });
+  const lastStations = useRef(-1);
   // 選中的區名藏起來（卡片標題就是它，原型 updateLabels）；其他區名跟著區抬起／微沉（lift.ts）
   const selected = useView((s) => s.district);
 
@@ -83,6 +87,7 @@ export function DistrictLabelProjector({
     if (
       L.visible &&
       L.board === bv &&
+      lastStations.current === (board?.stationVersion ?? 0) &&
       L.lift === lifts.frame &&
       L.selected === selected &&
       L.w === size.width &&
@@ -95,9 +100,11 @@ export function DistrictLabelProjector({
     L.h = size.height;
     L.visible = true;
     L.board = bv;
+    lastStations.current = board?.stationVersion ?? 0;
     L.lift = lifts.frame;
     L.selected = selected;
-    const placed: [number, number, number, number][] = [...(board?.rects ?? [])];
+    // 流向標籤與站名先放，區名避開它們（原型 updateLabels）
+    const placed: [number, number, number, number][] = [...(board?.rects ?? []), ...(board?.stationRects ?? [])];
     for (const i of order) {
       const el = els.current[i];
       if (!el) continue;

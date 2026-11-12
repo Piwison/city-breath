@@ -386,7 +386,7 @@ export function flowToken(kind?: FlowKind): string {
   return kind === "out" ? "--flow-out" : kind === "in" ? "--flow-in" : "--flow-neutral";
 }
 
-// ── 展開一區的站（3.6）：站珠的檢視模型（AD-19 的 StationFrame） ──
+// ── 車站（3.6 站珠、3.1 車站柱）：站的檢視模型（AD-19 的 StationFrame） ──
 
 /** 一個要畫的站：站在 stations.json 的索引、位置、路線色 token 與這一小時的進出人數。 */
 export interface StationFrame {
@@ -396,10 +396,18 @@ export interface StationFrame {
   label: string;
   lon: number;
   lat: number;
-  /** 第一條路線的色 token（AD-21），沒有路線資料時用 --station */
+  /** 所屬行政區（stations.json 的 district，AD-9） */
+  district: string;
+  /** 站珠：第一條路線的色 token（AD-21），沒有路線資料時用 --station */
   token: string;
+  /** 廣場：最後一條路線的色 token（轉乘站看得到兩種顏色；單線站同 token） */
+  plazaToken: string;
   /** 此刻進出人數（traits.ts stationVolume）；停止營運為 null */
   value: number | null;
+  /** 這個日型的全日進出（停止營運的小時跳過；名牌挑「重要的站」用） */
+  dayTotal: number;
+  /** 出站未入檔（環狀線）：value 只算進站 */
+  entriesOnly: boolean;
 }
 
 /** 畫面上的站名：去掉括號裡的路線（板橋（板南線）→ 板橋）；同名站靠位置與路線色分辨。 */
@@ -415,7 +423,7 @@ export interface StationIndex {
   token(i: number): string;
   /** 每站的路線（basemap.json stationLines，AD-21） */
   lines(i: number): LineId[];
-  /** 當月單一站單一小時的最大進出（兩種日型）；站珠大小的分母 */
+  /** 當月單一站單一小時的最大進出（兩種日型）；柱高的分母 */
   peak: number;
 }
 
@@ -444,18 +452,69 @@ export function stationIndex(file: StationsFile, stationLines: Record<string, Li
   };
 }
 
-/** 一區的站珠（3.6 展開該區的站）：位置、路線色與此刻進出（traits.ts，AD-26）。 */
-export function stationFrames(index: StationIndex, district: string, dayType: DayType, hour: number): StationFrame[] {
-  return (index.byDistrict.get(district) ?? []).map((i) => {
+/**
+ * 站的 frame：district 給一區的站（3.6 行政區卡、展開），null 給全部的站（3.1 車站柱）。
+ * 位置、路線色與此刻進出都從 stations.json＋basemap.json 的 stationLines 來（traits.ts，AD-26）。
+ */
+export function stationFrames(index: StationIndex, district: string | null, dayType: DayType, hour: number): StationFrame[] {
+  const list = district === null ? index.stations.map((_, i) => i) : (index.byDistrict.get(district) ?? []);
+  return list.map((i) => {
     const s = index.stations[i];
+    const lines = index.lines(i);
     return {
       index: i,
       id: s.id,
       label: stationLabel(s.display),
       lon: s.lon,
       lat: s.lat,
+      district: s.district,
       token: index.token(i),
+      plazaToken: lines.length ? lineToken(lines[lines.length - 1]) : "--station",
       value: stationVolume(s, dayType, hour).value,
+      dayTotal: stationVolume(s, dayType, "day").value ?? 0,
+      entriesOnly: !s.exitsRecorded,
     };
   });
+}
+
+// ── 車站柱（3.1）：柱高＝此刻進出人數。人數決定的高度不是高程，不經 elevation()、不乘地形倍數（AD-12）。 ──
+
+/** 0 人時的柱高（場景單位）：最矮但看得到，和停止營運（沒有柱）分得出來（AD-5）。 */
+export const PILLAR_MIN = 0.35;
+/** 單站單小時最大進出時，柱高再加多少（原型 0.35 + 2.1·√(a/max)）。 */
+export const PILLAR_GAIN = 2.1;
+
+/** 進出 value 人的柱高；平方根比例，讓郊區小站也看得到。停止營運（null）回傳 null，不當 0。 */
+export function pillarHeight(value: number | null, peak: number): number | null {
+  if (value === null) return null;
+  return PILLAR_MIN + PILLAR_GAIN * Math.sqrt(Math.min(1, Math.max(0, value) / Math.max(1, peak)));
+}
+
+/** 畫面上的柱：高度（停止營運時 0，柱收進廣場）與營運程度 open（1＝有車、0＝停止營運；站珠依此熄燈）。 */
+export interface PillarState {
+  height: number;
+  open: number;
+}
+
+/**
+ * 某站在連續時間 t 的柱（stations.json 該日型的進出，traits.ts stationVolume）。
+ * 播放中（smooth）在 h 與 h+1 點之間內插（和街廓同一種內插），停止營運的那一邊高度 0、open 0，
+ * 所以清晨柱子從廣場長出來；不播放、或減少動態時用整點的值（和小卡上的「平日 8 點」一致）。
+ */
+export function pillarAt(index: StationIndex, i: number, dayType: DayType, t: number, smooth: boolean, out?: PillarState): PillarState {
+  const o = out ?? { height: 0, open: 0 };
+  const s = index.stations[i];
+  const x = ((t % 24) + 24) % 24;
+  const h0 = Math.floor(x);
+  const a = pillarHeight(stationVolume(s, dayType, h0).value, index.peak);
+  if (!smooth) {
+    o.height = a ?? 0;
+    o.open = a === null ? 0 : 1;
+    return o;
+  }
+  const f = x - h0;
+  const b = pillarHeight(stationVolume(s, dayType, (h0 + 1) % 24).value, index.peak);
+  o.height = (a ?? 0) * (1 - f) + (b ?? 0) * f;
+  o.open = (a === null ? 0 : 1) * (1 - f) + (b === null ? 0 : 1) * f;
+  return o;
 }

@@ -113,6 +113,7 @@
 .scene-layer-panel .sw { width: 18px; height: 18px; border-radius: 6px; }
 .scene-layer-panel .sw-rail { background: linear-gradient(135deg, var(--line-r) 0 25%, var(--line-bl) 25% 50%, var(--line-g) 50% 75%, var(--line-o) 75%); }
 .scene-layer-panel .sw-flow { background: linear-gradient(180deg, transparent 0 30%, var(--flow-neutral) 30% 70%, transparent 70%); }
+.scene-layer-panel .sw-station { background: linear-gradient(90deg, transparent 0 42%, var(--station) 42% 58%, transparent 58%), radial-gradient(circle at 50% 22%, var(--line-r) 0 22%, transparent 24%); border: 1px solid var(--hud-muted); }
 .scene-layer-panel .sw-water { background: var(--water); }
 .scene-layer-panel .sw-green { background: var(--green); }
 .scene-layer-panel .sw-building { background: linear-gradient(90deg, var(--roof) 0 55%, var(--tree) 55%); border: 1px solid var(--hud-muted); }
@@ -243,7 +244,7 @@
 .flabel[data-kind="out"] .route::before { background: var(--flow-out); }
 .flabel[data-kind="in"] .route::before { background: var(--flow-in); }
 
-/* 展開一區的站（3.6）：站珠上方的站名，路線色點＋短名；選中的站加粗 */
+/* 站名（3.6、3.1）：站珠上方，路線色點＋短名；選中的站加粗 */
 .slabel {
   position: absolute;
   left: 0;
