@@ -172,4 +172,8 @@ describe("windowsAt（3.13 街廓窗光）", () => {
     expect(windowsAt(2).lit).toBeLessThan(windowsAt(22).lit);
     expect(windowsAt(12).lit).toBeCloseTo(0.62, 6);
   });
+  it("停止營運的 2–4 點（3.4 城市睡覺）：亮著的窗維持深夜最少，與 0 點一致", () => {
+    const least = Math.min(...Array.from({ length: 96 }, (_, k) => windowsAt(k / 4).lit));
+    for (const h of [2, 3, 4, 4.9]) expect(windowsAt(h).lit).toBeCloseTo(least, 6);
+  });
 });
