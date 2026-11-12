@@ -21,6 +21,9 @@ export interface DistrictCardProps {
   legend: LegendLink;
 }
 
+/** 排名列的名稱：區內移動寫「大安區內」（手機兩欄放得下）。 */
+const rankName = (r: DistrictRank, names: Map<string, string>) => `${names.get(r.id) ?? r.id}${r.self ? "內" : ""}`;
+
 function RankList({ list, kind, district, names }: { list: DistrictRank[]; kind: "out" | "in"; district: string; names: Map<string, string> }) {
   const focus = useView((s) => s.focus);
   if (list.length === 0) return <p className="card-note">每個方向都少於 10 人。</p>;
@@ -37,10 +40,7 @@ function RankList({ list, kind, district, names }: { list: DistrictRank[]; kind:
         return (
           <li key={r.id}>
             <button type="button" aria-pressed={on} onClick={() => setFocus(on ? null : key)}>
-              <span className="n">
-                {names.get(r.id) ?? r.id}
-                {r.self && <small>（區內）</small>}
-              </span>
+              <span className="n">{rankName(r, names)}</span>
               <span className="v num">{fmt(r.value)} 人</span>
               <span className="s" aria-hidden="true">
                 <i style={{ width: `${((r.value / max) * 100).toFixed(1)}%`, background: `var(${token})` }} />
@@ -55,8 +55,7 @@ function RankList({ list, kind, district, names }: { list: DistrictRank[]; kind:
           {more.map((r, k) => (
             <span key={r.id}>
               {k > 0 && "・"}
-              {k + 4}. {names.get(r.id) ?? r.id}
-              {r.self && "（區內）"} <span className="num">{fmt(r.value)}</span> 人
+              {k + 4}. {rankName(r, names)} <span className="num">{fmt(r.value)}</span> 人
             </span>
           ))}
         </p>

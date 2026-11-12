@@ -3,14 +3,14 @@ title: '點行政區看去哪、誰來並展開站'
 type: 'feature'
 ticket: '6'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'built'
 baseline_revision: '9be96ae70a388a68b0b729dc877277915b7e6044'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-game-juice/SKILL.md']
 ---
@@ -73,12 +73,12 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `web/src/data/views.ts`、`traits.ts`、`periods.ts`＋測試 -- 去哪／誰來、整天、站量、時段標籤
-- [ ] `web/src/state/view.ts`＋`view.test.ts` -- 選取狀態與 cardOpened
-- [ ] `web/src/card/*` -- 共用卡框、時間列、行政區卡、最小車站卡
-- [ ] `web/src/scene/Flows.tsx`、`FlowLegend.tsx` -- 選區模式、聚焦、畫出動畫、圖例
-- [ ] `web/src/scene/DistrictPick.tsx`、`DistrictLift.tsx`、`lift.ts`、`DistrictStations.tsx`、`Rails.tsx`、`DistrictLabels.tsx`、`CameraRig.tsx`、`ScenePage.tsx`、`scene.css`、`package.json`（gsap） -- 場景串接
-- [ ] `design/reviews/3.6-district-card/` -- Playwright 截圖與原型並排
+- [x] `web/src/data/views.ts`、`traits.ts`、`periods.ts`＋測試 -- 去哪／誰來、整天、站量、時段標籤、雙向車道
+- [x] `web/src/state/view.ts`、`url.ts`＋測試 -- 選取狀態與 cardOpened；播放中不寫網址
+- [x] `web/src/card/*` -- 共用卡框、時間列、行政區卡、最小車站卡
+- [x] `web/src/scene/Flows.tsx`、`FlowLegend.tsx` -- 選區模式、聚焦、畫出動畫、車道、圖例
+- [x] `web/src/scene/Selection.tsx`（取代計畫中的 DistrictPick.tsx，含選取鏡頭，CameraRig 不動）、`DistrictLift.tsx`、`lift.ts`、`DistrictStations.tsx`、`Rails.tsx`、`DistrictLabels.tsx`、`ScenePage.tsx`、`scene.css`、`package.json`（gsap） -- 場景串接
+- [x] `design/reviews/3.6-district-card/` -- Playwright 截圖與原型並排
 
 **Acceptance Criteria:**
 - Given 播放中, when 點大安區, then 時間停住、區抬起、鏡頭飛過去、卡上寫「平日 N 點」、緞帶藍橘紅、圖例寫藍＝這區的人去哪、橘紅＝誰來這裡。
@@ -90,13 +90,37 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 
 ## Implementation Notes
 
+- 沒有 subagent 工具：實作與 Quick lens 自審都在這個 session 做（同 3.5、3.3）。plan 約 2,300 tokens，超過 1,600 的建議值；由主 session 委派一次做完，沒拆。Checkpoint 由委派訊息代替人工核准，Open Questions 改列在 PR 說明「要 Piwi 決定」。
+- **共用卡框**（`web/src/card/CardFrame.tsx`）：`<CardFrame kicker title when actions back timeRow footer onClose kind>`；`actions` 是標題列、關閉鈕左邊的槽（3.15 分享鈕），`footer` 放一行來源（3.17）或圖例，`timeRow` 可傳 `{ days }`（7.4 加大日子）或 `{ day: false }`。掛上時呼叫 `state/view.ts` 的 `cardOpened()` 停止播放（F1），關卡不恢復；Esc 關閉。`CardTimeRow`（‹ 時間 ›＋平日／假日）單獨匯出。進場用 CSS `@starting-style`＋`--dur-enter`（減少動態時歸零）。位置取代時間軸，最高 34vh、卡內捲動。
+- **選取狀態**：`view.ts` 加 `district`、`station`（站 ID）、`range`、`focus`；`selectDistrict`、`selectStation`、`setRange`、`setFocus`、`closeCard`、`cardOpened`。不寫進網址（3.15 加到 `url.ts`）。
+- **卡片數字**：`views.ts districtRanks()`（這一小時／整天，含區內，寫「大安區內」），前 3 之後加一行第 4、5 名，讓「永和平日 8 點去哪：中正 1,505、中山 1,411、大安 1,026、信義 756」在卡上看得到第 4 名；車站列表用 `traits.ts busiestStations()`（AD-26 的起點），數字後面寫「人」，第一個標「最忙」，環狀線站標「（只有進站）」。
+- **地圖**：`FlowSource.district()` 給這區前 5 去哪、前 5 誰來（跨區）；緞帶、箭頭、光帶改用頂點色（RGBA），去哪藍／誰來橘紅仍是同一個 mesh，聚焦一條時其他條 alpha 0.24、光點只走聚焦那條；卡片整天前 3 若不在這一小時前 5，聚焦時用 `FlowSource.pair()` 補畫。緞帶畫出：gsap 推 `uReveal`，shader 依頂點的 (位置, 延遲) 裁掉（原型是每條一個 mesh 用 drawRange，合併幾何改成 shader），換區、換日型、聚焦時觸發，整點更新不重畫，靜態模式／減少動態直接出現。
+- **抬起**：`DistrictLift`（gsap，選中 +1.8 `elastic.out(1.1, 0.4)` 0.7 秒、其他 −0.3 `power2.out` 0.45 秒；按下壓扁 0.86 再彈回）改 Terrain 的 `district-<id>` group（區裡的薄片、台地、河川、綠地一起動，沒改 Terrain.tsx）；`lift.ts` 的 `lifts` 給軌道（`Rails` 就地改寫 LineSegments2 的端點高度）、區名、站珠讀；合併 main 後 3.13 的 `<Blocks lift={lifts.ref}>` 讓建築與樹一起抬。區在動的那幾格要求陰影重畫。減少動態或靜態模式時直接切換、不壓扁。
+- **站珠**：`DistrictStations` 一個 InstancedMesh（路線色、大小＝0.6＋0.9×√(此刻進出÷當月單站最大)、停止營運 0.45、選中 ×1.4 並往 `--station-glow` 推），站名 DOM 彼此避開；點擊判斷用同一份螢幕位置、半徑 22px。
+- **點擊**：`Selection.tsx` 的 `SelectionInput` 在畫布上判斷點（移動 < 6px、只有一根手指），站珠優先，再用 raycaster 打 21 區地塊（平面陣列、不遞迴）；點空白處關卡。`SelectionCamera` 依選取飛過去（原型 lookAt：手機拉遠 1.4 倍、目標往南偏），關卡回到全景。
+- **Piwi 2026-11-12**：`RIBBON_MAX_PX` 24；`twoWay()`＋`arcsOf` 的右側車道（半個線寬＋0.125）；`syncUrl` 播放中不寫、按播放拿掉 hour、暫停與切日型才寫，開場自動播放不寫。
+- **draw call**（390×844，Playwright 包住 WebGL draw 計數）：合併 3.13 後全城 69；選區後 70（＋站珠 1；緞帶、箭頭、光點仍各 1）。
+- bundle：ScenePage 1,038 KB → 1,151 KB（gsap 約 70 KB、3.13 建築約 16 KB）。
+- 無頭 swiftshader 約 0.5–1 fps，gsap 的 lagSmoothing 把每格當 33ms，抬起與畫出要 30–60 秒才跑完；截圖等 60 秒。真機不受影響。
+
 ## Plan Change Log
 
 ## Review Triage Log
 
+Quick lens（本 session 自審）：high 0、medium 2、low 4、false 0、maybe-false 0。
+
+| 判定 | 去向 | 發現與證據 |
+| --- | --- | --- |
+| medium | patch | 選站也算「換情境」，同一組緞帶會再畫出一次（選站不換流向）；情境鍵拿掉 station。 |
+| medium | patch | 點擊判斷用計數器記手指數，放開發生在畫布外時不會減回，之後每次點都被當成多指而失效；改成 pointerId 的 Set，放開與取消聽 window，只認在畫布上放開的點。 |
+| low | patch | 「大安區（區內）」在手機兩欄被截成「大安區（區…」（截圖）；改寫「大安區內」。 |
+| low | defer | 行政區只能用指標點（畫布），鍵盤與螢幕報讀沒有進入行政區卡的路（原型同樣）；記在 deferred-work，交給 4.1 的找車站／3.15。 |
+| low | defer | 按下時的壓扁只作用在 Terrain 的 group，3.13 的建築與樹只跟著抬起、不跟著壓扁；記在 deferred-work。 |
+| low | reject | 卡片的 Esc 也會在通勤面板打字時關卡；兩者同時開著很少見，且 Esc 本來就是關閉，不加判斷。 |
+
 ## Design Notes
 
-- 區內（大安→大安）列在卡片的去哪／誰來（verify 要求，原型排除），標「（區內）」；地圖不畫區內緞帶，點了只飛回該區。
+- 區內（大安→大安）列在卡片的去哪／誰來（verify 要求，原型排除），寫「大安區內」；地圖不畫區內緞帶，點了只飛回該區。
 - 整天只用在卡片，地圖緞帶仍是這一小時（原型相同，卡上註明）。
 - 選取不進網址：3.15 再把 `district`、`station` 加到 `state/url.ts`。
 
@@ -107,4 +131,4 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 - `cd web && npm run build` -- 通過
 
 **Manual checks (if no CLI):**
-- Playwright 390×844（swiftshader）：永和平日 8 點、大安假日整天、卡開著換時段、點卡上的站、reduced-motion，與原型同情境並排。
+- Playwright 390×844（swiftshader）：永和平日 8 點、大安假日整天、卡開著換時段、點卡上的站、reduced-motion，與原型同情境並排（`design/reviews/3.6-district-card/compare-*.png`）。實測：永和卡去哪 中正 1,505／中山 1,411／大安 1,026，第 4 名信義 756；大安假日整天 中正 46,770／大安區內 27,730／信義 19,640；播放中點大安時間停在 5 點、卡上「平日 5 點」，關卡後維持暫停、網址才寫 `?day=weekday&hour=5`（播放中網址不變）；圖例「藍＝這區的人去哪／橘紅＝誰來這裡」；站列表「N 人」；點忠孝復興開車站小卡（進 956／出 2,883／進出 3,839），可回大安區；console 無錯誤。

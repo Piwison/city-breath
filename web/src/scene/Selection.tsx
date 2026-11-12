@@ -66,15 +66,16 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
       return (hits[0]?.object.userData.district as string | undefined) ?? null;
     };
 
-    let pointers = 0;
+    // 按著的手指（pointerId）：放開可能發生在畫面外，所以放開與取消聽 window
+    const active = new Set<number>();
     let down: { x: number; y: number; id: string | null } | null = null;
     const release = () => {
       if (down?.id) press.press?.(down.id, false);
       down = null;
     };
     const onDown = (e: PointerEvent) => {
-      pointers++;
-      if (pointers > 1) {
+      active.add(e.pointerId);
+      if (active.size > 1) {
         release();
         return;
       }
@@ -83,10 +84,11 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
       if (id) press.press?.(id, true);
     };
     const onUp = (e: PointerEvent) => {
-      pointers = Math.max(0, pointers - 1);
+      active.delete(e.pointerId);
       const d = down;
       release();
-      if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return;
+      // 只算在畫布上放開、幾乎沒移動的點
+      if (!d || e.target !== el || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return;
       const v = getView();
       const r = el.getBoundingClientRect();
       // 站珠只在選了區時出現；手指在站珠附近就算點站
@@ -103,17 +105,17 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
         else if (v.station) selectStation(null);
       } else if (v.district || v.station) closeCard();
     };
-    const onCancel = () => {
-      pointers = 0;
+    const onCancel = (e: PointerEvent) => {
+      active.delete(e.pointerId);
       release();
     };
     el.addEventListener("pointerdown", onDown);
-    el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", onCancel);
+    addEventListener("pointerup", onUp);
+    addEventListener("pointercancel", onCancel);
     return () => {
       el.removeEventListener("pointerdown", onDown);
-      el.removeEventListener("pointerup", onUp);
-      el.removeEventListener("pointercancel", onCancel);
+      removeEventListener("pointerup", onUp);
+      removeEventListener("pointercancel", onCancel);
     };
   }, [gl, get, view, stations, press]);
   return null;

@@ -137,7 +137,6 @@
 .card-rank button:active { transform: scale(0.98); }
 .card-rank button[aria-pressed="true"] { border-color: var(--hud-accent); }
 .card-rank .n { font-size: var(--text-sm); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card-rank .n small { font-size: var(--text-2xs); color: var(--hud-muted); font-weight: 400; }
 .card-rank .v { font-size: var(--text-xs); white-space: nowrap; }
 .card-rank .s { grid-column: 1 / -1; height: 3px; border-radius: var(--radius-pill); background: var(--hud-line); overflow: hidden; }
 .card-rank .s i { display: block; height: 100%; border-radius: inherit; }

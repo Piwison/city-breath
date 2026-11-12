@@ -5,7 +5,7 @@
 // draw call（AD-6）：所有緞帶本體合成一個 mesh、所有箭頭一個 mesh、所有光點一個 InstancedMesh；顏色放在頂點色
 // （RGBA，聚焦時其他條的 alpha 降低），所以去哪與誰來兩種顏色也不多畫一次。
 // 靜態模式（3.3，減少動態時開場就開）把光點換成依人數分級粗細的靜態光帶（一個合併 mesh），兩者不同時畫，總數不變。
-// 換情境（選區、選站、換日型、聚焦一條）時緞帶從起點畫出去（gsap 推 uReveal，shader 依每個頂點在緞帶上的位置裁掉，
+// 換情境（選區、換日型、聚焦一條）時緞帶從起點畫出去（gsap 推 uReveal，shader 依每個頂點在緞帶上的位置裁掉，
 // 原型的 drawRange 動畫在合併幾何上的作法）；整點更新不重畫。靜態模式或減少動態時直接出現、箭紋不捲動。
 import { useFrame } from "@react-three/fiber";
 import gsap from "gsap";
@@ -392,7 +392,6 @@ export function Flows({ view, source, labels, board, scale, reduced }: FlowsProp
   const dayType = useView((s) => s.dayType);
   const visible = useView((s) => s.layers.flow);
   const district = useView((s) => s.district);
-  const station = useView((s) => s.station);
   const focus = useView((s) => s.focus);
   const neutral = useTokenColor("--flow-neutral");
   const outColor = useTokenColor("--flow-out");
@@ -489,7 +488,8 @@ export function Flows({ view, source, labels, board, scale, reduced }: FlowsProp
 
   // 換情境時從起點畫出去（diorama-game-juice「流向」）；開場與整點更新不畫。layout effect：新幾何的第一格就從 0 開始。
   const calm = still || reduced;
-  const context = `${district}|${station}|${dayType}|${focus}`;
+  // 選站不換流向（3.12 才畫站對站），不算換情境
+  const context = `${district}|${dayType}|${focus}`;
   const lastContext = useRef(context);
   useLayoutEffect(() => {
     if (lastContext.current === context) return;
