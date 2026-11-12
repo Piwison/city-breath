@@ -66,12 +66,13 @@ describe("pillarAt（畫面上的柱）", () => {
     expect(zero.height).toBe(PILLAR_MIN);
     expect(zero.open).toBe(1);
   });
-  it("播放中在整點之間內插；4 點（停駛）到 5 點柱從廣場長出", () => {
+  it("播放中在整點之間內插", () => {
     const a = pillarAt(ix, 0, "weekday", 5.5, true);
     expect(a.height).toBeCloseTo((pillarHeight(100, 400)! + pillarHeight(400, 400)!) / 2);
-    const b = pillarAt(ix, 0, "weekday", 4.25, true);
-    expect(b.height).toBeCloseTo(0.25 * pillarHeight(100, 400)!);
-    expect(b.open).toBeCloseTo(0.25);
+  });
+  it("停駛的那一小時整小時沒有柱；下一小時才停駛時維持這一小時的高度（淡出交給 sleepAt）", () => {
+    expect(pillarAt(ix, 0, "weekday", 4.75, true)).toEqual({ height: 0, open: 0 });
+    expect(pillarAt(ix, 0, "weekday", 1.9, true)).toEqual({ height: PILLAR_MIN, open: 1 });
   });
   it("23 點之後接回 0 點", () => {
     expect(pillarAt(ix, 0, "weekday", 23.5, true).height).toBeCloseTo(PILLAR_MIN);

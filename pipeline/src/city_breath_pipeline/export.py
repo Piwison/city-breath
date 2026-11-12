@@ -13,7 +13,7 @@ from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW
 from .aggregate import MonthAggregate
 from .anomaly import detect as detect_anomalies, to_json as anomalies_json
 from .cluster import ClusterResult, assign_types
-from .district_flows import district_raw, inbound_raw, total_count
+from .district_flows import district_profiles, district_raw, inbound_raw, total_count
 from .schedules import link as link_schedules
 from .districts import DistrictResult
 from .stations import Station
@@ -87,6 +87,15 @@ def suppress_od(
         groups += district_groups(*args)
         groups += inbound_groups(*args)
     return apply_suppression(raw, groups, prefer=new_in_v3(published_allday))
+
+
+def districts_json(rows: list[dict], agg: MonthAggregate, stations: list[Station], codes: dict[str, str]) -> list[dict]:
+    """districts.py 的每區內容加上 ``weekday``／``holiday`` 區總量（契約 v4，``district_profiles``）。
+
+    沒有車站的區沒有資料，兩者為 ``None``。區總量是已公開站總量之和，不經 suppress.py（AD-3）。
+    """
+    totals = district_profiles(agg.station_hourly, stations, codes, agg.day_counts, agg.service_hours)
+    return [{**d, "weekday": None, "holiday": None, **totals.get(d["id"], {})} for d in rows]
 
 
 # ── district-flows.json（1.9；AD-7、AD-9、AD-10）與 inbound 的來源區格（1.13）────────
@@ -318,10 +327,11 @@ def export_month(
         {"v": CONTRACT_VERSION, "month": agg.month, "stations": st_out, "types": clusters.types},
     )
 
-    # districts.json：行政區界線與每區車站（AD-9、AD-10；判定在 districts.py）
+    # districts.json：行政區界線與每區車站（AD-9、AD-10；判定在 districts.py），v4 起加區總量（3.20，AD-7）
     sizes["districts.json"] = _write(
         out / "districts.json",
-        {"v": CONTRACT_VERSION, "month": agg.month, "districts": districts.districts},
+        {"v": CONTRACT_VERSION, "month": agg.month,
+         "districts": districts_json(districts.districts, agg, stations, districts.station_codes)},
     )
 
     # v1 的 daily.json 在 7.1 移除（AD-10）：每日全市總量與異常日改在 events.json（export_events）

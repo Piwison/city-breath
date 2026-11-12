@@ -10,11 +10,18 @@ null，例外只能是 ``fixtures/od_v2_exceptions.json`` 列出的格：
 
 ``fixtures/od_v2_public.json.gz`` 是 v2 每個 od 分片、每個日型、每個營運小時「公開格」的位元遮罩
 （第 i 位＝同月 stations.json 第 i 站）。重產：``uv run python tests/test_published_cells.py <v2 的 commit>``。
+
+契約 v4（3.20）相對 v3：v4 只在 districts.json 加區總量，那是已公開站總量之和（suppress.py 列組、欄組的總量），
+不新增隱藏組，所以 v3 公開的每一格（od 分片、district-flows、inbound 分片、topDestinations、逐日場館來源區）
+連同 ``null`` 的位置都必須原封不動——新藏一格會有跨版本反推的問題，新公開一格（v3 次要隱藏的格）則讓 v3 的
+總量直接減出主要隱藏的格。``fixtures/published_v3.json`` 是 v3（main 30308aa）每個月份、每一類輸出去掉 ``v``
+之後的 sha256；重產：在 v3 的 commit 上跑 ``uv run python tests/test_published_cells.py --digests``。
 """
 
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 import subprocess
 import sys
@@ -27,6 +34,7 @@ ROOT = HERE.parents[1]
 DATA = ROOT / "web" / "public" / "data"
 MASK = HERE / "fixtures" / "od_v2_public.json.gz"
 EXCEPTIONS = HERE / "fixtures" / "od_v2_exceptions.json"
+DIGESTS = HERE / "fixtures" / "published_v3.json"
 DAYS = ("weekday", "holiday")
 
 
@@ -102,7 +110,58 @@ def build_baseline(ref: str) -> dict:
     return out
 
 
-if __name__ == "__main__" and sys.argv[1:] == ["--exceptions"]:
+# ── v4 相對 v3：已公開的起訖數字逐格不變 ──
+
+KINDS = ("od", "district-flows", "inbound", "topDestinations", "dailyVenues")
+
+
+def _canonical(obj) -> bytes:
+    return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def published_digests(month_dir: Path) -> dict[str, str]:
+    """一個月份資料夾中，經 suppress.py 的每一類輸出（去掉 ``v``）的 sha256。"""
+    def body(path: Path) -> dict:
+        b = json.loads(path.read_text("utf-8"))
+        b.pop("v", None)
+        return b
+
+    def digest(items) -> str:
+        h = hashlib.sha256()
+        for name, obj in items:
+            h.update(name.encode() + b"\0" + _canonical(obj) + b"\n")
+        return h.hexdigest()
+
+    stations = body(month_dir / "stations.json")["stations"]
+    return {
+        "od": digest((p.name, body(p)) for p in sorted((month_dir / "od").glob("*.json"))),
+        "district-flows": digest([("district-flows.json", body(month_dir / "district-flows.json"))]),
+        "inbound": digest((p.name, body(p)) for p in sorted((month_dir / "inbound").glob("*.json"))),
+        "topDestinations": digest((s["id"], s["topDestinations"]) for s in stations),
+        "dailyVenues": digest((p.name, body(p)["venues"]) for p in sorted((month_dir / "daily").glob("*.json"))),
+    }
+
+
+V3 = json.loads(DIGESTS.read_text("utf-8")) if DIGESTS.exists() else {}
+V3_MONTHS = sorted(m for m in V3 if (DATA / m).is_dir())
+
+
+def test_v3_digests_present():
+    assert V3_MONTHS, "沒有 v3 摘要或沒有對得上的月份，v4 相對 v3 的檢查不會執行"
+
+
+@pytest.mark.parametrize("month", V3_MONTHS)
+def test_numbers_published_in_v3_unchanged(month):
+    now = published_digests(DATA / month)
+    changed = [k for k in KINDS if now[k] != V3[month][k]]
+    assert not changed, f"{month}：{changed} 和 v3 不同（已公開的格不得新藏或新公開，AD-3）"
+
+
+if __name__ == "__main__" and sys.argv[1:] == ["--digests"]:
+    body = {m.name: published_digests(m) for m in sorted(DATA.iterdir()) if (m / "od").is_dir()}
+    DIGESTS.write_text(json.dumps(body, indent=1) + "\n", encoding="utf-8")
+    print(f"寫出 {DIGESTS}（{len(body)} 個月份）")
+elif __name__ == "__main__" and sys.argv[1:] == ["--exceptions"]:
     # 把目前資料中「v2 公開、現在 null」的格寫成例外表；寫之前先確認每格都是上面說的那種原因（跑 pytest）
     body = {m: sorted(list(x) for x in _new_nulls(m)[0]) for m in MONTHS}
     EXCEPTIONS.write_text(json.dumps(body, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

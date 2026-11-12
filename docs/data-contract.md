@@ -1,10 +1,12 @@
-# 資料契約 v3
+# 資料契約 v4
 
 管線（`pipeline/`）寫、網站（`web/`）讀。改任何欄位都要同時改 `pipeline/src/city_breath_pipeline/export.py` 與 `web/src/data/types.ts`，並把 `CONTRACT_VERSION` 加一（AD-1）；升版的 PR 要把 `web/public/data/` 下所有月份重建（AD-18）。
 
 v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `sources[]`；1.9 加 `district-flows.json` 並移除 `flows.json`；1.10 加 `daily/{YYYY-MM-DD}.json`；7.1 加 `events.json` 並移除 v1 的 `daily.json`（AD-10 已列為 v2 的檔案，版本不變）。1.12 加不分月份的 `basemap.json`（AD-21；新增檔案不升版，只換內容時加 `basemapRevision`）。
 
 v3（1.13 起）：加 `inbound/{stationId}.json`（每站的來源）；`stations[].topDestinations` 由前 5 擴成前 10，`avg` 改經 `suppress.py`、可為 `null`。所有月份與 `basemap.json` 重建成 v3（AD-18）。
+
+v4（3.20 起）：`districts.json` 每區加 `weekday`／`holiday` 的區總量 `{ entries[24], exits[24] }`（AD-7、AD-10），給「假日前 5 區」等區排名用。其他檔案形狀不變；所有月份與 `basemap.json` 重建成 v4（AD-18），起訖數字與 v3 逐格相同（`pipeline/tests/test_published_cells.py`）。
 
 ```text
 web/public/data/
@@ -13,7 +15,7 @@ web/public/data/
   2026-09/                    # 每個月一個資料夾（1.7 起近 12 個月），形狀相同
     meta.json                 # 來源、授權、日數、營運時段、限制說明
     stations.json   ~139 KB   # 車站、24 小時曲線、前 10 目的地、分群、行政區
-    districts.json  ~66 KB    # 行政區：代碼、名稱、中心點、簡化界線、區內車站
+    districts.json  ~77 KB    # 行政區：代碼、名稱、中心點、簡化界線、區內車站、每小時區總量（v4）
     district-flows.json ~72 KB # 行政區×行政區×小時×日型平均人次
     events.json     ~4 KB     # 每日全市進站、異常日（全市級＋站級）、活動（7.2／7.3 起）
     od/{stationId}.json ~25KB # 起站分片：該起站到每個迄站的分時平均
@@ -34,8 +36,8 @@ web/public/data/
   - 列：某起站、某日型、某小時的各迄站 ＝ `stations.json` 該站 `entries[h]`（＝ 分片 `*Departures[h]`）。
   - 欄：某迄站、某日型、某小時的各起站 ＝ `stations.json` 該站 `exits[h]`。
   - 全日：某起訖、某日型的全日格（`topDestinations` 與 inbound `allDay` 的 `avg`，同一格）＝ 各營運小時之和。全日格本身也是起訖數字（< 10 照樣 `null`），所以組成員是全日格＋各小時 od 格。
-  - 行政區列：某起區、某日型、某小時的各迄區 ＝ 區內各站 `entries[h]` 之和（見 district-flows.json）。
-  - 行政區欄：某迄區、某日型、某小時的各起區 ＝ 區內各站 `exits[h]` 之和。
+  - 行政區列：某起區、某日型、某小時的各迄區 ＝ 區內各站 `entries[h]` 之和（見 district-flows.json；v4 起直接公開為 `districts.json` 的 `entries[h]`）。
+  - 行政區欄：某迄區、某日型、某小時的各起區 ＝ 區內各站 `exits[h]` 之和（v4 起直接公開為 `districts.json` 的 `exits[h]`）。
   - 站區塊：行政區格 (A, B) ＝ A 內各起站到 B 內各迄站的 od 格之和。組成員是這格行政區格＋整塊 od 格：行政區格公開而 od 只剩一格 `null` 可用減法反推，行政區格是唯一 `null` 也能把 od 加總反推，所以 od 分片與 district-flows.json 一起隱藏，od 分片因此也可能多出次要隱藏的格。
   - 來源區欄（inbound）：某迄站、某日型、某小時的各來源區 ＝ `stations.json` 該站 `exits[h]`。
   - 來源區列：某來源區、某日型、某小時的各迄站 ＝ 區內各站 `entries[h]` 之和。
@@ -82,6 +84,15 @@ web/public/data/
 | `districts[].stations` | 區內車站，`stations.json` 的陣列索引 |
 | `districts[].inflowPartial` | 區內有出站未入檔的環狀線站即為 `true`；顯示「誰來」時要附固定說明 |
 | `districts[].polygon` | 簡化後的界線，GeoJSON MultiPolygon 座標 `[[[[lon, lat], …]]]`，環首尾相同，座標 5 位小數；經 `project()` 轉場景座標（AD-12） |
+| `districts[].weekday / holiday` | v4 起。`{ entries[24], exits[24] }`：區內車站在該小時的平均進站、出站人次（區總量）；沒有車站的區為 `null` |
+
+區總量（v4，3.20；`district_flows.py` 的 `district_profiles`）：
+
+- **平均的分母**（AD-7）：區內各站當月該日型、該小時的**整數總人次先加總**，再除以該日型天數，最後四捨五入（剛好 .5 時取偶數，與 `stations.json` 相同）。不是把 `stations.json` 已四捨五入的站平均相加，所以和站平均之和可能差幾人。前端的區排名只讀這兩個陣列，不自己加站平均。
+- **停止營運**（AD-5）：月平均全月都沒有紀錄的小時（目前 2–4 點）為 `null`；營運中但沒人為 `0`。
+- 小時是進站時段（AD-15）。區只來自 `stations[].district`（AD-9），區內車站即 `districts[].stations`。
+- `entries` 含區內所有車站，包括環狀線站。**`exits` 只算出站有紀錄的站**：環狀線站（`exitsRecorded: false`）的出站不在原始資料中，所以 `inflowPartial: true` 的區（目前板橋、中和、新莊、新店）出站**少算**，顯示時要附固定說明。區內沒有任何出站有紀錄的站時 `build` 失敗（目前沒有這種區）。
+- **不隱藏、不新增隱藏組**（AD-3）：區總量是站層級總量之和，`entries[h]` 恰是 district-flows 行政區列組（起區各迄區之和）的總量，`exits[h]` 恰是行政區欄組（迄區各起區之和）的總量，這兩組本來就以「區內各站之和」當作已公開的總量來保護。所以 v4 不新增任何組，v3 公開的起訖格（od、district-flows、inbound、`topDestinations`、逐日場館來源區）一格都沒變；`test_published_cells.py` 以 v3 的摘要（`fixtures/published_v3.json`）檢查。
 
 判定與簡化（`pipeline/src/city_breath_pipeline/districts.py`）：
 
@@ -107,7 +118,7 @@ web/public/data/
 - `hour` 是進站時段（AD-15）：「h 點出發」，抵達可能在下一個小時。
 - `from == to` 是區內移動，包含同站進出。
 - **迄站只算出站有紀錄的站**：環狀線車站（`stations[].exitsRecorded == false`）的出站不在原始資料中，不計入任何欄。因此 `districts[].inflowPartial == true` 的區（目前板橋、中和、新莊、新店），「誰來」那一欄**少算**了到區內環狀線車站的人，顯示時要附固定說明；從這些站出發的人（起站）照常計入。
-- 同一區的「去哪」比例＝該列各格 ÷ 列總和；列總和要自行加總公開的格（被隱藏的格不在內），或改用區內各站 `stations[].{weekday,holiday}.entries[h]` 之和當分母。
+- 同一區的「去哪」比例＝該列各格 ÷ 列總和；列總和要自行加總公開的格（被隱藏的格不在內），或改用 `districts.json` 該區的 `entries[h]`（v4）當分母。
 - 數字與 od 分片經同一次 `suppress.py` 隱藏，兩邊不會互相洩漏（見上方次要隱藏的「站區塊」）。
 
 ## od/{stationId}.json

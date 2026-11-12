@@ -498,8 +498,9 @@ export interface PillarState {
 
 /**
  * 某站在連續時間 t 的柱（stations.json 該日型的進出，traits.ts stationVolume）。
- * 播放中（smooth）在 h 與 h+1 點之間內插（和街廓同一種內插），停止營運的那一邊高度 0、open 0，
- * 所以清晨柱子從廣場長出來；不播放、或減少動態時用整點的值（和小卡上的「平日 8 點」一致）。
+ * 播放中（smooth）在 h 與 h+1 點之間內插（和街廓同一種內插）；不播放、或減少動態時用整點的值（和小卡上的「平日 8 點」一致）。
+ * h 點停止營運（null）時沒有柱、open 0；h+1 點才停駛時維持 h 點的高度，入睡的淡出交給 3.4 的 sleepAt()
+ * （state/service.ts，和流向同一條入睡曲線），場景把高度乘上 1 − 入睡程度。
  */
 export function pillarAt(index: StationIndex, i: number, dayType: DayType, t: number, smooth: boolean, out?: PillarState): PillarState {
   const o = out ?? { height: 0, open: 0 };
@@ -514,7 +515,7 @@ export function pillarAt(index: StationIndex, i: number, dayType: DayType, t: nu
   }
   const f = x - h0;
   const b = pillarHeight(stationVolume(s, dayType, (h0 + 1) % 24).value, index.peak);
-  o.height = (a ?? 0) * (1 - f) + (b ?? 0) * f;
-  o.open = (a === null ? 0 : 1) * (1 - f) + (b === null ? 0 : 1) * f;
+  o.height = a === null ? 0 : b === null ? a : a * (1 - f) + b * f;
+  o.open = a === null ? 0 : 1;
   return o;
 }

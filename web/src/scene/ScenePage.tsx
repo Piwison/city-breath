@@ -8,9 +8,10 @@ import { NeutralToneMapping } from "three";
 import { DistrictCard } from "../card/DistrictCard";
 import { StationCard } from "../card/StationCard";
 import { loadBasemap, loadDistrictFlows, loadDistricts, loadMonths, loadStations } from "../data/load";
-import type { DistrictFlowsFile, DistrictsFile, LineId } from "../data/types";
+import type { BasemapFile, DistrictFlowsFile, DistrictsFile, LineId } from "../data/types";
 import { baseView, flowSource, stationIndex, type BaseView, type FlowSource, type StationIndex } from "../data/views";
 import { startClock } from "../state/clock";
+import { setService } from "../state/service";
 import { readQuery, syncUrl } from "../state/url";
 import { setDayType, setPlaying, useView } from "../state/view";
 import { Blocks } from "./Blocks";
@@ -29,6 +30,7 @@ import { Rails } from "./Rails";
 import { SceneBoundary, SceneFallback } from "./SceneFallback";
 import { SelectionCamera, SelectionInput } from "./Selection";
 import { Sky } from "./Sky";
+import { SleepHint } from "./SleepHint";
 import { StationLabelLayer, Stations, type StationLink } from "./Stations";
 import { Terrain } from "./Terrain";
 import { TimeBar } from "./TimeBar";
@@ -79,7 +81,7 @@ function World({
       <Terrain view={view} />
       {/* 選區的抬起與按壓（改 Terrain 的 district-<id> group），軌道、區名、站珠讀同一份高度 */}
       <DistrictLift view={view} reduced={reduced} link={overlays.press} />
-      <Rails tracks={view.tracks} ids={ids} />
+      <Rails tracks={view.tracks} ids={ids} reduced={reduced} />
       {/* 先量縮放倍數（緞帶、光點、圖例同一格用），再畫流向；流向標籤先放，區名再避開它們 */}
       <ScaleProbe link={overlays.legend} />
       <Flows
@@ -116,6 +118,8 @@ type Loaded = {
   lineNames: Map<LineId, string>;
   box: PlinthBox;
   month: string;
+  /** 官方班距（第一班車約幾點，3.4） */
+  headway: BasemapFile["headway"];
 };
 
 /** 下方：沒選東西時是時間軸；選了區是行政區卡、選了站是車站小卡（卡框與卡內時間列共用，打開就暫停）。 */
@@ -214,6 +218,7 @@ export default function ScenePage() {
           lineNames: new Map(basemap.lines.map((l) => [l.id, l.name])),
           box: plinthBox(view.bbox),
           month: districts.month,
+          headway: basemap.headway,
         });
       })
       .catch((e: Error) => alive && setError(e.message));
@@ -221,6 +226,13 @@ export default function ScenePage() {
       alive = false;
     };
   }, [webgl]);
+
+  // 營運時段（3.4）：停駛只看流向資料（AD-5）、第一班車看官方班距；場景與提示從 state/service.ts 讀
+  useEffect(() => {
+    if (!data) return;
+    setService({ isOpen: data.flows.operating, headway: data.headway });
+    return () => setService(null);
+  }, [data]);
 
   if (!webgl) return <SceneFallback />;
 
@@ -256,6 +268,7 @@ export default function ScenePage() {
       {data && <StationLabelLayer index={data.stations} link={overlays.stations} />}
       {data && <FlowLabelLayer els={flowLabels} />}
       {data && <PeriodToast source={data.flows} />}
+      {data && <SleepHint />}
       {!data && !error && <p className="scene-status">載入台北盆地中…</p>}
       {error && (
         <p className="scene-status" role="alert">

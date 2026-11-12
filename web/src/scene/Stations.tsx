@@ -1,6 +1,6 @@
 // 車站（3.1，取代 3.6 的 DistrictStations）：每站「廣場＋細柱＋站珠」，全部 120 站用三個 InstancedMesh（AD-6、AD-11）。
 // 柱高＝此刻進出人數（views.ts pillarAt：stations.json，平方根比例，不乘地形倍數，AD-12）；停止營運時柱收進廣場、
-// 站珠熄燈（AD-5）。站在台地上（levelHeight → elevation()），跟著行政區抬起與按壓（lift.ts）。
+// 站珠熄燈（AD-5），和 3.4 城市睡覺用同一條入睡曲線（state/service.ts sleepAt：停駛前淡出、減少動態時直接切換）。站在台地上（levelHeight → elevation()），跟著行政區抬起與按壓（lift.ts）。
 // 廣場與站珠是路線色（--line-*，AD-21），細柱是 --station；夜裡站珠以路線色自發光（天光：夜裡亮的是窗、站珠、列車）。
 // 放大或選了區才點得到、才標站名，只標重要的（stationRules.ts）；點站時站珠彈一下（gsap），減少動態或靜態模式時直接切換。
 // 只吃 views.ts 的 StationFrame（AD-19）；站屬哪區只看 stations.json 的 district（AD-9）。
@@ -9,6 +9,7 @@ import gsap from "gsap";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, CylinderGeometry, InstancedMesh, Matrix4, MeshStandardMaterial, Object3D, SphereGeometry, Vector3 } from "three";
 import { pillarAt, stationFrames, type BaseView, type PillarState, type StationFrame, type StationIndex } from "../data/views";
+import { sleepAt } from "../state/service";
 import { getView, time, useView } from "../state/view";
 import { sunAt } from "./daylight";
 import type { LabelBoard } from "./DistrictLabels";
@@ -245,13 +246,15 @@ export function Stations({
     const smooth = v.playing && !calm;
     const t = smooth ? time.t : v.hour;
     const k = calm || reset ? 1 : 1 - Math.exp(-dt * HEIGHT_RATE);
+    // 入睡程度（3.4）：停駛中 1，停駛前一刻漸升；柱高與站燈都乘上 1 − sleep（照時刻 time.t，和流向一起睡）
+    const awake = 1 - sleepAt(time.t, v.dayType, calm);
     let moved = reset;
     let recolor = reset;
     let openSum = 0;
     for (let i = 0; i < n; i++) {
       pillarAt(index, frames[i].index, v.dayType, t, smooth, want);
-      const dh = (want.height - S.shown[i]) * k;
-      const dopen = (want.open - S.open[i]) * k;
+      const dh = (want.height * awake - S.shown[i]) * k;
+      const dopen = (want.open * awake - S.open[i]) * k;
       if (Math.abs(dh) > 1e-4 || Math.abs(dopen) > 1e-4) moved = true;
       if (Math.abs(dopen) > 1e-3) recolor = true;
       S.shown[i] += dh;

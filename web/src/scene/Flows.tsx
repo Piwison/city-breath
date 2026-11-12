@@ -5,6 +5,8 @@
 // draw call（AD-6）：所有緞帶本體合成一個 mesh、所有箭頭一個 mesh、所有光點一個 InstancedMesh；顏色放在頂點色
 // （RGBA，聚焦時其他條的 alpha 降低），所以去哪與誰來兩種顏色也不多畫一次。
 // 靜態模式（3.3，減少動態時開場就開）把光點換成依人數分級粗細的靜態光帶（一個合併 mesh），兩者不同時畫，總數不變。
+// 城市睡覺（3.4）：停駛的小時本來就沒有流向（FlowSource 回 null，不畫成 0）；停駛前約 15 分鐘
+// 緞帶、光帶、光點與標籤依 state/service.ts 的 sleepAt(t) 淡出，減少動態時直接消失。
 // 換情境（選區、換日型、聚焦一條）時緞帶從起點畫出去（gsap 推 uReveal，shader 依每個頂點在緞帶上的位置裁掉，
 // 原型的 drawRange 動畫在合併幾何上的作法）；整點更新不重畫。靜態模式或減少動態時直接出現、箭紋不捲動。
 import { useFrame } from "@react-three/fiber";
@@ -42,7 +44,8 @@ import {
   type FlowKind,
   type FlowSource,
 } from "../data/views";
-import { useView } from "../state/view";
+import { sleepAt } from "../state/service";
+import { getView, time, useView } from "../state/view";
 import type { LabelBoard } from "./DistrictLabels";
 import { placeLabel } from "./labelPlace";
 import { liftTarget } from "./lift";
@@ -55,6 +58,7 @@ const rush = (h: number) => (h >= 7 && h < 10) || (h >= 17 && h < 20);
 const fract = (v: number) => v - Math.floor(v);
 const fmt = (n: number) => Math.round(n).toLocaleString("zh-TW");
 const OPACITY = 0.92;
+const BAND_OPACITY = 0.95;
 /** 聚焦一條時，其他條的透明度倍數（原型 0.22 ÷ 0.92）。 */
 const DIM = 0.24;
 /** 雙向車道之間的空隙（場景單位）。 */
@@ -447,7 +451,7 @@ export function Flows({ view, source, labels, board, scale, reduced }: FlowsProp
     return [
       withReveal(new MeshBasicMaterial({ ...common, map: chev }), reveal),
       withReveal(new MeshBasicMaterial({ ...common }), reveal),
-      new MeshBasicMaterial({ ...common, opacity: 0.95 }),
+      new MeshBasicMaterial({ ...common, opacity: BAND_OPACITY }),
     ];
   }, [chev, reveal]);
   useEffect(
@@ -529,8 +533,19 @@ export function Flows({ view, source, labels, board, scale, reduced }: FlowsProp
   // 光點：脈衝一波波湧出，頭亮尾淡（diorama-game-juice「光點」）。靜態模式不畫光點（換成光帶）；
   // 聚焦時其他條不出光點；畫出中的緞帶，光點只走在已畫出的那一段。
   const tmp = useMemo(() => ({ o: new Object3D(), P: new Vector3(), T: new Vector3(), c: new Color(), t: 0 }), []);
+  const awake = useRef(-1);
+  // 新的幾何（整點換流向）預設看得見：下一格重新套用入睡程度
+  useEffect(() => void (awake.current = -1), [ribbons]);
   useFrame((_, dt) => {
     if (!visible) return;
+    // 入睡（3.4）：1＝醒著、0＝停駛；時刻的純函式，暫停時不動
+    const wake = 1 - sleepAt(time.t, getView().dayType, reduced);
+    if (wake !== awake.current) {
+      awake.current = wake;
+      bodyMat.opacity = headMat.opacity = OPACITY * wake;
+      bandMat.opacity = BAND_OPACITY * wake;
+      ribbons.body.visible = ribbons.head.visible = wake > 0;
+    }
     // 放大時的線寬上限（ScaleProbe 在前面算好 k）：緞帶、光帶與光點同一個倍數
     const k = scale.k;
     for (const s of ribbons.scalable) scaleTo(s, k);
@@ -557,7 +572,7 @@ export function Flows({ view, source, labels, board, scale, reduced }: FlowsProp
         bezTan(a, u, T);
         o.position.set(P.x, P.y + 0.12, P.z);
         o.lookAt(P.x + T.x, P.y + 0.12 + T.y, P.z + T.z);
-        o.scale.setScalar((0.75 + 0.6 * pulse) * k);
+        o.scale.setScalar((0.75 + 0.6 * pulse) * k * wake);
         o.updateMatrix();
         dots.setMatrixAt(n, o.matrix);
         dots.setColorAt(n, c.copy(color).lerp(hi, 0.35 + 0.65 * pulse));
@@ -575,7 +590,15 @@ export function Flows({ view, source, labels, board, scale, reduced }: FlowsProp
       <primitive object={ribbons.head} />
       <primitive object={ribbons.band} visible={still} />
       <primitive object={dots} visible={!still} />
-      <FlowLabelProjector arcs={arcs} focused={focused} names={names} els={labels} board={board} visible={visible} />
+      <FlowLabelProjector
+        arcs={arcs}
+        focused={focused}
+        names={names}
+        els={labels}
+        board={board}
+        visible={visible}
+        reduced={reduced}
+      />
     </group>
   );
 }
@@ -590,7 +613,8 @@ function FlowLabelProjector({
   names,
   els,
   board,
-  visible,
+  visible: layerOn,
+  reduced,
 }: {
   arcs: Arc[];
   focused: string | null;
@@ -598,6 +622,7 @@ function FlowLabelProjector({
   els: FlowLabelEls;
   board: LabelBoard;
   visible: boolean;
+  reduced: boolean;
 }) {
   const top = useMemo(
     () => (focused ? arcs.filter((a) => a.key === focused) : [...arcs].sort((a, b) => b.w - a.w).slice(0, 3)),
@@ -623,6 +648,8 @@ function FlowLabelProjector({
   // 標籤大小只在文字換了之後量一次（量的時候要先顯示），鏡頭移動時不再逼瀏覽器重排
   const dims = useRef<{ top: Arc[] | null; wh: [number, number][] }>({ top: null, wh: [] });
   useFrame(({ camera, size }) => {
+    // 停駛前淡出到一半就收起標籤（3.4），人數不留在快消失的緞帶上
+    const visible = layerOn && sleepAt(time.t, getView().dayType, reduced) < 0.5;
     const L = last.current;
     const safeKey = board.safeTop * 10000 + board.safeBottom;
     if (
