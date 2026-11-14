@@ -16,3 +16,7 @@
 - source_plan: `_bmad-output/initiative-city-breath/tickets/epic-city-breath-home/tickets/story-untitled-6-plan.md`
   summary: 按下行政區時的壓扁只作用在 Terrain 的 `district-<id>` group，3.13 的建築與樹只跟著抬起、不跟著壓扁。
   evidence: `DistrictLift` 改 group 的 scale.y；`Blocks` 的 shader 只讀 `lift`（`lifts.ref`），沒有按壓比例。要一起壓扁得在 Blocks 加一個 uniform。
+
+- source_plan: `_bmad-output/initiative-city-breath/tickets/epic-city-breath-home/tickets/story-untitled-12-plan.md`
+  summary: 3.12 第二個 PR：車站卡的類型標籤與一句話（整年最常見的型，管線輸出不分月份的 station-types.json，當月不同時加一行小字），含 data-contract、pytest 與 vitest。
+  evidence: 產品計畫 v2（2026-11-14，決定 13、14）在 3.12 實作途中改了票面；協調者指示第一個 PR 照原 plan 範圍完成，類型標籤由同一張票的第二個 PR 補上。

@@ -1,5 +1,5 @@
 // 車站卡（3.12；原型 renderStationCard 移植，3.6 的最小版小卡擴充）：共用卡框（打開就暫停、標明時段與日型、卡內時間列），
-// 這一站的個性（traits.ts：全線名次前 20 的兩個特質，AD-26）、此刻進站／出站／進出、整天 24 格長條（點了停播放並跳到那個時段）、
+// 這一站的個性（traits.ts：全線名次前 20 的兩個特質，AD-26）、這一小時的進站／出站／進出、整天 24 格長條（點了停播放並跳到那個時段）、
 // 這一小時從這站出發最常去的前 5 站（od 分片，選了站才載，AD-6）與這 5 站在哪幾區、「從這站找通勤」（寫起站，4.1 接手）。
 // 點目的地：地圖上那條站對站緞帶以外變淡、鏡頭飛過去，再一個按鈕開那一站。
 // 環狀線站出站未入檔（A7）：出站寫「未入檔」並附說明，不排名、沒有個性；目的地照 od 分片。
@@ -98,15 +98,15 @@ export function StationCardView({ id, stations, source, lineNames, districtNames
         <div className="card-stats">
           <div>
             <b className="num">{fmt(v.entries)}</b>
-            <span>此刻進站（人）</span>
+            <span>這小時進站（人）</span>
           </div>
           <div>
             <b className="num">{v.entriesOnly ? "未入檔" : fmt(v.exits)}</b>
-            <span>此刻出站（人）</span>
+            <span>這小時出站（人）</span>
           </div>
           <div>
             <b className="num">{fmt(v.value)}</b>
-            <span>{v.entriesOnly ? "此刻進出（只算進站）" : "此刻進出（人）"}</span>
+            <span>{v.entriesOnly ? "這小時進出（只算進站）" : "這小時進出（人）"}</span>
           </div>
         </div>
       ) : (

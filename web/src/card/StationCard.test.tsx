@@ -116,7 +116,7 @@ describe("車站卡", () => {
   it("分片載入失敗：寫出失敗，卡片其他部分照常", async () => {
     const html = await card("台北車站", { status: "error", id: idOf("台北車站"), message: "載入失敗：404" });
     expect(html).toContain("目的地資料載入失敗");
-    expect(html).toContain("此刻進站");
+    expect(html).toContain("這小時進站");
   });
 
   it("分片還在載入：卡片其他部分照常", async () => {

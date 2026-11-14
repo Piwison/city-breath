@@ -3,14 +3,14 @@ title: '車站卡'
 type: 'feature'
 ticket: '12'
 created: '2026-11-13'
-status: 'in-progress'
+status: 'built'
 baseline_revision: 'bf7ec0626f81e1c0f4b0f578d2ea003ed685df4a'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-game-juice/SKILL.md']
 ---
@@ -87,6 +87,9 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 - **從這站找通勤**：`state/view.ts` 加 `commute: { o } | null`、`startCommute`、`clearCommute`（AD-16 的 commute，先只有起站）。`CommuteEntry` 看到 commute 就打開面板，`CommuteForm` 帶入起站、游標移到迄站；收起面板清掉。4.1 換成正式入口時接這個欄位。
 - **測試**：traits.test.ts（合成站＋2026-09 實算，數字另外從 stations.json 直接加總比對）、destinations.test.ts（od 分片實檔比對）、StationCard.test.tsx（react-dom/server 輸出 HTML：蘆洲平日 8 點的個性／進出／前 5／去哪幾區、環狀線、少於 10 人、停止營運、聚焦、載入中與失敗；`pickHour` 停播放跳時段）、view.test.ts（commute）。
 - 長條每格約 13px 寬（24 格放在手機卡片裡），低於 30px 的點擊目標；同一列旁邊有 ‹ › 可逐小時換，鍵盤也點得到。
+
+- **合併 origin/main 032a5da（產品計畫 v2，2026-11-14）**：票面加了「類型標籤與一句話（整年最常見的型，管線輸出不分月份的 station-types.json，當月不同時加一行小字）」。協調者指示：這個 PR 照本 plan 範圍完成，類型標籤、station-types.json 與它的 pytest／vitest 由**同一張票的第二個 PR** 補上（已記在 deferred-work）。新 DESIGN.md 體驗原則 3（不用「此刻」）：卡上「此刻進站／出站／進出」改成「這小時…」（截圖是改字前拍的）。其餘與新 DESIGN.md 互動段的差異（點空白處只關卡、卡片兩段高度與第一行答案、44px 點擊目標、「設為我的站」）屬 3.21／3.22／3.23，不在這張做，寫在 PR 說明。
+- 截圖：`design/reviews/3.12-station-card/`（site-*＝正式版、*-card＝卡片內容攤開、compare-*＝左原型右正式版）；Playwright 390×844、DPR 2、swiftshader，console 無錯誤。
 
 ## Plan Change Log
 
