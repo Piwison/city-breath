@@ -1,5 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { cardOpened, closeCard, getView, selectDistrict, selectStation, setFocus, setPlaying, setRange } from "./view";
+import {
+  cardOpened,
+  clearCommute,
+  closeCard,
+  getView,
+  selectDistrict,
+  selectStation,
+  setFocus,
+  setPlaying,
+  setRange,
+  startCommute,
+} from "./view";
 
 describe("選取（3.6）", () => {
   beforeEach(() => {
@@ -32,6 +43,18 @@ describe("選取（3.6）", () => {
     expect(getView().playing).toBe(false);
     closeCard();
     expect(getView()).toMatchObject({ district: null, station: null, focus: null, playing: false });
+  });
+
+  it("從這站找通勤（3.12）：寫起站；每按一次都是新的值（入口再打開）；收起清掉", () => {
+    selectStation("s1");
+    startCommute("s1");
+    const a = getView().commute;
+    expect(a).toEqual({ o: "s1" });
+    startCommute("s1");
+    expect(getView().commute).not.toBe(a);
+    expect(getView().station).toBe("s1");
+    clearCommute();
+    expect(getView().commute).toBeNull();
   });
 
   it("沒有變化時不通知訂閱者", () => {

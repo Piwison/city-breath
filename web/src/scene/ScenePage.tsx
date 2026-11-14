@@ -1,7 +1,7 @@
 // 首頁：微縮城市場景（2.3 基底：台北盆地與天光）＋行政區流向（3.5）＋時間軸（3.3）＋點行政區（3.6）。
 // 底層：底座、地形台地、海、行政區薄片、河川、綠地、捷運路線、天空與光；上面是全市前 12 大流向。
 // 點一區：區抬起、鏡頭飛過去、流向換成這區的去哪／誰來、站珠展開；下方時間軸換成行政區卡（點站換成車站小卡）。
-// 車站柱與站珠（3.1）、建築與樹（3.13）；列車、地標等是之後的票。
+// 車站柱與站珠（3.1）、建築與樹（3.13）；點站開車站卡、流向換成這站前 5 目的地的站對站緞帶（3.12）。列車、地標等是之後的票。
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NeutralToneMapping } from "three";
@@ -87,6 +87,7 @@ function World({
       <Flows
         view={view}
         source={flows}
+        stations={stations}
         labels={overlays.flowLabels}
         board={overlays.board}
         scale={overlays.legend}
@@ -116,6 +117,8 @@ type Loaded = {
   districts: DistrictsFile;
   stations: StationIndex;
   lineNames: Map<LineId, string>;
+  /** 行政區代碼 → 名稱（車站卡的所在區、去哪幾區） */
+  districtNames: Map<string, string>;
   box: PlinthBox;
   month: string;
   /** 官方班距（第一班車約幾點，3.4） */
@@ -126,10 +129,18 @@ type Loaded = {
 function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
   const district = useView((s) => s.district);
   const station = useView((s) => s.station);
-  if (data && station) {
-    const name = district ? data.districts.districts.find((d) => d.id === district)?.name : undefined;
-    return <StationCard id={station} stations={data.stations} source={data.flows} lineNames={data.lineNames} districtName={name} />;
-  }
+  if (data && station)
+    return (
+      <StationCard
+        key={station}
+        id={station}
+        stations={data.stations}
+        source={data.flows}
+        lineNames={data.lineNames}
+        districtNames={data.districtNames}
+        backTo={district ? data.districtNames.get(district) : undefined}
+      />
+    );
   if (data && district)
     return (
       <DistrictCard
@@ -216,6 +227,7 @@ export default function ScenePage() {
           districts,
           stations: stationIndex(stations, basemap.stationLines),
           lineNames: new Map(basemap.lines.map((l) => [l.id, l.name])),
+          districtNames: new Map(districts.districts.map((d) => [d.id, d.name])),
           box: plinthBox(view.bbox),
           month: districts.month,
           headway: basemap.headway,

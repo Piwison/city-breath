@@ -1,6 +1,7 @@
 // 檢視模型（AD-19）：場景圖層不 import 契約型別，只吃這裡產生的形狀。
 // 2.3 底圖：basemap.json＋districts.json → BaseView；3.5 流向：district-flows.json → FlowFrame；
 // 3.6 選區：去哪／誰來（FlowFrame.kind）、卡片排名（DistrictRanks）、展開的站（StationFrame）。
+// 3.12 選站：od 分片的前 5 目的地、去哪幾區、站對站的 FlowFrame（from/to 是站 ID）。
 import { stationVolume } from "./traits";
 import type {
   BasemapFile,
@@ -10,6 +11,7 @@ import type {
   LineId,
   LonLat,
   MultiPolygonCoords,
+  OdShard,
   Station,
   StationsFile,
 } from "./types";
@@ -90,7 +92,10 @@ export function baseView(basemap: BasemapFile, districts: DistrictsFile): BaseVi
 /** 流向的種類：選了區時，out＝這區的人去哪（藍）、in＝誰來這裡（橘紅）；沒有＝全城（橘）。 */
 export type FlowKind = "out" | "in";
 
-/** 一條流向：from、to 為 8 碼行政區代碼（AD-9）；value 為該小時平均人次，null＝少於 10 人（AD-3）。 */
+/**
+ * 一條流向：from、to 為 8 碼行政區代碼（AD-9），選站時（3.12）為站 ID（AD-2）；
+ * value 為該小時平均人次，null＝少於 10 人（AD-3）。
+ */
 export interface FlowFrame {
   from: string;
   to: string;
@@ -282,6 +287,80 @@ export function districtFlows(
         kind === "out" ? { from: id, to: other, value, kind } : { from: other, to: id, value, kind },
       );
   return [...pick("out"), ...pick("in")];
+}
+
+// ── 選了一站（3.12）：這一小時從這站出發最常去的前 5 站（od 分片）、這 5 站在哪幾區、地圖上的站對站緞帶 ──
+
+/** 車站卡與地圖上列幾個目的地。 */
+export const STATION_DESTINATIONS = 5;
+
+/** 一個目的地：迄站（stations.json 索引）與這一小時的平均人次（一定是公開的數字）。 */
+export interface Destination {
+  index: number;
+  value: number;
+}
+
+export interface StationDestinations {
+  /** 這一小時有營運（od 分片該小時整格不是 null，AD-5） */
+  operating: boolean;
+  /** 由多到少；排除同站進出與少於 10 人（null，不排名、不當 0，AD-3） */
+  top: Destination[];
+}
+
+/**
+ * 起站 origin 在某日型某小時的前 n 個目的地（od 分片 weekday[hour][迄站]）。
+ * 同人數依索引排序以求穩定。只排公開的格子，前端不反推被隱藏的格（AD-3）。
+ */
+export function stationDestinations(
+  shard: Pick<OdShard, "weekday" | "holiday">,
+  origin: number,
+  dayType: DayType,
+  hour: number,
+  n: number = STATION_DESTINATIONS,
+): StationDestinations {
+  const row = shard[dayType][((Math.floor(hour) % 24) + 24) % 24];
+  if (!row) return { operating: false, top: [] };
+  const all: Destination[] = [];
+  row.forEach((v, j) => {
+    if (j !== origin && v !== null && v > 0) all.push({ index: j, value: v });
+  });
+  all.sort((a, b) => b.value - a.value || a.index - b.index);
+  return { operating: true, top: all.slice(0, n) };
+}
+
+/** 「去哪幾區」的一列：行政區（AD-9）、這幾站加起來的人數與站數。 */
+export interface DestinationDistrict {
+  id: string;
+  value: number;
+  stations: number;
+}
+
+/**
+ * 去哪幾區（票面：前 5 目的地依迄站的行政區加總）：只加畫面上列出的那幾站，數字和上面的列表加得起來；
+ * 不是區對區的平均（那在 district-flows.json），也不把其他站的格子加進來。由多到少，同人數依代碼。
+ */
+export function destinationDistricts(top: readonly Destination[], stations: readonly Station[]): DestinationDistrict[] {
+  const by = new Map<string, DestinationDistrict>();
+  for (const d of top) {
+    const id = stations[d.index]?.district;
+    if (!id) continue;
+    const row = by.get(id) ?? { id, value: 0, stations: 0 };
+    row.value += d.value;
+    row.stations += 1;
+    by.set(id, row);
+  }
+  return [...by.values()].sort((a, b) => b.value - a.value || a.id.localeCompare(b.id));
+}
+
+/**
+ * 地圖上的站對站緞帶（AD-19：與行政區流向同一種 FlowFrame、同一個光點換算）：from、to 是站 ID（AD-2），
+ * kind＝out（藍，從這站出發去哪）。停止營運回傳 flows null。
+ */
+export function stationFlows(dest: StationDestinations, origin: number, stations: readonly Station[]): FlowHour {
+  if (!dest.operating) return { flows: null, perDot: PEOPLE_PER_DOT, counts: [] };
+  const from = stations[origin].id;
+  const flows: FlowFrame[] = dest.top.map((d) => ({ from, to: stations[d.index].id, value: d.value, kind: "out" }));
+  return { flows, ...dotScale(flows) };
 }
 
 /** 卡片的範圍：這一小時，或整天（各小時平均人次加總）。 */
