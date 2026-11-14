@@ -1,7 +1,7 @@
 // 首頁：微縮城市場景（2.3 基底：台北盆地與天光）＋行政區流向（3.5）＋時間軸（3.3）＋點行政區（3.6）。
 // 底層：底座、地形台地、海、行政區薄片、河川、綠地、捷運路線、天空與光；上面是全市前 12 大流向。
 // 點一區：區抬起、鏡頭飛過去、流向換成這區的去哪／誰來、站珠展開；下方時間軸換成行政區卡（點站換成車站小卡）。
-// 車站柱與站珠（3.1）、建築與樹（3.13）；點站開車站卡、流向換成這站前 5 目的地的站對站緞帶（3.12）。列車、地標等是之後的票。
+// 車站柱與站珠（3.1）、建築與樹（3.13）；點站開車站卡、流向換成這站前 5 目的地的站對站緞帶（3.12）。列車與雲（3.14，示意）；地標等是之後的票。
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NeutralToneMapping } from "three";
@@ -16,6 +16,7 @@ import { readQuery, syncUrl } from "../state/url";
 import { setDayType, setPlaying, useView } from "../state/view";
 import { Blocks } from "./Blocks";
 import { CameraRig, type CameraLink } from "./CameraRig";
+import { Clouds } from "./Clouds";
 import { CommuteEntry } from "./CommuteEntry";
 import { Daylight, type FrameLight } from "./Daylight";
 import { DistrictLabelLayer, DistrictLabelProjector, type LabelBoard, type LabelEls } from "./DistrictLabels";
@@ -34,6 +35,7 @@ import { SleepHint } from "./SleepHint";
 import { StationLabelLayer, Stations, type StationLink } from "./Stations";
 import { Terrain } from "./Terrain";
 import { TimeBar } from "./TimeBar";
+import { Trains } from "./Trains";
 import { hasWebGL, prefersReducedMotion } from "./webgl";
 import "./scene.css";
 
@@ -56,6 +58,7 @@ function World({
   view,
   flows,
   stations,
+  headway,
   box,
   reduced,
   overlays,
@@ -63,6 +66,7 @@ function World({
   view: BaseView;
   flows: FlowSource;
   stations: StationIndex;
+  headway: BasemapFile["headway"];
   box: PlinthBox;
   reduced: boolean;
   overlays: Overlays;
@@ -82,6 +86,8 @@ function World({
       {/* 選區的抬起與按壓（改 Terrain 的 district-<id> group），軌道、區名、站珠讀同一份高度 */}
       <DistrictLift view={view} reduced={reduced} link={overlays.press} />
       <Rails tracks={view.tracks} ids={ids} reduced={reduced} />
+      {/* 列車（3.14，示意）：在車站之前掛，第一班車的波紋在同一格交給站珠 */}
+      <Trains tracks={view.tracks} headway={headway} ids={ids} reduced={reduced} />
       {/* 先量縮放倍數（緞帶、光點、圖例同一格用），再畫流向；流向標籤先放，區名再避開它們 */}
       <ScaleProbe link={overlays.legend} />
       <Flows
@@ -102,6 +108,7 @@ function World({
         scale={overlays.legend}
         reduced={reduced}
       />
+      <Clouds box={box} reduced={reduced} />
       <DistrictLabelProjector view={view} els={overlays.labels} visible={showLabels} board={overlays.board} />
       <CameraRig reduced={reduced} box={box} link={overlays.camera} />
       <SelectionInput view={view} stations={overlays.stations} press={overlays.press} />
@@ -258,7 +265,7 @@ export default function ScenePage() {
             shadows="percentage"
             gl={GL}
             camera={CAMERA}
-            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線、示意的建築與樹、依此刻進出人數升降的車站柱，以及 ${data.month} 各行政區之間人數最多的流向；點一個行政區看這區的人去哪、誰來這裡，放大後可點車站`}
+            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線、示意的建築與樹、示意的列車（間隔依官方班距）與飄過的雲、依此刻進出人數升降的車站柱，以及 ${data.month} 各行政區之間人數最多的流向；點一個行政區看這區的人去哪、誰來這裡，放大後可點車站`}
             role="img"
             onPointerDown={() => setPlaying(false)}
           >
@@ -266,6 +273,7 @@ export default function ScenePage() {
               view={data.view}
               flows={data.flows}
               stations={data.stations}
+              headway={data.headway}
               box={data.box}
               reduced={reduced}
               overlays={overlays}

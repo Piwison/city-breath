@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import basemapJson from "../../public/data/basemap.json";
 import type { BasemapFile, DistrictFlowsFile } from "../data/types";
 import { flowSource } from "../data/views";
-import { closedAt, closedRangesOf, firstTrainAt, setService, sleepAt } from "./service";
+import { closedAt, closedRangesOf, firstTrainAt, firstTrainCrossed, setService, sleepAt } from "./service";
 
 // 用最新月份的實際檔（AD-5：停駛只看資料），不寫死 2–4 點
 const basemap = basemapJson as unknown as BasemapFile;
@@ -35,6 +35,14 @@ describe("營運時段（3.4）", () => {
     setService({ isOpen: source.operating, headway: basemap.headway });
     expect(firstTrainAt("weekday", 3)).toBe(6);
     expect(firstTrainAt("holiday", 2)).toBe(6);
+  });
+
+  it("第一班車波紋（3.14）：播放中走過 firstTrainAt 的整點才觸發；資料沒載入不觸發", () => {
+    expect(firstTrainCrossed("weekday", 5.98, 6.01)).toBe(false);
+    setService({ isOpen: source.operating, headway: basemap.headway });
+    const first = firstTrainAt("weekday", 3)!;
+    expect(firstTrainCrossed("weekday", first - 0.02, first + 0.01)).toBe(true);
+    expect(firstTrainCrossed("weekday", first + 0.98, first + 1.01)).toBe(false);
   });
 
   it("沒有班距：只知道停駛，不推時間", () => {

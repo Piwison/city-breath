@@ -5,8 +5,10 @@
 // 給其他場景元件的接口（例如 3.1 車站柱）：
 // - React：`useClosed()`，只在整點或換日型時變。
 // - useFrame：`sleepAt(time.t, getView().dayType, reduced)`，0–1，停駛前淡入、停駛中 1；reduced 時是階梯。
+// - useFrame：`firstTrainCrossed(dayType, prevT, t)`，播放中走過第一班車的整點（3.14 列車與第一班車波紋）。
 import { useSyncExternalStore } from "react";
 import { closedRanges, firstTrainHour, SLEEP_RAMP, sleepLevel, type Headway } from "../data/periods";
+import { serviceStartCrossed } from "../data/trains";
 import type { DayType } from "../data/types";
 import { useView } from "./view";
 
@@ -49,6 +51,11 @@ export function closedAt(dayType: DayType, hour: number): boolean {
 /** 第一班車約幾點（整點）；停駛中才有意義，推不出回傳 null。 */
 export function firstTrainAt(dayType: DayType, hour: number): number | null {
   return service ? firstTrainHour(service.headway, dayType, hour) : null;
+}
+
+/** 播放中從 prevT 走到 t 有沒有跨過第一班車的整點（和 firstTrainAt 同一份班距；3.14 波紋）。 */
+export function firstTrainCrossed(dayType: DayType, prevT: number, t: number): boolean {
+  return service ? serviceStartCrossed(service.headway, dayType, prevT, t) : false;
 }
 
 /** 時刻 t 的入睡程度 0–1（useFrame 用）；reduced＝減少動態，直接切換。 */

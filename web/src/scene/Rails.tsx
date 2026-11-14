@@ -19,8 +19,8 @@ import { useTokenColors } from "./useTokenColor";
 
 /** 線寬（場景單位，約 130 公尺） */
 const WIDTH = 0.3;
-/** 浮在薄片頂面上方一點 */
-const LIFT = 0.09;
+/** 浮在薄片頂面上方一點（列車也照這個高度，3.14） */
+export const LIFT = 0.09;
 
 const NO_IDS: string[] = [];
 /** 停駛時路線亮度少多少（1 − 這個值＝停駛時的亮度倍數） */

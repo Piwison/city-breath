@@ -33,6 +33,8 @@ export interface BaseDistrictView {
 }
 
 export interface TrackView {
+  /** 路線 ID（列車查班距用，3.14） */
+  line: LineId;
   /** 路線色 token（AD-21：--line- 加小寫、去連字號的路線 ID） */
   token: string;
   coords: LonLat[];
@@ -83,7 +85,7 @@ export function baseView(basemap: BasemapFile, districts: DistrictsFile): BaseVi
     outsideTerrain: [...basemap.outside.terrain],
     sea: basemap.sea,
     outsideWater: basemap.outsideWater,
-    tracks: basemap.tracks.map((t) => ({ token: lineToken(t.line), coords: t.coords, di: t.di, approx: t.approx })),
+    tracks: basemap.tracks.map((t) => ({ line: t.line, token: lineToken(t.line), coords: t.coords, di: t.di, approx: t.approx })),
   };
 }
 
