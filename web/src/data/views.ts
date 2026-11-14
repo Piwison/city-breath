@@ -14,6 +14,7 @@ import type {
   OdShard,
   Station,
   StationsFile,
+  StationType,
 } from "./types";
 
 export interface BaseDistrictView {
@@ -498,6 +499,8 @@ export const stationLabel = (display: string) => display.replace(/（.*）$/, ""
 export interface StationIndex {
   month: string;
   stations: Station[];
+  /** 當月 stations.json 的 types[]（類型名稱與一句話，所有月份相同，AD-27） */
+  types: StationType[];
   byDistrict: Map<string, number[]>;
   byId: Map<string, number>;
   /** 第一條路線的色 token；沒有路線資料時 --station */
@@ -523,6 +526,7 @@ export function stationIndex(file: StationsFile, stationLines: Record<string, Li
     peak,
     month: file.month,
     stations: file.stations,
+    types: file.types,
     byDistrict,
     byId: new Map(file.stations.map((s, i) => [s.id, i])),
     lines: (i) => stationLines[file.stations[i]?.id] ?? [],

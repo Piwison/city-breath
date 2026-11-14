@@ -89,6 +89,27 @@ def has_weekday_traffic(profile: dict) -> bool:
     return any((profile["weekday"][k][h] or 0) > 0 for k in ("entries", "exits") for h in FEATURE_HOURS)
 
 
+# ── 整年最常見的型（fit-types、station-types；產品計畫 v2 決定 13）────────────
+
+
+def modal_types(by_station: dict[str, dict[str, int | None]]) -> dict[str, tuple[int, int, int]]:
+    """``{站: {月份 YYYY-MM: 類型 id 或 None}}`` → ``{站: (最常歸到的型, 票數, 有類型的月數)}``。
+
+    同票數時取較近月份歸到的那一型（AD-27）；12 個月都沒有類型的站（環狀線）不列。
+    """
+    out = {}
+    for station, months in by_station.items():
+        typed = sorted((m, t) for m, t in months.items() if t is not None)
+        if not typed:
+            continue
+        votes = collections.Counter(t for _, t in typed)
+        top = max(votes.values())
+        tied = {t for t, c in votes.items() if c == top}
+        latest = next(t for _, t in reversed(typed) if t in tied)
+        out[station] = (latest, top, len(typed))
+    return out
+
+
 # ── 擬合（fit-types）────────────────────────────────────────────────
 
 
@@ -109,10 +130,10 @@ def fit_types(
     order = sorted(range(k), key=lambda c: (_describe_vector(km.cluster_centers_[c])["amNet"], c))
     remap = {old: new for new, old in enumerate(order)}
     labels = np.array([remap[int(c)] for c in km.labels_])
-    by_station: dict[str, list[int]] = collections.defaultdict(list)
-    for (_, n, _), lab in zip(rows, labels):
-        by_station[n].append(int(lab))
-    modal = {n: collections.Counter(v).most_common(1)[0][0] for n, v in by_station.items()}
+    by_station: dict[str, dict[str, int]] = collections.defaultdict(dict)
+    for (m, n, _), lab in zip(rows, labels):
+        by_station[n][m] = int(lab)
+    modal = {n: t for n, (t, _, _) in modal_types(by_station).items()}
     return {
         "featureVersion": FEATURE_VERSION,
         "hours": FEATURE_HOURS,
@@ -122,7 +143,7 @@ def fit_types(
         "samples": len(rows),
         "stations": len(by_station),
         "silhouette": round(float(silhouette_score(X, labels)), 4),
-        "stableStations": sum(len(set(v)) == 1 for v in by_station.values()),
+        "stableStations": sum(len(set(v.values())) == 1 for v in by_station.values()),
         "command": "uv run city-breath fit-types --months " + ",".join(sorted({m for m, _, _ in rows})),
         # 新擬合的中心還沒有人對照過名稱表：build 輸出 draft=true，直到 Piwi 確認後改成 true
         "namesConfirmed": False,

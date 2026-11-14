@@ -57,6 +57,28 @@ export interface StationsFile {
   types: StationType[];
 }
 
+/** 一站在擬合月份裡最常歸到的類型（station-types.json）。 */
+export interface YearlyStationType {
+  /** 類型 id，名稱與一句話查當月 StationsFile.types[type] */
+  type: number;
+  /** 歸到這型的月數 */
+  votes: number;
+  /** 這站有類型的月數（新站少於 12） */
+  months: number;
+}
+
+/**
+ * 不分月份的 station-types.json（3.12，AD-27、產品計畫 v2 決定 13）：車站卡顯示整年最常見的型，
+ * 不是當月的 type。站 ID 為鍵（AD-2）；環狀線站與擬合月份都沒有類型的站不列。前端只查表。
+ */
+export interface StationTypesFile {
+  v: number;
+  /** 擬合月份 YYYY-MM，由舊到新 */
+  fitMonths: string[];
+  featureVersion: number;
+  stations: Record<string, YearlyStationType>;
+}
+
 /**
  * 起站分片。weekday[hour][destIndex]：平均人次；null 表示少於 10 人（AD-3）。
  * 整個小時為 null 表示停止營運。

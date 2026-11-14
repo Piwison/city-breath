@@ -1,5 +1,6 @@
 """車站類型（1.6，AD-27）：固定中心、每月歸到最近的中心，名稱各月一致。"""
 
+import collections
 import csv
 import json
 from pathlib import Path
@@ -7,8 +8,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from city_breath_pipeline import CONTRACT_VERSION
 from city_breath_pipeline import cluster as ct
 from city_breath_pipeline.cluster import FEATURE_HOURS, StationTypeError
+from city_breath_pipeline.export import StationTypesError, station_types_json
 
 DATA = Path(__file__).resolve().parents[2] / "web" / "public" / "data"
 MONTHS = sorted(p.name for p in DATA.iterdir() if (p / "stations.json").exists()) if DATA.is_dir() else []
@@ -159,3 +162,99 @@ def test_fit_types_cli_needs_raw_months(tmp_path):
     with pytest.raises(SystemExit, match="fetch"):
         cli.main(["fit-types", "--months", "1999-01..1999-02", "--out", str(tmp_path / "c.json")])
     assert not (tmp_path / "c.json").exists()
+
+
+# ── 整年最常見的型（station-types.json；3.12，產品計畫 v2 決定 13）──────────────
+
+
+def test_modal_type_ties_go_to_the_more_recent_month():
+    by = {
+        "穩定": {"2026-07": 1, "2026-08": 1, "2026-09": 1},
+        "多數": {"2026-07": 2, "2026-08": 1, "2026-09": 1},
+        "同票": {"2026-06": 0, "2026-07": 1, "2026-08": 1, "2026-09": 0},
+        "同票反過來": {"2026-06": 1, "2026-07": 0, "2026-08": 0, "2026-09": 1},
+        "新站": {"2026-07": None, "2026-08": 2, "2026-09": 1},
+        "環狀": {"2026-08": None, "2026-09": None},
+    }
+    assert ct.modal_types(by) == {
+        "穩定": (1, 3, 3),
+        "多數": (1, 2, 3),
+        "同票": (0, 2, 4),
+        "同票反過來": (1, 2, 4),
+        "新站": (1, 1, 2),
+    }
+
+
+def _monthly(month: str, rows: list[tuple[str, bool, int | None]]) -> dict:
+    types = [
+        {"id": i, "label": NAMES[i]["label"], "description": NAMES[i]["description"], "draft": False} for i in (0, 1)
+    ]
+    return {
+        "v": CONTRACT_VERSION,
+        "month": month,
+        "types": types,
+        "stations": [{"id": sid, "exitsRecorded": rec, "type": t} for sid, rec, t in rows],
+    }
+
+
+def test_station_types_json_shape_and_guards():
+    months = ["2026-08", "2026-09"]
+    centroids = _centroids(BED, OFFICE) | {"months": months}
+    monthly = {
+        "2026-08": _monthly("2026-08", [("sA", True, 0), ("sB", True, 1), ("sY", False, None)]),
+        "2026-09": _monthly("2026-09", [("sA", True, 0), ("sB", True, 0), ("sY", False, 1), ("sN", True, 1)]),
+    }
+    body = station_types_json(months, monthly, centroids)
+    assert body == {
+        "v": CONTRACT_VERSION,
+        "fitMonths": months,
+        "featureVersion": ct.FEATURE_VERSION,
+        "stations": {
+            "sA": {"type": 0, "votes": 2, "months": 2},
+            "sB": {"type": 0, "votes": 1, "months": 2},  # 1:1 同票取 2026-09
+            "sN": {"type": 1, "votes": 1, "months": 1},  # 新站只算有的月份
+        },
+    }  # 環狀線（出站未入檔）不列，即使 type 有值也不算
+    with pytest.raises(StationTypesError, match="擬合月份"):
+        station_types_json(["2026-09"], monthly, centroids)
+    with pytest.raises(StationTypesError, match="缺 2026-08"):
+        station_types_json(months, {"2026-09": monthly["2026-09"]}, centroids)
+    draft = _monthly("2026-08", [("sA", True, 0)])
+    draft["types"][0]["draft"] = True
+    with pytest.raises(StationTypesError, match="草稿"):
+        station_types_json(months, monthly | {"2026-08": draft}, centroids)
+    renamed = _monthly("2026-08", [("sA", True, 0)])
+    renamed["types"][1]["label"] = "別的名字"
+    with pytest.raises(StationTypesError, match="名稱"):
+        station_types_json(months, monthly | {"2026-08": renamed}, centroids)
+    old = _monthly("2026-08", [("sA", True, 0)]) | {"v": CONTRACT_VERSION - 1}
+    with pytest.raises(StationTypesError, match="v="):
+        station_types_json(months, monthly | {"2026-08": old}, centroids)
+
+
+@pytest.mark.skipif(not (DATA / "station-types.json").exists(), reason="沒有 station-types.json")
+def test_published_station_types_are_the_modal_type_of_the_fit_months():
+    """已提交的 station-types.json：每站等於擬合月份 stations.json 裡最常歸到的型（同票取較近月份），環狀線站沒有。"""
+    body = json.loads((DATA / "station-types.json").read_text("utf-8"))
+    centroids = ct.load_centroids()
+    assert body["v"] == CONTRACT_VERSION
+    assert body["fitMonths"] == centroids["months"] and body["featureVersion"] == centroids["featureVersion"]
+    votes: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+    last: dict[str, dict[int, str]] = collections.defaultdict(dict)
+    ring = set()
+    for m in body["fitMonths"]:
+        for s in json.loads((DATA / m / "stations.json").read_text("utf-8"))["stations"]:
+            if not s["exitsRecorded"]:
+                ring.add(s["id"])
+            elif s["type"] is not None:
+                votes[s["id"]][s["type"]] += 1
+                last[s["id"]][s["type"]] = m
+    assert ring and not ring & set(body["stations"]), "環狀線站沒有類型"
+    assert set(body["stations"]) == set(votes)
+    for sid, c in votes.items():
+        top = max(c.values())
+        want = max((t for t, n in c.items() if n == top), key=lambda t: last[sid][t])
+        assert body["stations"][sid] == {"type": want, "votes": top, "months": sum(c.values())}, sid
+    # 擬合時 109 站中 94 站 12 個月都歸同一型（中心檔 stableStations）
+    changed = sum(r["votes"] < r["months"] for r in body["stations"].values())
+    assert changed == centroids["stations"] - centroids["stableStations"]

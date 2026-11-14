@@ -91,6 +91,42 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 - **合併 origin/main 032a5da（產品計畫 v2，2026-11-14）**：票面加了「類型標籤與一句話（整年最常見的型，管線輸出不分月份的 station-types.json，當月不同時加一行小字）」。協調者指示：這個 PR 照本 plan 範圍完成，類型標籤、station-types.json 與它的 pytest／vitest 由**同一張票的第二個 PR** 補上（已記在 deferred-work）。新 DESIGN.md 體驗原則 3（不用「此刻」）：卡上「此刻進站／出站／進出」改成「這小時…」（截圖是改字前拍的）。其餘與新 DESIGN.md 互動段的差異（點空白處只關卡、卡片兩段高度與第一行答案、44px 點擊目標、「設為我的站」）屬 3.21／3.22／3.23，不在這張做，寫在 PR 說明。
 - 截圖：`design/reviews/3.12-station-card/`（site-*＝正式版、*-card＝卡片內容攤開、compare-*＝左原型右正式版）；Playwright 390×844、DPR 2、swiftshader，console 無錯誤。
 
+## 第二個 PR：類型標籤與一句話（2026-11-14）
+
+第一個 PR（#45）已合併。這個 PR 的 baseline 是 `35ce57ef91a20fa767989fb256d60883bf49056e`（frontmatter 的 `baseline_revision` 保留第一個 PR 的值）。範圍來自票面（產品計畫 v2 決定 13、14）與 AD-27；上面 Never 的「不做類型標籤、一句話」與「不改資料契約」只適用第一個 PR。
+
+**Approach：** 整年最常見的型由管線算、前端只查表。管線新增 `city-breath station-types`：讀擬合月份（中心檔的 `months`，2025-10～2026-09）已發布的 `{month}/stations.json` 的 `type`（就是 `build` 用固定中心歸類的結果，AD-27），每站數票，同票數取較近月份的那一型，輸出不分月份的 `web/public/data/station-types.json`。不必下載 12 個原始月檔（約 3.6 GB）：每月歸類只依中心檔，已發布的 `type` 就是 12 個月的歸類；`fit-types` 的 `modal` 改用同一個函式（同樣的同票規則），跑完提示重建所有月份後再跑 `station-types`。
+
+**Code Map（這個 PR）：**
+- `pipeline/src/city_breath_pipeline/cluster.py` -- `modal_types(by_month)`：`{station: {month: type|None}}` → `{station: (type, votes, months)}`；`fit_types` 的 `modal` 改用它。
+- `pipeline/src/city_breath_pipeline/export.py` -- `station_types_json(months, monthly_files, centroids)`、`export_station_types(body, out_root)`：檢查每月 `v`、`types[]` 的 id 與名稱一致、`draft` 為 false、月份等於中心檔的 `months`。
+- `pipeline/src/city_breath_pipeline/cli.py` -- `station-types` 子命令（`--months` 預設中心檔的月份）；`fit-types` 結尾提示。
+- `docs/data-contract.md` -- 新增 `station-types.json` 一節與目錄樹一行；不升版（理由見下）。
+- `web/src/data/types.ts`、`load.ts` -- `StationTypesFile`、`loadStationTypes()`（驗形狀）；`views.ts` 的 `StationIndex` 加 `types`。
+- `web/src/data/stationType.ts`（新）-- `stationTypeLabel(station, types, yearly)` 純函式：環狀線、檔裡沒有這站、檔還沒到 → `null`；當月 `type` 不同 → `monthly` 為當月那型的名稱。`useStationTypes()` hook：打開車站卡才載（AD-6）。
+- `web/src/card/StationCard.tsx`、`card.css` -- 線路列下方加類型標籤（名稱＋一句話），不同時加小字「這個月偏 X」；卡底說明加「類型是 2025-10～2026-09 最常歸到的那一型」。
+
+**Tasks：**
+- [x] cluster.py、export.py、cli.py；跑 `station-types` 產出 `web/public/data/station-types.json`
+- [x] `pipeline/tests/test_types.py` -- `modal_types` 同票取較近月份；已發布的 station-types.json 每站等於 12 個月 stations.json 數出來的型、環狀線站沒有、`v` 等於 `CONTRACT_VERSION`；既有測試（含 `test_published_cells.py`）照樣通過
+- [x] docs/data-contract.md、types.ts、load.ts（同一個 commit）
+- [x] stationType.ts、`stationType.test.ts`；`StationCard.test.tsx` 加：標籤等於 station-types.json 的型、跨型站（三重 2026-08 等）出現小字而標籤不變、環狀線站沒有標籤、檔還沒到不顯示
+- [x] Playwright 390×844 截 2 張到 `design/reviews/3.12-station-card/`：一般站、跨型站（網站只顯示最新月份，2026-09 只有中正紀念堂歸到別型，所以跨型站截中正紀念堂；三重 2026-08 的小字由 vitest 驗）
+
+**Acceptance：**
+- Given 任一出站有紀錄的站, when 打開車站卡, then 標籤與一句話等於 station-types.json 的型在當月 `types[]` 的名稱。
+- Given 12 個月中換過型的站（三重 6:6、中正紀念堂 7:5 等）, when 看到歸到別型的月份, then 標籤不變、多一行「這個月偏 X」。
+- Given 環狀線站或檔裡沒有的站, then 沒有標籤。
+- pytest、`npm test`、`npm run build` 通過；`web/public/data/{month}/` 的既有檔案位元組不變。
+
+**契約版本（AD-18）：** 只新增根目錄一個檔，既有檔案形狀與數字都不變，舊網站不讀它也不受影響；AD-21、AD-27 都寫明新增檔案不升版。`station-types.json` 帶 `v`＝目前的 `CONTRACT_VERSION`，日後升版時跟著所有月份重建。
+
+**實作紀錄（第二個 PR）：**
+- `station-types.json`（5.2 KB）：`{ v: 4, fitMonths[12], featureVersion: 1, stations: { 站ID: { type, votes, months } } }`，109 站；環狀線 11 站不列。依型：臥室 32、住商 28、人氣 29、辦公 20。15 站換過型（＝中心檔 stableStations 94/109，證明已發布的 `type` 與擬合時的歸類一致）；三重（臥室／住商 6:6）與廣慈/奉天宮（2026-08 人氣、2026-09 住商，1:1）同票，取較近月份 → 臥室站、住商站。中心檔 `types[].stations` 是舊的同票規則（取先出現的），所以住商／人氣是 27／30，這裡是 28／29；中心檔是 fit-types 的輸出，不手改，下次擬合自然一致。
+- 網站只顯示最新月份（決定 28），2026-09 歸到別型的只有中正紀念堂（整年人氣站、這個月辦公站）；三重 2026-09 歸回臥室站，卡上沒有小字。
+- 卡片：線路列下方「膠囊（`--hud-accent` 底、`--hud-on` 字）＋一句話」，不同時第二行「這個月偏辦公站」（`--hud-muted`、`--text-2xs`）。卡底說明加「類型是 2025 年 10 月～2026 年 9 月 這站最常歸到的那一型，每年重新分群」。檔還沒到或失敗不顯示標籤（不拿當月的型代替）。沒有新動畫。
+- 測試：pytest 386 passed（新增 3 個：同票規則、形狀與防呆、已發布檔＝12 個月數票）；vitest 342 passed（新增 stationType.test.ts 6 個、StationCard.test.tsx 5 個）；`npm run build` 通過。截圖 `type-taipei-main-weekday-08*.png`、`type-cks-memorial-weekday-08*.png`，console 無錯誤。
+
 ## Plan Change Log
 
 ## Review Triage Log
@@ -101,6 +137,13 @@ Quick lens（本 session 自審）：high 0、medium 0、low 2、false 0、maybe
 | --- | --- | --- |
 | low | patch | 環狀線站第三格標「此刻進站（人）」，和第一格同名同值，看起來像重複；改成「此刻進出（只算進站）」。 |
 | low | patch | 矩陣「點目的地」「分片載入失敗」沒有測試；StationCard.test.tsx 加聚焦後「看這站」與載入失敗兩個測試。 |
+
+第二個 PR 的 Quick lens（本 session 自審，沒有子代理）：high 0、medium 0、low 1、false 1。
+
+| 判定 | 去向 | 發現與證據 |
+| --- | --- | --- |
+| low | patch | 跨型站截圖原本拍三重 `?month=2026-08`，但網站只顯示最新月份（url.ts 讀 month、場景仍用 latest），拍出來是 2026-09、沒有小字；改拍 2026-09 唯一歸到別型的中正紀念堂，三重 2026-08 留給 vitest。 |
+| false | — | 「`fit_types` 改了同票規則會讓已提交的中心檔對不上」：`build` 只讀中心檔的 `centroid`／特徵設定，不讀 `types[].stations`；`test_committed_centroids_and_names` 照樣通過。 |
 
 ## Design Notes
 

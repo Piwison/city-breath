@@ -12,7 +12,7 @@ from pathlib import Path
 from . import CONTRACT_VERSION, DAY_TYPES, HOURS, SUPPRESS_BELOW
 from .aggregate import MonthAggregate
 from .anomaly import detect as detect_anomalies, to_json as anomalies_json
-from .cluster import ClusterResult, assign_types
+from .cluster import ClusterResult, assign_types, modal_types
 from .district_flows import district_profiles, district_raw, inbound_raw, total_count
 from .schedules import link as link_schedules
 from .districts import DistrictResult
@@ -516,3 +516,55 @@ def export_basemap(body: dict, out_root: Path) -> int:
     """寫出 ``web/public/data/basemap.json``，回傳 bytes。"""
     assert body["v"] == CONTRACT_VERSION and "basemapRevision" in body
     return _write(out_root / "basemap.json", body)
+
+
+# ── station-types.json（3.12；AD-27、產品計畫 v2 決定 13）─────────────────────────
+# 不分月份：每站在擬合月份裡最常歸到的型。來源是那幾個月已發布的 stations.json 的 type
+# （build 用固定中心歸類的結果），所以不必重讀原始月檔；形狀見 docs/data-contract.md。
+
+
+class StationTypesError(Exception):
+    """擬合月份的 stations.json 缺檔、版本不符、類型表對不上或還是草稿。"""
+
+
+def station_types_json(months: list[str], monthly: dict[str, dict], centroids: dict) -> dict:
+    """``monthly``：月份 → 該月 stations.json 的內容。回傳 station-types.json 的內容。"""
+    if sorted(months) != sorted(centroids.get("months", [])):
+        raise StationTypesError(f"月份 {months} 與中心檔的擬合月份 {centroids.get('months')} 不同")
+    ids = [t["id"] for t in centroids["types"]]
+    labels = None
+    by_station: dict[str, dict[str, int | None]] = defaultdict(dict)
+    for m in sorted(months):
+        body = monthly.get(m)
+        if body is None:
+            raise StationTypesError(f"缺 {m}/stations.json；先 `city-breath build --month {m}`")
+        if body.get("v") != CONTRACT_VERSION or body.get("month") != m:
+            raise StationTypesError(
+                f"{m}/stations.json 的 v={body.get('v')}、month={body.get('month')}，應為 {CONTRACT_VERSION}、{m}"
+            )
+        types = body["types"]
+        if [t["id"] for t in types] != ids or any(t["draft"] for t in types):
+            raise StationTypesError(
+                f"{m}/stations.json 的類型 {[t['id'] for t in types]} 與中心檔 {ids} 不同或名稱還是草稿；"
+                "Piwi 確認名稱、重建所有月份後再跑"
+            )
+        names = [(t["label"], t["description"]) for t in types]
+        if labels is not None and names != labels:
+            raise StationTypesError(f"{m}/stations.json 的類型名稱與其他月份不同；重建所有月份後再跑")
+        labels = names
+        for s in body["stations"]:
+            # 出站未入檔（環狀線）不分群（AD-27）
+            by_station[s["id"]][m] = s["type"] if s["exitsRecorded"] else None
+    modal = modal_types(by_station)
+    return {
+        "v": CONTRACT_VERSION,
+        "fitMonths": sorted(months),
+        "featureVersion": centroids["featureVersion"],
+        "stations": {sid: {"type": t, "votes": votes, "months": n} for sid, (t, votes, n) in sorted(modal.items())},
+    }
+
+
+def export_station_types(body: dict, out_root: Path) -> int:
+    """寫出 ``web/public/data/station-types.json``，回傳 bytes。"""
+    assert body["v"] == CONTRACT_VERSION and body["fitMonths"]
+    return _write(out_root / "station-types.json", body)

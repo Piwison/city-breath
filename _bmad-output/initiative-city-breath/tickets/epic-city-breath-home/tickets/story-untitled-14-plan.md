@@ -3,7 +3,7 @@ title: '列車與雲（示意）'
 type: 'feature'
 ticket: '14'
 created: '2026-11-13'
-status: 'built'
+status: done
 baseline_revision: 'bf7ec0626f81e1c0f4b0f578d2ea003ed685df4a'
 route: 'full'
 route_source: 'auto'

@@ -3,8 +3,10 @@
 // 這一小時從這站出發最常去的前 5 站（od 分片，選了站才載，AD-6）與這 5 站在哪幾區、「從這站找通勤」（寫起站，4.1 接手）。
 // 點目的地：地圖上那條站對站緞帶以外變淡、鏡頭飛過去，再一個按鈕開那一站。
 // 環狀線站出站未入檔（A7）：出站寫「未入檔」並附說明，不排名、沒有個性；目的地照 od 分片。
-// 類型標籤、一句話、整天前 10、同類型站與誰來這站由 epic-station-personality 加進同一張卡。
+// 類型標籤與一句話（第二個 PR，決定 13）：整年最常見的那一型（station-types.json，打開卡才載），當月不同加一行小字；
+// 環狀線站與沒有類型的站不顯示。整天前 10、同類型站與誰來這站由 epic-station-personality 加進同一張卡。
 import { whenLabel } from "../data/periods";
+import { fitRangeLabel, stationTypeLabel, useStationTypes, type StationTypesState } from "../data/stationType";
 import { daySeries, stationTraits, stationVolume } from "../data/traits";
 import type { LineId } from "../data/types";
 import { useOdShard, type OdState } from "../data/useOdShard";
@@ -49,11 +51,21 @@ export interface StationCardProps {
 
 export function StationCard(props: StationCardProps) {
   const od = useOdShard(props.stations.month, props.id);
-  return <StationCardView {...props} od={od} />;
+  const yearly = useStationTypes();
+  return <StationCardView {...props} od={od} yearly={yearly} />;
 }
 
-/** 卡片本體（od 分片從外面給，測試可以直接餵）。 */
-export function StationCardView({ id, stations, source, lineNames, districtNames, backTo, od }: StationCardProps & { od: OdState }) {
+/** 卡片本體（od 分片與 station-types.json 從外面給，測試可以直接餵）。 */
+export function StationCardView({
+  id,
+  stations,
+  source,
+  lineNames,
+  districtNames,
+  backTo,
+  od,
+  yearly = { status: "loading" },
+}: StationCardProps & { od: OdState; yearly?: StationTypesState }) {
   const hour = useView((s) => s.hour);
   const dayType = useView((s) => s.dayType);
   const focus = useView((s) => s.focus);
@@ -67,6 +79,8 @@ export function StationCardView({ id, stations, source, lineNames, districtNames
   const bars = barRatios(series);
   const day = dayType === "weekday" ? "平日" : "假日";
   const districtName = districtNames.get(s.district);
+  const yearlyFile = yearly.status === "ok" ? yearly.file : null;
+  const kind = stationTypeLabel(s, stations.types, yearlyFile);
   return (
     <CardFrame
       kind="station"
@@ -84,6 +98,14 @@ export function StationCardView({ id, stations, source, lineNames, districtNames
           </span>
         ))}
       </div>
+
+      {kind && (
+        <div className="card-type">
+          <span className="card-type-tag">{kind.label}</span>
+          <p>{kind.description}</p>
+          {kind.monthly && <p className="card-type-month">這個月偏{kind.monthly}</p>}
+        </div>
+      )}
 
       {personality.ranked && (
         <div className="card-story">
@@ -157,7 +179,9 @@ export function StationCardView({ id, stations, source, lineNames, districtNames
       </div>
       <p className="card-note">
         {monthLabel(stations.month)}
-        {day}每小時平均人次。個性是這個月平日和全線出站有紀錄的站相比（假日倍數＝假日÷平日），每月重算。
+        {day}每小時平均人次。
+        {kind && yearlyFile && `類型是 ${fitRangeLabel(yearlyFile)} 這站最常歸到的那一型，每年重新分群。`}
+        個性是這個月平日和全線出站有紀錄的站相比（假日倍數＝假日÷平日），每月重算。
       </p>
     </CardFrame>
   );
