@@ -1,4 +1,5 @@
 # 每月 OD 原始檔變成網站讀得動的小檔 的 stories，依建置順序。
+# 2026-11-14 replan（產品計畫 v2）：epic 重開，加 1.14、1.15（階段 3，上線後第一次月更）；1.1–1.13 已完成、不動。
 
 [[entry]]
 id = 1
@@ -149,3 +150,26 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "0-7"
+
+[[entry]]
+id = 14
+type = "story"
+title = "停班停課日從平均排除"
+description = "決定 27（產品計畫 v2）：停班停課日（颱風假等，行政院人事行政總處公告，以臺北市為準）不算平日也不算假日，不排除會拉低那個月的平均。日型多一種 `closure`（AD-4）：清單寫在 pipeline/config/（holidays.csv 加一欄種類，或另開一份，每列附公告網址，沒附就讓 build 報錯）；這些日子不進平日與假日的平均，分母也不算（AD-7）；逐日檔照常輸出；`events.json` 的 `days[].dayType` 標成 `closure` 並列進大日子，原因是停班停課、附公告網址（AD-13、AD-14；算「平常」的中位數也排除這些日子）。契約改動（dayType 多一個值、meta.json 的各日型天數）照 AD-1 三處同步、升一版，所有月份與 basemap.json 重建（AD-10、AD-18）；沒有停班停課日的月份，除了版本號其餘輸出逐格相同。畫面上的呈現（大日子清單另列一類）在 7.4；前端在 7.4 之前至少認得新日型、不壞。CLAUDE.md 與 architecture 的每月更新流程加上「補停班停課日」。"
+verify = "pytest：有停班停課日的月份（近 12 個月若沒有，用測試資料造一天）那天不在平日與假日的平均與分母裡，`days[]` 標 closure、在大日子清單帶原因與網址；沒有停班停課日的月份重建後除 v 外逐格相同；沒附公告網址的列讓 build 報錯；所有月份 JSON 的 v 一致、CI 版本掃描通過；npm test 通過（types.ts、load.ts 認得新日型與新版本）。"
+covers = ["R7"]
+after = []
+hitl = false
+risk = "medium"
+unknown = "關卡 2 過了、也公開上線了嗎？6.5 的獨立審查與 6.6 的真人測試通過、6.3 正式上線後才開始階段 3。"
+
+[[entry]]
+id = 15
+type = "story"
+title = "每月更新一個指令"
+description = "`city-breath monthly --month YYYY-MM` 一次跑完每月流程（fetch → 檢查假日表與停班停課日 → fetch-events → build → 列出原因未查證的站級異常），遇到缺的東西（假日表沒補到該月、花博檔期 missing、底圖原始檔不在）不中斷，最後列成一張「還缺什麼」的清單，補完再跑一次只做剩下的。存中間檔：每月的彙總結果存在 data/cache/（不進版控），契約升版或重建時從中間檔出 JSON，不必重新下載約 300 MB 的月檔；中間檔記原始檔的 sha256 與管線版本，不符就重算。加「建兩次結果相同」的測試：同一份輸入連續 build 兩次，輸出的 JSON 逐位元組相同（一併修掉 deferred-work 記的 topDestinations 平均差 1 與 daily 站順序不固定）。接在 1.14 之後（流程要包含停班停課日那一步，兩張都改 cli.py）。更新 CLAUDE.md 的常用指令與每月更新流程、architecture 的 Conventions。"
+verify = "`uv run city-breath monthly --month 2026-09` 在乾淨的 data/raw/ 上跑完並印出還缺什麼；第二次跑不重新下載；刪掉 web/public/data/2026-09 後只靠中間檔重建出相同的檔案；pytest：同一份輸入 build 兩次，所有輸出 JSON 位元組相同；中間檔的 sha256 不符時重算。"
+covers = ["R8"]
+after = [14]
+hitl = false
+risk = "medium"

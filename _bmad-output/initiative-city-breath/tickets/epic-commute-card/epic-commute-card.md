@@ -3,7 +3,7 @@ type: epic
 title: "通勤族找到同路人並把通勤卡分享出去"
 parent: initiative-city-breath
 covers: [R1, R2, R17, R21]
-sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md]
+sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, _bmad-output/initiative-city-breath/product-plan-v2-2026-11-14.md]
 companions: [DESIGN.md]
 after: []
 risk: medium
@@ -13,11 +13,11 @@ risk: medium
 
 ## Description
 
-輸入起訖站與時段看到同路人數與名次，一鍵下載直式分享卡，下載次數可計數。由 v6 Epic 3 遷移；2026-11-10 replan 把分享卡移到最前並讓行政區卡共用，入口改成可打字搜尋的「找車站／通勤」，通勤卡加早晚一小時比較。2026-11-11 replan（第一次使用者走查）：行政區卡分享移到首頁 epic（3.16），計數提前並加上連結分享，找車站改依路線分組，通勤卡接首頁的分享入口（3.15）。
+輸入起訖站與時段看到同路人數與名次，一鍵下載直式分享卡，下載次數可計數。由 v6 Epic 3 遷移；2026-11-10 replan 把分享卡移到最前並讓行政區卡共用，入口改成可打字搜尋的「找車站／通勤」，通勤卡加早晚一小時比較。2026-11-11 replan（第一次使用者走查）：行政區卡分享移到首頁 epic（3.16），計數提前並加上連結分享，找車站改依路線分組，通勤卡接首頁的分享入口（3.15）。2026-11-14 replan（產品計畫 v2）：入口改成畫面下方主按鈕「找你的站」；通勤卡套用新卡框與分享面板；計數骨架移到 6.2，4.4 只驗證事件。三張都是階段 2。
 
 ## Outcome
 
-通勤族從「找車站／通勤」3 步內看到同路人數、名次與早晚一小時的差別，一鍵把通勤卡存成直式圖或分享連結，下載與分享次數可計數。
+通勤族從下方主按鈕「找你的站」3 步內看到同路人數、名次與早晚一小時的差別，從分享面板把通勤卡存成直式圖或複製連結；北極星（存圖＋複製連結次數）與「找到自己」在後台讀得到。
 
 ## Requirements
 
@@ -35,9 +35,9 @@ R4 (parent R21): 使用者從行政區卡、通勤卡、活動卡與沒開卡的
 
 - 3 步內完成輸入並看到結果。
 - 分享卡可下載且含月份、來源、網址；通勤卡的連結打開回到同一張通勤卡。
-- 站選單可打字搜尋、依路線分組，通勤卡看得到早晚一小時的差別。
+- 下方主按鈕打開可打字、依路線分組的搜尋，最近用過的站排最前；通勤卡看得到早晚一小時的差別、第一行是一句答案。
 - 部署到建置版後以上都可用。
-- 「下載分享卡」與分享連結的次數可被計數。
+- 通勤與分享的事件在 Vercel Web Analytics 看得到，五個指標各自怎麼讀寫在 docs/metrics.md（4.4）。
 
 ## Boundaries
 
@@ -51,6 +51,7 @@ R4 (parent R21): 使用者從行政區卡、通勤卡、活動卡與沒開卡的
 - design — DESIGN.md, 互動（找車站／通勤、通勤卡）
 - walkthrough — design/reviews/2.1-user-story-walkthrough-2026-11-10.md, A 雙北通勤族、結論 1
 - walkthrough — design/reviews/2.1-first-time-user-2026-11-11.md, B1、F3
+- plan — _bmad-output/initiative-city-breath/product-plan-v2-2026-11-14.md（核心旅程 4、7，設計決定 1、15、17）
 
 ## Notes
 
@@ -64,3 +65,4 @@ R4 (parent R21): 使用者從行政區卡、通勤卡、活動卡與沒開卡的
 - Decision: 2026-11-11 4.1「最近用過的站」跨次造訪記住（Piwi）：Winston 改了 AD-22（與 AD-16 的例外），最多 5 站、只存站 ID、不存任何人數，經 state/progress.ts 存在同一個鍵，localStorage 不能用時退回記憶體；4.1 的 description／verify 同步。原 Open question 結案。
 - Decision: 2026-11-11 4.1 加等 3.11：progress.ts 由 3.11 建立（「看過開場」），4.1 在同一個模組加欄位，排成一條線避免兩張票各建一份；3.9 之後也改它，加欄位不互相覆寫。
 - Decision: 2026-11-11 4.4 不寫 after 6.2：epic-source-and-launch 在建置順序裡排在本 epic 之後（6.3 正式上線要等本 epic），寫了會 order_conflict。改在 4.4 與 6.2 的描述互相寫明交接：Web Analytics 由 6.2 打開，4.4 的「分析工具看得到事件」在 6.2 的部署上驗。
+- Decision: 2026-11-14 replan（產品計畫 v2）：4.1 改名「找你的站」，入口改成畫面下方主按鈕（決定 1）、依路線分組（決定 15），不再等 3.17、3.11（主按鈕不在上方那一排；progress.ts 由 4.1 與 3.11 中先做的建立）；改等 3.22（卡框）。4.2 套用新卡框與分享面板。4.4 改成計數驗證：骨架與六個事件在 6.2，各票呼叫 track()，4.4 在部署上確認事件進後台並寫 docs/metrics.md；不再等 3.15、3.16，改等 4.1、4.2。關卡 1 擋在 4.1 的 unknown。

@@ -6,7 +6,8 @@
 
 BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 active initiative）：
 
-- Initiative（需求 R1–R16、限制、完成條件；2026-11-03 replan 的來源是 `user-stories-city-breath-2026-11-03/`）：`_bmad-output/initiative-city-breath/initiative-city-breath.md`
+- Initiative（需求 R1–R31、限制、完成條件＝產品計畫 v2 的階段與關卡）：`_bmad-output/initiative-city-breath/initiative-city-breath.md`
+- 產品計畫 v2（2026-11-14 Piwi 核准；目標、體驗原則、核心旅程、30 個設計決定、上線階段與關卡、票的調整）：`_bmad-output/initiative-city-breath/product-plan-v2-2026-11-14.md`（原文與路線圖在 Claude Docs：https://claude.ai/artifact/MjairabeFqJniMiJuAqMDE ）
 - PRD：`_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/`（原文在 Claude Docs：https://claude.ai/artifact/S46QYMugL6cKGNZK9ePN7r）
 - 架構：`_bmad-output/initiative-city-breath/architecture-city-breath-2026-10-26/`
 - Epics 與 stories：`_bmad-output/initiative-city-breath/tickets/`（`tickets.toml` 是建置順序；狀態寫在各 story 的 `*-plan.md`）
@@ -18,6 +19,9 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 - 需求、切票、看板、中途改需求都找 Sofia（`bmad-agent-po`）。看進度：`uv run _bmad/method/scripts/tickets.py status`；下一張可做的：`tickets.py next`。
 - 實作一張 story 用 `bmad-build`（直接給 ref，例如「build 3.1」，不需要先寫 story 檔）；審查用 `bmad-code-review`；epic 結束跑 `bmad-retrospective`。
 - 視覺設計的分工見下一節。不論用哪個 skill，這幾條不可違反：顏色與字型只能用 `:root` token、每個動畫要有 reduced-motion 版本、不編造任何數字、少於 10 人不顯示數字。
+- 一次以一張票為主，票切小，減少額度中斷與衝突。
+- 使用者看得到的取捨以產品計畫 v2（與 `DESIGN.md`）為準；做的時候遇到文件沒寫到的，先問 Piwi 再做，一次問完。
+- 票依階段做：階段 0 收尾 → 階段 1 預覽版（關卡 1：6.4 真機 30 fps 與分享連結）→ 階段 2 公開上線（關卡 2：6.5 獨立審查、6.6 五位真人測試）→ 階段 3 第一次月更 → 階段 4 樂趣與深度。關卡沒過不進下一階段，開票修到過；關卡寫在各階段第一批票的 `unknown`，過了由 Sofia 移除。
 - 跟 Piwi 溝通用繁體中文。
 
 ## 設計與技術 skill 的分工
@@ -38,7 +42,8 @@ BMAD v7 的 initiative 是 `_bmad-output/initiative-city-breath/`（已設為 ac
 
 - `main` 是可部署的狀態，不直接 commit 到 `main`。
 - 一張 story 一個分支，命名 `story/<ref>-<slug>`（例如 `story/3.3-share-card`），做完開 PR，標題帶票號（例如 `3.3 直式分享卡輸出`）。
-- PR 要通過 CI（`.github/workflows/ci.yml`：管線測試、網站測試與建置、ticket tree 檢查）才合併。
+- PR 要所有檢查跑完且通過才合併（`.github/workflows/ci.yml`：管線測試、網站測試與建置、ticket tree 檢查；6.5 起加瀏覽器冒煙測試），由 GitHub 的 `main` 分支保護把關。
+- 畫面對照：6.5 完成後由冒煙測試（`web/e2e/`）統一截圖、存成 CI 產物，不再每張票各寫一套截圖；在那之前照舊放 `design/reviews/<ref>-*/`。
 - 合併後把票標成 done：`uv run .claude/skills/bmad-agent-po/scripts/tickets.py --project-root . mark <ref> done`，跟著下一個 PR 一起 commit。Piwi 已授權（2026-11-11）：CI 通過的 PR 可直接合併，合併後由 Claude 代標 done。
 - 新 clone 下來要先設定 active initiative（個人設定，不進版控）：在 `_bmad/custom/config.user.toml` 加上
   `[core]` 與 `active_initiative = "initiative-city-breath"`。
@@ -76,7 +81,7 @@ npm test
 npm run build
 ```
 
-每月更新（architecture Consistency Conventions）：`fetch` → 補 `pipeline/config/holidays.csv` → `fetch-events` → `build` → 看印出的「原因未查證的站級異常」，查到來源的補進 `pipeline/config/events.csv`（每列必附網址，`verified` 填 `true`；查不到就不補，維持「原因未查證」）→ 再 `build` → 開 PR。
+每月更新（architecture Consistency Conventions；1.15 之後改成 `city-breath monthly` 一個指令）：`fetch` → 補 `pipeline/config/holidays.csv` 與停班停課日（1.14 之後）→ `fetch-events` → `build` → 看印出的「原因未查證的站級異常」，查到來源的補進 `pipeline/config/events.csv`（每列必附網址，`verified` 填 `true`；查不到就不補，維持「原因未查證」）→ 再 `build` → 開 PR。
 
 ## 已知狀況
 
@@ -85,4 +90,4 @@ npm run build
 - 假日表 `pipeline/config/holidays.csv` 要每月補；`events.json` 的全市級異常日（`anomalies[]` 中 `station` 為 `null` 者）可幫忙找漏列的假日，`build` 也會對「平日卻少 15% 以上」的日子印出提示。
 - 場館檔期：花博公園的年度檔常晚發布（2026-11 時最新仍是 114 年度），`fetch-events` 記為 missing、`build` 會提醒；那幾個月花博站（圓山）的異常只能靠人工活動表。
 - 底圖：水利署河川河道的 SHP（gic.wra.gov.tw）在部分網路連不到，`fetch-basemap` 會印手動下載說明；手動檔放 `data/raw/basemap/RIVERPOLY.zip`，再跑一次 `fetch-basemap` 登記 sha256。底圖來源換版後把 `basemap.py` 的 `BASEMAP_REVISION` 加一。
-- 首頁已是 Three.js 場景（3.5，2026-11-11）：maplibre-gl、deck.gl 與舊骨架 `App.tsx` 已移除；網址 `?hour=&day=` 可停在某一刻。原型 `design/prototypes/2.1-diorama/` 留到 3.7 才刪。
+- 首頁已是 Three.js 場景（3.5，2026-11-11）：maplibre-gl、deck.gl 與舊骨架 `App.tsx` 已移除；網址 `?hour=&day=` 可停在某一刻。原型 `design/prototypes/2.1-diorama/` 留到 8.5（探索捷徑的 Refactor sweep）才刪，地標與徽章還要照它移植。
