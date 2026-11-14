@@ -8,7 +8,7 @@ import type { DistrictRange } from "../data/views";
 
 export type Speed = 1 | 2;
 
-export type LayerKey = "flow" | "water" | "green" | "rail" | "station" | "building" | "label";
+export type LayerKey = "flow" | "water" | "green" | "rail" | "station" | "building" | "train" | "cloud" | "label";
 
 export interface ViewState {
   /** 進站時段 0–23（AD-15），由 t 取整 */
@@ -41,7 +41,7 @@ let state: ViewState = {
   speed: 1,
   still: false,
   dayType: "weekday",
-  layers: { flow: true, water: true, green: true, rail: true, station: true, building: true, label: true },
+  layers: { flow: true, water: true, green: true, rail: true, station: true, building: true, train: true, cloud: true, label: true },
   district: null,
   station: null,
   range: "hour",

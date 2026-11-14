@@ -4,6 +4,7 @@
 // 廣場與站珠是路線色（--line-*，AD-21），細柱是 --station；夜裡站珠以路線色自發光（天光：夜裡亮的是窗、站珠、列車）。
 // 放大或選了區才點得到、才標站名，只標重要的（stationRules.ts）；點站時站珠彈一下（gsap），減少動態或靜態模式時直接切換。
 // 只吃 views.ts 的 StationFrame（AD-19）；站屬哪區只看 stations.json 的 district（AD-9）。
+// 第一班車（3.14）：播放中走過第一班車的整點，站珠從台北車站往外依距離彈一下、亮一下（firstTrain.ts；Trains 觸發）。
 import { useFrame, useThree } from "@react-three/fiber";
 import gsap from "gsap";
 import { useEffect, useMemo, useRef } from "react";
@@ -13,6 +14,7 @@ import { sleepAt } from "../state/service";
 import { getView, time, useView } from "../state/view";
 import { sunAt } from "./daylight";
 import type { LabelBoard } from "./DistrictLabels";
+import { waveAt, waveGlow, waveRunning, WAVE_ORIGIN } from "./firstTrain";
 import type { LegendLink } from "./FlowLegend";
 import { lifts, liftOf } from "./lift";
 import { levelHeight, project, terrainLevelAt } from "./projection";
@@ -179,6 +181,14 @@ export function Stations({
     [frames, view],
   );
 
+  // 第一班車波紋：每站離圓心（台北車站；找不到用場景原點）多遠
+  const wave = useMemo(() => {
+    const o = frames.findIndex((f) => index.stations[f.index]?.name === WAVE_ORIGIN);
+    const [cx, cz] = o >= 0 ? [spots[o].x, spots[o].z] : [0, 0];
+    const dist = spots.map((g) => Math.hypot(g.x - cx, g.z - cz));
+    return { dist, max: Math.max(0, ...dist), pulse: new Float32Array(spots.length).fill(1) };
+  }, [frames, spots, index]);
+
   // 顏色只從 token 來（AD-8）
   const beadTokens = useMemo(() => frames.map((f) => f.token), [frames]);
   const plazaTokens = useMemo(() => frames.map((f) => f.plazaToken), [frames]);
@@ -217,6 +227,7 @@ export function Stations({
     colorStation: undefined as string | null | undefined,
     index: null as StationIndex | null,
     meshes: null as unknown,
+    waved: false,
   });
   const o = useMemo(() => new Object3D(), []);
   const P = useMemo(() => new Vector3(), []);
@@ -224,7 +235,7 @@ export function Stations({
   const c = useMemo(() => new Color(), []);
   const last = useRef({ m: new Matrix4(), w: 0, h: 0, key: "", bv: -1, els: -1, matKey: "" });
 
-  useFrame(({ camera, size }, dt) => {
+  useFrame(({ camera, size, clock }, dt) => {
     const S = st.current;
     const n = frames.length;
     // frames 每個整點換一份（value 變了），站的順序不變；換了一組站（換月份）或換了等級（重建網格）才從頭來、不緩動
@@ -265,10 +276,14 @@ export function Stations({
     }
     const liftKey = lifts.frame;
     const popping = pop.id !== null && pop.v !== 1;
+    // 第一班車波紋（減少動態或靜態模式時不彈：站珠照停駛結束直接亮）；結束後再多寫一格回到 1
+    const waving = !calm && waveRunning(clock.elapsedTime, wave.max);
+    const waveDirty = waving || S.waved;
+    if (waveDirty) for (let i = 0; i < n; i++) wave.pulse[i] = waving ? waveAt(clock.elapsedTime, wave.dist[i] ?? 0) : 1;
 
     // 矩陣：廣場貼地、細柱依高度、站珠在柱頂上；整區抬起時跟著抬、按壓時跟著壓扁（地塊的 group 以 y=0 縮放）
     const matKey = `${liftKey}|${station}|${pop.v.toFixed(3)}`;
-    if (moved || popping || matKey !== last.current.matKey) {
+    if (moved || popping || waveDirty || matKey !== last.current.matKey) {
       last.current.matKey = matKey;
       for (let i = 0; i < n; i++) {
         const f = frames[i];
@@ -284,7 +299,7 @@ export function Stations({
         o.updateMatrix();
         meshes.column.setMatrixAt(i, o.matrix);
         o.position.y = base + 0.08 + h + BEAD_GAP;
-        o.scale.setScalar(f.id === station ? BEAD_ON * (pop.id === f.id ? pop.v : 1) : 1);
+        o.scale.setScalar((f.id === station ? BEAD_ON * (pop.id === f.id ? pop.v : 1) : 1) * wave.pulse[i]);
         o.updateMatrix();
         meshes.bead.setMatrixAt(i, o.matrix);
       }
@@ -296,17 +311,19 @@ export function Stations({
     }
 
     // 站珠顏色：路線色；停止營運往 --station 褪（熄燈），選中的站往站燈色推。變了才上傳
-    if (recolor || S.colors !== beadColors || S.colorStation !== station) {
+    if (recolor || waveDirty || S.colors !== beadColors || S.colorStation !== station) {
       S.colors = beadColors;
       S.colorStation = station;
       for (let i = 0; i < n; i++) {
         c.copy(beadColors[i] ?? glow).lerp(stationColor, CLOSED_FADE * (1 - S.open[i]));
         if (frames[i].id === station) c.lerp(glow, 0.45);
+        if (waveDirty) c.lerp(glow, waveGlow(wave.pulse[i]));
         meshes.bead.setColorAt(i, c);
       }
       if (meshes.bead.instanceColor) meshes.bead.instanceColor.needsUpdate = true;
     }
     // 夜裡亮（原型 0.25 + 1.5·night），停止營運的時段跟著熄
+    S.waved = waving;
     const night = sunAt(time.t).night;
     (meshes.bead.material as MeshStandardMaterial).emissiveIntensity = (0.25 + 1.5 * night) * (n ? openSum / n : 0);
 
