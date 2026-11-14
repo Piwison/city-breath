@@ -173,6 +173,19 @@
 .card-story { display: grid; gap: 2px; font-size: var(--text-sm); line-height: 1.55; }
 .card-story b { font-size: var(--text-xs); font-weight: 700; color: var(--hud-muted); }
 .card-warn { color: var(--hud-ink); }
+/* 類型標籤（決定 13）：名稱是一顆膠囊，一句話跟在後面；當月不同的那行小字更淡 */
+.card-type { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: var(--text-sm); line-height: 1.5; }
+.card-type-tag {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--hud-on);
+  background: var(--hud-accent);
+}
+.card-type p { min-width: 0; }
+.card-type .card-type-month { flex-basis: 100%; font-size: var(--text-2xs); color: var(--hud-muted); }
 .card-sec-key { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 
 /* 整天長條：24 格，每格是按鈕（點了跳到那個時段）；高度用 scaleY，換日型時只動 transform */

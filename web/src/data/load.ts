@@ -10,6 +10,7 @@ import type {
   OdShard,
   Profile,
   StationsFile,
+  StationTypesFile,
 } from "./types";
 
 export const CONTRACT_VERSION = 4;
@@ -162,5 +163,23 @@ export async function loadBasemap(): Promise<BasemapFile> {
   ) {
     throw new Error("basemap.json 的形狀與資料契約不符");
   }
+  return b;
+}
+/**
+ * 不分月份的 station-types.json（約 5 KB，3.12，AD-27）：每站整年最常見的類型，打開車站卡才載（AD-6）。
+ * 版本由 getJson 驗；另外檢查形狀。站 ID 為鍵，跨月份通用（AD-2），當月沒有的站自然查不到。
+ */
+export async function loadStationTypes(): Promise<StationTypesFile> {
+  const b = await getJson<StationTypesFile>("station-types.json");
+  const ok =
+    b.v === CONTRACT_VERSION &&
+    Array.isArray(b.fitMonths) &&
+    b.fitMonths.length > 0 &&
+    !!b.stations &&
+    typeof b.stations === "object" &&
+    Object.values(b.stations).every(
+      (r) => Number.isInteger(r?.type) && r.type >= 0 && Number.isInteger(r.votes) && r.votes >= 1 && r.votes <= r.months,
+    );
+  if (!ok) throw new Error("station-types.json 的形狀與資料契約不符");
   return b;
 }

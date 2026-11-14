@@ -6,6 +6,7 @@
     uv run city-breath fetch-basemap                  # 底圖原始檔（DEM、路網、河川、綠地、班距）到 data/raw/basemap/
     uv run city-breath build --month 2026-09          # 彙總並輸出到 web/public/data/
     uv run city-breath fit-types --months 2025-10..2026-09  # 重新擬合固定的車站類型中心（很少用，AD-27）
+    uv run city-breath station-types                  # 擬合月份重建後：每站整年最常見的型 → station-types.json
     uv run city-breath district-report --month 2026-09 --draft ../design/research/station_district.json
 """
 
@@ -27,7 +28,17 @@ from . import cluster as types_
 from . import districts as geo
 from . import schedules as sched
 from .aggregate import aggregate_month
-from .export import SOURCE, build_profiles, export_basemap, export_daily, export_events, export_month
+from .export import (
+    SOURCE,
+    StationTypesError,
+    build_profiles,
+    export_basemap,
+    export_daily,
+    export_events,
+    export_month,
+    export_station_types,
+    station_types_json,
+)
 from .stations import build_stations, canonical, load_aliases, load_exit_coordinates
 from .venues import VENUES, VenueError, load_venues, resolve_venues
 
@@ -351,7 +362,36 @@ def cmd_fit_types(args) -> None:
         label = names.get(t["id"], {}).get("label", "（未定名）")
         print(f"  #{t['id']} {label}：最常歸到這型的站 {t['stations']}，{t['features']}")
     print("注意：類型 id 依早上淨流向排序；請 Piwi 對照 config/station_types.csv 的名稱與一句話，確認後把中心檔的 "
-          "namesConfirmed 改成 true（在那之前 build 輸出 draft=true），再重建所有月份")
+          "namesConfirmed 改成 true（在那之前 build 輸出 draft=true），再重建所有月份，最後跑 "
+          "`city-breath station-types` 更新每站整年最常見的型")
+
+
+def cmd_station_types(args) -> None:
+    """每站在擬合月份裡最常歸到的型（產品計畫 v2 決定 13，AD-27）→ 不分月份的 station-types.json。
+
+    讀擬合月份已發布的 stations.json 的 type（build 用固定中心歸類的結果），不讀原始月檔。
+    """
+    try:
+        centroids = types_.load_centroids()
+    except types_.StationTypeError as e:
+        raise SystemExit(str(e)) from e
+    months = _month_list(args.months) if args.months else list(centroids["months"])
+    out = Path(args.out)
+    monthly = {}
+    for m in months:
+        path = out / m / "stations.json"
+        if path.exists():
+            monthly[m] = json.loads(path.read_text("utf-8"))
+    try:
+        body = station_types_json(months, monthly, centroids)
+    except StationTypesError as e:
+        raise SystemExit(str(e)) from e
+    size = export_station_types(body, out)
+    rows = body["stations"].values()
+    changed = sum(r["votes"] < r["months"] for r in rows)
+    ties = sum(2 * r["votes"] == r["months"] for r in rows)
+    print(f"station-types.json {size / 1e3:.1f} KB：{len(body['stations'])} 站（{months[0]}～{months[-1]}），"
+          f"有換過型的 {changed} 站，其中最常見的型只占一半月份的 {ties} 站（同票時取較近月份）")
 
 
 def _report_anomalies(det, stations) -> None:
@@ -436,6 +476,10 @@ def main(argv: list[str] | None = None) -> None:
     t.add_argument("--months", required=True, help="2025-10..2026-09 或 2025-10,2025-11")
     t.add_argument("--out", default=str(types_.CENTROIDS))
     t.set_defaults(func=cmd_fit_types)
+    st = sub.add_parser("station-types", help="每站整年最常見的型，寫出不分月份的 station-types.json（AD-27）")
+    st.add_argument("--months", help="預設為中心檔的擬合月份")
+    st.add_argument("--out", default=str(WEB_DATA))
+    st.set_defaults(func=cmd_station_types)
     b = sub.add_parser("build", help="彙總並輸出靜態資料")
     b.add_argument("--month", required=True, help="YYYY-MM")
     b.add_argument("--raw", help="原始 OD CSV（預設 data/raw/od_YYYYMM.csv）")

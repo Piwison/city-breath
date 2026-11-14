@@ -3,8 +3,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it } from "vitest";
 import basemapJson from "../../public/data/basemap.json";
+import stationTypesJson from "../../public/data/station-types.json";
+import type { StationTypesState } from "../data/stationType";
 import { stationTraits, stationVolume } from "../data/traits";
-import type { BasemapFile, DistrictFlowsFile, DistrictsFile, OdShard, StationsFile } from "../data/types";
+import type { BasemapFile, DistrictFlowsFile, DistrictsFile, OdShard, StationsFile, StationTypesFile } from "../data/types";
 import type { OdState } from "../data/useOdShard";
 import { flowSource, stationDestinations, stationIndex } from "../data/views";
 import { seek } from "../state/clock";
@@ -30,13 +32,23 @@ const districtNames = new Map(districts.districts.map((d) => [d.id, d.name]));
 const idOf = (display: string) => file.stations.find((s) => s.display === display)!.id;
 const num = (n: number) => Math.round(n).toLocaleString("zh-TW");
 
-async function card(display: string, od?: OdState) {
+async function card(display: string, od?: OdState, yearly?: StationTypesState) {
   const id = idOf(display);
   const state: OdState = od ?? { status: "ok", id, shard: await odFiles[`../../public/data/${month}/od/${id}.json`]() };
   return renderToStaticMarkup(
-    <StationCardView id={id} stations={index} source={source} lineNames={lineNames} districtNames={districtNames} od={state} />,
+    <StationCardView
+      id={id}
+      stations={index}
+      source={source}
+      lineNames={lineNames}
+      districtNames={districtNames}
+      od={state}
+      yearly={yearly}
+    />,
   );
 }
+const yearlyOk: StationTypesState = { status: "ok", file: stationTypesJson as unknown as StationTypesFile };
+const typeTag = (html: string) => html.match(/<span class="card-type-tag">([^<]*)<\/span>/)?.[1] ?? null;
 
 describe("車站卡", () => {
   beforeEach(() => {
@@ -123,5 +135,68 @@ describe("車站卡", () => {
     const html = await card("台北車站", { status: "loading", id: idOf("台北車站") });
     expect(html).toContain("載入這站的起訖資料中");
     expect(html).toContain("這一站的個性");
+  });
+});
+
+describe("車站卡的類型標籤（決定 13）", () => {
+  const yearly = yearlyOk.status === "ok" ? yearlyOk.file : null!;
+
+  it("標籤與一句話等於 station-types.json 裡這站整年最常見的型；當月相同就沒有小字", async () => {
+    const s = file.stations[index.byId.get(idOf("台北車站"))!];
+    const t = file.types[yearly.stations[s.id].type];
+    expect(s.type).toBe(t.id);
+    const html = await card("台北車站", undefined, yearlyOk);
+    expect(typeTag(html)).toBe(t.label);
+    expect(html).toContain(t.description);
+    expect(html).not.toContain("這個月偏");
+    expect(html).toContain("類型是 2025 年 10 月～2026 年 9 月 這站最常歸到的那一型");
+  });
+
+  it("當月歸到別型（中正紀念堂 2026-09 是辦公站）：標籤照整年的人氣站，多一行「這個月偏辦公站」", async () => {
+    const html = await card("中正紀念堂", undefined, yearlyOk);
+    expect(typeTag(html)).toBe("人氣站");
+    expect(html).toContain('<p class="card-type-month">這個月偏辦公站</p>');
+  });
+
+  it("跨型站三重：2026-08 歸到住商站時標籤仍是臥室站、多一行；2026-09 歸回臥室站就沒有那行", () => {
+    const render = (m: string) => {
+      const f = Object.values(
+        import.meta.glob("../../public/data/*/stations.json", { import: "default", eager: true }) as Record<string, StationsFile>,
+      ).find((x) => x.month === m)!;
+      const ix = stationIndex(f, basemap.stationLines);
+      const id = f.stations.find((s) => s.display === "三重")!.id;
+      return renderToStaticMarkup(
+        <StationCardView
+          id={id}
+          stations={ix}
+          source={source}
+          lineNames={lineNames}
+          districtNames={districtNames}
+          od={{ status: "loading", id }}
+          yearly={yearlyOk}
+        />,
+      );
+    };
+    const aug = render("2026-08");
+    expect(typeTag(aug)).toBe("臥室站");
+    expect(aug).toContain("這個月偏住商站");
+    const sep = render("2026-09");
+    expect(typeTag(sep)).toBe("臥室站");
+    expect(sep).not.toContain("這個月偏");
+  });
+
+  it("環狀線站沒有類型標籤", async () => {
+    const loop = file.stations.find((s) => !s.exitsRecorded)!;
+    const html = await card(loop.display, undefined, yearlyOk);
+    expect(html).not.toContain("card-type");
+    expect(html).not.toContain("類型是");
+  });
+
+  it("station-types.json 還沒到或載入失敗：不顯示標籤（不拿當月的型代替），卡片其他部分照常", async () => {
+    for (const y of [{ status: "loading" }, { status: "error", message: "404" }] as StationTypesState[]) {
+      const html = await card("台北車站", undefined, y);
+      expect(html).not.toContain("card-type");
+      expect(html).toContain("這一站的個性");
+    }
   });
 });

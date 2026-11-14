@@ -6,12 +6,13 @@ v2（1.8 起）：`stations[].district`、`districts.json`、`meta.json` 的 `so
 
 v3（1.13 起）：加 `inbound/{stationId}.json`（每站的來源）；`stations[].topDestinations` 由前 5 擴成前 10，`avg` 改經 `suppress.py`、可為 `null`。所有月份與 `basemap.json` 重建成 v3（AD-18）。
 
-v4（3.20 起）：`districts.json` 每區加 `weekday`／`holiday` 的區總量 `{ entries[24], exits[24] }`（AD-7、AD-10），給「假日前 5 區」等區排名用。其他檔案形狀不變；所有月份與 `basemap.json` 重建成 v4（AD-18），起訖數字與 v3 逐格相同（`pipeline/tests/test_published_cells.py`）。
+v4（3.20 起）：`districts.json` 每區加 `weekday`／`holiday` 的區總量 `{ entries[24], exits[24] }`（AD-7、AD-10），給「假日前 5 區」等區排名用。其他檔案形狀不變；所有月份與 `basemap.json` 重建成 v4（AD-18），起訖數字與 v3 逐格相同（`pipeline/tests/test_published_cells.py`）。3.12 加不分月份的 `station-types.json`（AD-27；新增檔案、現有檔案不變，不升版）。
 
 ```text
 web/public/data/
   months.json                 # { v, months: ["2025-10", …, "2026-09"], latest }：依序列出每個月份資料夾
   basemap.json    ~590 KB     # 不分月份的底圖：地形、海、河川、綠地、軌道、每站路線、班距、地標（1.12）
+  station-types.json ~5 KB    # 不分月份：每站在擬合的 12 個月裡最常歸到的類型（3.12，打開車站卡才載）
   2026-09/                    # 每個月一個資料夾（1.7 起近 12 個月），形狀相同
     meta.json                 # 來源、授權、日數、營運時段、限制說明
     stations.json   ~139 KB   # 車站、24 小時曲線、前 10 目的地、分群、行政區
@@ -71,6 +72,21 @@ web/public/data/
 | `size` | 當月歸到這型的站數 |
 | `features` | 類型中心的特徵（`amNet` 早上 7–9 點出站占比減進站占比，>0 早上湧入；`pmNet` 17–19 點同理；`lateShare` 21–0 點占比；`holidayRatio` 假日／平日日均總量比；`n` 特徵小時數），描述類型本身，所有月份相同 |
 | `examples` | 當月這型平日進站最多的 5 站（正規站名） |
+
+## station-types.json
+
+3.12 起（AD-27、產品計畫 v2 決定 13）。放在 `web/public/data/` 根目錄、不分月份；車站卡顯示的類型是這裡的「整年最常見的那一型」，不是當月 `stations.json` 的 `type`，分享出去才不會下個月就不對。打開車站卡才載（AD-6）。前端只查表，不自己統計 12 個月、不自己分類。
+
+只由管線產生：`uv run city-breath station-types`（`--months` 預設中心檔的擬合月份）讀擬合月份已發布的 `{month}/stations.json` 的 `type`（就是 `build` 用固定中心歸類的結果），每站數票。每年重新擬合（`fit-types`）、Piwi 確認名稱、重建所有月份之後再跑一次；擬合月份缺檔、契約版本不符、類型 id 或名稱各月不同、名稱還是草稿就失敗。新增這個檔不升版（現有檔案不變，同 AD-21）；升版時跟著所有月份重建。
+
+| 欄位 | 說明 |
+| --- | --- |
+| `v` | 契約版本（同 `CONTRACT_VERSION`） |
+| `fitMonths` | 擬合月份（＝ `pipeline/config/station_type_centroids.json` 的 `months`），目前 2025-10～2026-09 |
+| `featureVersion` | 擬合用的特徵版本（同中心檔） |
+| `stations` | 站 ID → `{ type, votes, months }`（用站 ID 而非索引，AD-2；跨月份通用，前端用目前月份的 `stations.json` 換成索引）。`type` 是擬合月份裡最常歸到的類型 id，名稱與一句話查當月 `stations.json` 的 `types[type]`；同票數取較近月份歸到的那一型。`votes` 是那一型的月數，`months` 是這站有類型的月數（新站少於 12）。出站未入檔（環狀線）或擬合月份都沒有類型的站不列 |
+
+車站卡：當月 `stations.json` 的 `type` 不是 `null` 且與這裡不同時，標籤照這裡、另加一行「這個月偏 X」。2025-10～2026-09 有 15 站換過型（例：三重 臥室站與住商站各 6 個月，同票取 2026-09 的臥室站）。
 
 ## districts.json
 
