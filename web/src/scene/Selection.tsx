@@ -4,7 +4,8 @@
 // stationRules.ts），緞帶目前不能點（聚焦從行政區卡點，之後加在這一步），再用 raycaster 打 21 區的地塊
 // （一個平面陣列、不遞迴，threejs-core-raycaster）；點到空白處關卡。
 // 按下時那區微微壓扁、放開彈回（DistrictLift），按在站上時不壓區；Android 輕震。
-// 鏡頭：選區飛到那區、選站飛到那站、聚焦一條流向飛到它的中點，關卡回到全景；減少動態或靜態模式時直接切換。
+// 鏡頭：選區飛到那區、選站飛到那站、聚焦一條流向（含車站卡的站對站，3.12）飛到它的中點，關卡回到全景；
+// 減少動態或靜態模式時直接切換。
 // 手機上目標往南偏，讓主體落在小卡之上（原型 lookAt）。
 import type { CameraControls } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
@@ -171,7 +172,18 @@ export function SelectionCamera({ view, index, reduced }: { view: BaseView; inde
     if (!controls) return;
     const narrow = aspect < 0.8;
     const fly = (x: number, z: number, d: number) => void controls.setLookAt(...lookAtArgs(x, z, d, narrow), !calm);
-    if (station) {
+    const at = (id: string) => {
+      const i = index.byId.get(id);
+      return i === undefined ? null : project(index.stations[i].lon, index.stations[i].lat);
+    };
+    // 車站卡點了一個目的地（3.12）：飛到那條站對站緞帶的中點（原型 flyToArc）
+    const [fromId, toId] = focus?.split(">") ?? [];
+    const a = station && fromId === station ? at(fromId) : null;
+    const b = a && toId ? at(toId) : null;
+    if (a && b) {
+      const span = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      fly((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.max(42, span * 2.1));
+    } else if (station) {
       const i = index.byId.get(station);
       if (i !== undefined) {
         const [x, z] = project(index.stations[i].lon, index.stations[i].lat);

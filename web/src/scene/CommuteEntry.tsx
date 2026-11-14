@@ -1,7 +1,9 @@
 // 首頁上方的「找你的通勤」入口（epic 的 Touch point）：先打開搬來的通勤同路人表單與分享卡（4.3），
 // 正式的搜尋式入口與通勤卡由 4.1 換掉。開關是元件內的暫時 UI 狀態，不是畫面狀態（不進網址、不保存）。
-import { useId, useState } from "react";
+// 車站卡的「從這站找通勤」（3.12）寫 state/view.ts 的 commute.o：入口打開、表單帶入起站。
+import { useEffect, useId, useState } from "react";
 import { CommuteForm } from "../commute/CommuteForm";
+import { clearCommute, useView } from "../state/view";
 
 export function CommuteEntry() {
   const [open, setOpen] = useState(false);
@@ -9,6 +11,14 @@ export function CommuteEntry() {
   const [loaded, setLoaded] = useState(false);
   if (open && !loaded) setLoaded(true);
   const id = useId();
+  const commute = useView((s) => s.commute);
+  useEffect(() => {
+    if (commute) setOpen(true);
+  }, [commute]);
+  const close = () => {
+    setOpen(false);
+    clearCommute();
+  };
   return (
     <>
       <button
@@ -16,7 +26,7 @@ export function CommuteEntry() {
         className="hud commute-pill"
         aria-expanded={open}
         aria-controls={id}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? close() : setOpen(true))}
       >
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <circle cx="3.5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
@@ -26,12 +36,12 @@ export function CommuteEntry() {
         找你的通勤
       </button>
       <div id={id} className="hud commute-panel" hidden={!open}>
-        <button type="button" className="close" aria-label="關閉" onClick={() => setOpen(false)}>
+        <button type="button" className="close" aria-label="關閉" onClick={close}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </button>
-        {loaded && <CommuteForm />}
+        {loaded && <CommuteForm origin={commute?.o} />}
       </div>
     </>
   );
