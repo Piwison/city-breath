@@ -1,26 +1,59 @@
-# 網站公開上線並交代資料來源 的 stories，依建置順序。2026-11-11 Piwi 決定：6.2 預覽部署提前到 3.15 之後，正式上線另開 6.3。
+# 網站過了真機與真人兩道關卡後公開上線 的 stories，依建置順序。2026-11-11 Piwi 決定：6.2 預覽部署提前到 3.15 之後，正式上線另開 6.3。
+# 2026-11-14 replan（產品計畫 v2）：階段 1：6.2、6.4（關卡 1）；階段 2：6.5、6.6（關卡 2）、6.3。
 
-next_id = 4
+next_id = 7
 
 [[entry]]
 id = 2
 type = "story"
-title = "Vercel 預覽部署"
-description = "這是預覽部署，不是正式上線（Piwi 2026-11-11 決定提前：分享連結要有公開網址，Piwi 也要用 iPhone 實測效能）。3.15 合併後就把網站以靜態網站部署到 Vercel：Piwi 在 Vercel 建專案並連上 GitHub repo（hitl），`main` 每次合併自動部署到專案的 `*.vercel.app` 網址；這個網址就是預覽期的公開網址，分享連結與分享卡上的網址都用它（url.ts 用目前網址的 origin，不寫死網域，AD-16、AD-18）。PR 另有 Vercel 的 Preview 部署，只給審查用、不拿來分享。repo 根目錄加 vercel.json：建置 web/（npm ci、npm run build，輸出 web/dist）、`web/public/data/**` 短快取 max-age=300、Vite 雜湊資源長快取（AD-18）；預覽期整站加 `X-Robots-Tag: noindex`，不讓搜尋引擎收錄，6.3 正式上線時拿掉。打開 Vercel Web Analytics（AD-20 的出口；事件由 4.4 接）。不綁自訂網域、不對外宣傳；網址要分享給 Piwi 以外的人，等 3.17（關於與資料來源）合併後，畫面上才有完整出處與授權（政府資料開放授權條款要求標示出處）。上線前檢查：CI 三項通過；部署網址打得開、載入 months.json 的最新月份、沒有 404 的資料檔；在部署網址上用 3.15 分享一張行政區卡，用另一台手機打開回到同一張卡；回應標頭有上述快取與 noindex。AD-6 手機效能實測交給 Piwi（hitl）：用自己的 iPhone 在部署網址上看開場自動播放、拖時間軸、點區與點站是否順暢，記下機型與 iOS 版本、首次載入大概幾秒、有沒有明顯掉格；結果寫進 design/reviews/6.2-device-check-YYYY-MM-DD.md 並更新 DESIGN.md 待辦的「手機效能實測」。不達 AD-6 預算時開新票處理，不在本票修。"
-verify = "`main` 合併後 Vercel 自動部署成功；`*.vercel.app` 網址打開首頁、載入最新月份；在該網址分享的行政區卡連結從另一台手機打開回到同一張卡、同一時段與日型；`curl -I` 看到 data/ 的 max-age=300、雜湊資源的長快取與 X-Robots-Tag: noindex；Piwi 的 iPhone 實測紀錄已寫進 design/reviews/ 並更新 DESIGN.md 待辦。"
-covers = ["R1"]
+title = "預覽部署：Vercel、計數骨架與品牌載入畫面"
+description = "這是預覽部署，不是正式上線（Piwi 2026-11-11 決定提前：分享連結要有公開網址、要在真手機上測）。3.15 合併後把網站以靜態網站部署到 Vercel：Piwi 在 Vercel 建專案並連上 GitHub repo、設定環境變數 `VITE_SITE_URL`（hitl），`main` 每次合併自動部署到專案的 `*.vercel.app` 網址；這個網址就是預覽期的公開網址，分享連結與分享卡上的網址都用它（url.ts 用目前網址的 origin，不寫死網域；連結預覽的絕對網址用 `VITE_SITE_URL`，AD-16、AD-18）。PR 另有 Vercel 的 Preview 部署，只給審查用。repo 根目錄加 vercel.json：建置 web/（npm ci、npm run build，輸出 web/dist）、`web/public/data/**` 短快取 max-age=300、Vite 雜湊資源長快取（AD-18）；預覽期整站加 `X-Robots-Tag: noindex`，6.3 正式上線時拿掉。不綁自訂網域、不對外宣傳。產品計畫 v2 加三件事：(1) 計數骨架：web/src/track.ts 的 `track(name, props)` 是唯一出口（AD-20），打開 Vercel Web Analytics，定好六個事件 `station_opened`、`district_opened`、`commute_input_started`、`commute_result_shown`、`share_card_downloaded`、`share_link_copied`；已經有畫面的（開車站卡、開行政區卡、3.15 的複製連結）在這張接上，還沒有畫面的由 4.1、4.2、3.16 上線時呼叫同一個函式；props 不放可識別個人的值。(2) 品牌載入畫面（核心旅程第 2 步）：1 秒內出現網站名「城市呼吸」、一句話「台北捷運的一天：每小時誰去了哪」與載入進度，寫在 index.html 與首包、不等 three 分包；載入完接場景，reduced-motion 時直接切換；載入失敗的整頁錯誤畫面在 6.5。(3) 資料與場景平行載入：首頁的 JSON（stations、districts、district-flows、basemap）與 three／R3F 分包同時開始抓，不是一先一後；首頁資料量上限維持 300 KB（決定 29）。真機效能與分享連結的實測移到 6.4（關卡 1）。"
+verify = "`main` 合併後 Vercel 自動部署成功；`*.vercel.app` 網址打開先看到品牌載入畫面（網站名與一句話逐字、有進度），再接場景；瀏覽器網路面板裡資料 JSON 與 three 分包的請求同時開始；`curl -I` 看到 data/ 的 max-age=300、雜湊資源的長快取與 X-Robots-Tag: noindex；vitest：track.ts 只接受 AD-20 列出的事件名與 props；在部署網址開一張車站卡、一張行政區卡、複製一次連結後，Vercel Web Analytics 看得到這三個事件。"
+covers = ["R2", "R3"]
 after = ["3.15"]
 hitl = true
 risk = "low"
-v6_key = "5-2"
+
+[[entry]]
+id = 4
+type = "story"
+title = "真機實測（關卡 1）"
+description = "關卡 1（產品計畫 v2）：預覽版要先在真手機上跑得順、分享連結點得開，才進階段 2。這張先做工具，再由 Piwi 動手（hitl）。工具：`?debug=perf` 效能面板，只在帶這個參數時載入與顯示：目前 fps、最近 30 秒的平均與最低 fps、DPR、粒子數、draw call，可一鍵複製成文字；不進分享網址、不送 track()。測試步驟寫在 design/reviews/6.4-device-check.md，5 個情境各跑 30 秒：開場自動播放、平日 8 點全城並拖時間軸、選一區（緞帶與站柱）、開車站卡（站對站緞帶）、傍晚到入夜（列車、雲、窗燈）。Piwi 用 iPhone、再借一支中階 Android 照步驟跑，記下機型、系統版本、首次載入秒數與每個情境的平均與最低 fps；再把預覽網址的分享連結（一張行政區卡、一張車站卡）貼到 LINE 與 Threads，確認有預覽圖與標題、點開回到同一張卡。過關條件：兩支手機 5 個情境的平均都在 30 fps 以上（AD-6），兩個 app 的連結都有預覽且點得開。不到 30 fps 的情境或預覽出不來，由 Sofia 開票修（不在這張修），修完重測到過。決定 9（山上樹的密度、清晨影子的顆粒）在這次真機看過後由 Piwi 定。結果寫回同一份紀錄，並更新 DESIGN.md 待辦的「手機效能實測」與 architecture AD-6 的假設；關卡過了由 Sofia 移除階段 2 第一張票的 unknown。"
+verify = "帶 `?debug=perf` 才看得到面板，不帶時不載入那段程式（建置產物檢查）；design/reviews/6.4-device-check.md 有測試步驟、兩支手機各 5 個情境的數字，以及 LINE 與 Threads 的結果；每個不到 30 fps 的情境都有對應的票或「已修並重測」的紀錄；Piwi 在紀錄上寫明關卡 1 過或不過。"
+covers = ["R3"]
+after = [2, "3.14", "3.21", "3.22", "3.15"]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "上線品質"
+description = "公開上線前的品質底線（產品計畫 v2，關卡 2 的一半），階段 2 的功能票都做完才做。(1) 瀏覽器冒煙測試：web/e2e/（Playwright，headless Chromium，手機視窗 390×844）跑核心旅程：載入 → 開行政區卡 → 開車站卡 → 找你的站 → 通勤卡 → 分享面板複製連結 → 用那個連結重開回到同一張卡；加進 .github/workflows/ci.yml 成為必過的檢查。同一套測試統一截圖、存成 CI 產物，之後各張票的畫面對照都用它，不再每張票各寫一套。(2) 整頁錯誤畫面：資料載入失敗或斷線時說明發生什麼事，加一顆「再試一次」，不出現空白畫面；不支援 3D 的裝置維持現有的靜態頁與找站入口。(3) 鍵盤：只用鍵盤開得到任一張卡（行政區、車站、通勤；之後的假日卡與活動卡沿用同一條路），焦點看得見，Esc 關卡片（deferred-work：行政區只能用指標選取）。(4) 三塊獨立審查，各由沒寫過那段程式的審查者做一次（bmad-code-review，獨立的工作階段）：少於 10 人的隱藏規則（從 suppress.py 到畫面與分享圖）、場景點選（區、站、空白處、重疊時的優先序）、分享卡（版型、網址、少於 10 人、字型）；紀錄放 design/reviews/6.5-*.md，critical 與 high 在這張修完或開票。(5) 授權檔與來源清單：repo 根目錄的 LICENSE 與來源清單（資料、底圖、字型、套件的出處與授權，內容與「關於」的來源同一份）；LICENSE 的種類要 Piwi 決定（hitl；MIT，或不授權、只公開閱讀，見 epic Notes 的 Open question），沒決定前這一項不算完成。"
+verify = "CI 多一項瀏覽器冒煙測試且通過；測試裡讓一個資料檔 404 時看到錯誤畫面與「再試一次」、不是空白；截圖在 CI 產物裡；e2e 只用 Tab、Enter、方向鍵與 Esc 開得到並關得掉行政區卡、車站卡、通勤卡；design/reviews/ 有三份獨立審查紀錄，critical 與 high 都已修或有票；repo 有 LICENSE（Piwi 選的種類）與來源清單，清單與關於頁同一個來源（測試比對）。"
+covers = ["R5"]
+after = [4, "3.16", "3.17", "3.11", "4.2", "4.4"]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "真人測試（關卡 2）"
+description = "關卡 2 的另一半（產品計畫 v2），要 Piwi 動手（hitl）：找 5 位沒看過這個網站的人，給預覽網址與 6 個任務，不提示、不示範，看他們做不做得到、卡在哪。任務清單與紀錄表先由這張寫好，放在 design/reviews/6.6-user-test.md；6 個任務對著核心旅程與主力族群：說出這個網站在演什麼、是不是即時的；找到自己常用的車站；說出那一站平日早上 8 點的人最常去哪；查自己的一段通勤有多少同路人；把一張卡分享給朋友（存圖或複製連結）；找到資料是哪個月、從哪裡來。每人每個任務記做到與否、花多久、卡在哪句話或哪個按鈕。結果整理成一頁：每個任務幾人做到、最常見的三個卡點、建議改的地方。做不到的任務由 Sofia 開票，修完再找人補測，到 Piwi 判定關卡 2 過為止。結果推翻產品計畫 v2 的哪個設計決定，就寫回 DESIGN.md 並記在 initiative Notes。"
+verify = "design/reviews/6.6-user-test.md 有 6 個任務、5 位測試者逐項的紀錄與一頁結論；沒過的任務都有對應的票或補測紀錄；Piwi 在紀錄上寫明關卡 2 過或不過。"
+covers = ["R4"]
+after = [5]
+hitl = true
+risk = "medium"
 
 [[entry]]
 id = 3
 type = "story"
 title = "正式上線"
-description = "首頁、通勤卡、活動日三個 epic 都完成後，把 6.2 的預覽部署轉成正式上線：拿掉 vercel.json 的 noindex；要不要綁自訂網域由 Piwi 決定（綁了也保留 *.vercel.app，預覽期分享出去的連結仍打得開，AD-18）。上線前檢查：「關於與資料來源」（3.17）列齊上線當月所有 epic 用到的來源（meta.json 與 basemap.json 的 sources，含活動日的場館檔期與人工補的來源）、四項說明與環狀線限制；從行政區卡、車站卡、通勤卡、活動卡與「分享這一刻」各分享一次，連結在正式網址打開回到同一個畫面，存成的圖上網址是正式網址；Piwi 再用 iPhone 做一次 AD-6 實測（含街廓、列車、徽章都上線後的完整場景），有中階 Android 也一起測，結果寫進 design/reviews/；Vercel Web Analytics 收得到 4.4 的事件。"
-verify = "正式網址回應不再帶 X-Robots-Tag: noindex；關於頁的來源清單與所有月份的 meta.json、basemap.json 的 sources 一致；五種分享入口的連結在正式網址都回到同一個畫面；Piwi 的上線前實測紀錄在 design/reviews/；分析工具看得到下載與分享事件。"
+description = "階段 2 的票做完、關卡 2 通過（6.5 的冒煙測試與獨立審查、6.6 的真人測試）後，把 6.2 的預覽部署轉成正式上線；不再等首頁、通勤卡、活動日三個 epic 全部完成（產品計畫 v2：大日子、我的站、探索捷徑、車站個性排在上線後）。拿掉 vercel.json 的 noindex；要不要綁自訂網域由 Piwi 決定（hitl；綁了也保留 *.vercel.app，預覽期分享出去的連結仍打得開，AD-18），綁了就改 `VITE_SITE_URL`。上線前檢查：「關於與資料來源」（3.17）列齊上線當月用到的來源、四項說明與環狀線限制；從行政區卡、車站卡、通勤卡與「分享這一刻」各分享一次，連結在正式網址打開回到同一個畫面，存成的圖上網址是正式網址，貼到 LINE 有預覽圖；6.4 之後場景有改的話，Piwi 再用手機看一次 `?debug=perf`；Vercel Web Analytics 收得到開卡、通勤與分享事件。上線日記在 initiative Notes，關卡 3（上線滿一個月看五個指標）從那天起算；上線後由 Sofia 移除階段 3 第一張票的 unknown。"
+verify = "正式網址回應不再帶 X-Robots-Tag: noindex；關於頁的來源清單與所有月份的 meta.json、basemap.json 的 sources 一致；四種分享入口的連結在正式網址都回到同一個畫面，LINE 的預覽出得來；分析工具看得到開卡、通勤與分享事件；上線日記在 initiative Notes。"
 covers = ["R1"]
-after = [2, "epic-city-breath-home", "epic-commute-card", "epic-event-days"]
+after = [2, 5, 6]
 hitl = true
 risk = "low"

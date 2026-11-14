@@ -1,7 +1,7 @@
 // 通勤同路人（由開發骨架 App.tsx 搬來，3.5）：選起站、迄站、時段，看平日平均有多少人同路，並可存成分享卡（4.3）。
 // 正式的「找車站／通勤」入口與通勤卡由 epic-commute-card 4.1 做；這裡先讓分享卡在首頁換成場景後仍可用。
 // 起訖分片在送出時才載（AD-6）；stations.json、meta.json 在第一次打開時載。
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { computeCommute, type CommuteResult } from "../data/commute";
 import { loadMeta, loadMonths, loadOdShard, loadStations } from "../data/load";
 import type { MetaFile, StationsFile } from "../data/types";
@@ -17,7 +17,8 @@ interface Data {
   st: StationsFile;
 }
 
-export function CommuteForm() {
+/** origin：車站卡「從這站找通勤」帶入的起站（站 ID，state/view.ts commute.o；3.12）。 */
+export function CommuteForm({ origin }: { origin?: string }) {
   const [data, setData] = useState<Data>();
   const [error, setError] = useState<string>();
   useEffect(() => {
@@ -34,12 +35,21 @@ export function CommuteForm() {
   }, []);
   if (error) return <p role="alert">資料載入失敗：{error}</p>;
   if (!data) return <p className="commute-status">載入車站中…</p>;
-  return <Form {...data} />;
+  return <Form {...data} origin={origin} />;
 }
 
-function Form({ month, meta, st }: Data) {
+function Form({ month, meta, st, origin }: Data & { origin?: string }) {
   const service = meta.serviceHours;
   const [o, setO] = useState("");
+  const destRef = useRef<HTMLSelectElement>(null);
+  // 帶入起站（3.12）：選好起站，游標移到迄站
+  useEffect(() => {
+    if (!origin) return;
+    const i = st.stations.findIndex((s) => s.id === origin);
+    if (i < 0) return;
+    setO(String(i));
+    destRef.current?.focus({ preventScroll: true });
+  }, [origin, st]);
   const [d, setD] = useState("");
   const [h, setH] = useState(8);
   const [res, setRes] = useState<CommuteResult | null>();
@@ -77,7 +87,7 @@ function Form({ month, meta, st }: Data) {
             </option>
           ))}
         </select>
-        <select value={d} onChange={(e) => setD(e.target.value)} required aria-label="迄站">
+        <select ref={destRef} value={d} onChange={(e) => setD(e.target.value)} required aria-label="迄站">
           <option value="">迄站</option>
           {sorted
             .filter(({ s }) => s.exitsRecorded)

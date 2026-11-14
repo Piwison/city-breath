@@ -3,7 +3,7 @@
 台北人每天從哪裡來、往哪裡去，以及這跟你有什麼關係。資料：[臺北捷運每日分時各站 OD 流量](https://data.gov.tw/dataset/128506)（政府資料開放授權條款第 1 版）。
 
 - `pipeline/`：把每月約 300 MB 的 OD 檔彙總成約 3 MB 的靜態 JSON（DuckDB）
-- `web/`：React + MapLibre + deck.gl 靜態網站
+- `web/`：React + Three.js（React Three Fiber）靜態網站：台北盆地的微縮城市場景，行政區流向、車站卡與通勤卡
 - 開發規範與指令見 [CLAUDE.md](CLAUDE.md)，資料格式見 [docs/data-contract.md](docs/data-contract.md)
 
 ## 2026-09 資料驗證結果

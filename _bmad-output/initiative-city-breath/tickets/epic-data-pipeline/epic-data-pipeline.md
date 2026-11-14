@@ -2,11 +2,11 @@
 type: epic
 title: "每月 OD 原始檔變成網站讀得動的小檔"
 parent: initiative-city-breath
-covers: [R10, R18, R20]
-sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md]
+covers: [R10, R18, R20, R26]
+sources: [_bmad-output/initiative-city-breath/prd-city-breath-2026-10-26/prd-city-breath-2026-10-26.md, _bmad-output/initiative-city-breath/product-plan-v2-2026-11-14.md]
 companions: [DESIGN.md]
 after: []
-status: done
+status: in-progress
 risk: medium
 ---
 
@@ -14,7 +14,7 @@ risk: medium
 
 ## Description
 
-一個指令就能把該月 OD 檔彙總成靜態 JSON，車站類型由人定名。由 v6 Epic 0 遷移；2026-11-03 replan 加上契約 v2：每站的官方行政區、行政區起訖彙總、逐日每站每小時，供首頁行政區流向（epic-city-breath-home）與活動日（epic-event-days）使用。2026-11-10 replan（天光定案）加上不分月份的底圖圖層（地形、海、河川、綠地、軌道、站所屬路線、班距、地標）與每站的來源（誰來這站），契約升 v3。
+一個指令就能把該月 OD 檔彙總成靜態 JSON，車站類型由人定名。由 v6 Epic 0 遷移；2026-11-03 replan 加上契約 v2：每站的官方行政區、行政區起訖彙總、逐日每站每小時，供首頁行政區流向（epic-city-breath-home）與活動日（epic-event-days）使用。2026-11-10 replan（天光定案）加上不分月份的底圖圖層（地形、海、河川、綠地、軌道、站所屬路線、班距、地標）與每站的來源（誰來這站），契約升 v3。2026-11-14 replan（產品計畫 v2）重開，加上線後第一次月更用的 1.14 停班停課日從平均排除、1.15 每月更新一個指令（階段 3）。
 
 ## Outcome
 
@@ -28,6 +28,8 @@ R3 (parent R10；供 R3、R13): 每站有依官方圖資判定的行政區，並
 R4 (parent R10；供 R5): 輸出每一天每站每小時的進出量，停止營運時段為 null。
 R5 (parent R20): 輸出台北盆地的底圖圖層：真實地形與海、河川、綠地、捷運軌道、每站所屬路線、各線班距與地標位置，每層附來源與授權。
 R6 (parent R18): 輸出每站每小時的前幾名起站與來源行政區，以及整天前 10 目的地，少於 10 人不顯示。
+R7 (parent R26): 停班停課日不算平日也不算假日，不進平均與分母，在 events.json 標出並附公告來源。
+R8 (parent R10): 每月更新用一個指令跑完並列出還缺什麼；重建不必重新下載；同一份輸入建兩次結果相同。
 
 ## Constraints
 
@@ -41,6 +43,8 @@ R6 (parent R18): 輸出每站每小時的前幾名起站與來源行政區，以
 - 近 12 個月資料可用。
 - 契約 v2 的行政區對照、行政區起訖彙總與逐日每站每小時輸出寫進 docs/data-contract.md，pytest 通過。
 - basemap.json 與 v3 的每站來源寫進 docs/data-contract.md，所有月份重建，pytest 通過。
+- 停班停課日從平均排除，契約升版、所有月份重建（1.14）。
+- `city-breath monthly` 一個指令跑完每月流程，建兩次結果相同的測試在 CI（1.15）。
 
 ## References
 
@@ -61,3 +65,5 @@ R6 (parent R18): 輸出每站每小時的前幾名起站與來源行政區，以
 - Decision: 2026-11-10 依賴檢查：1.13 等 1.12，兩張都改 export.py、types.ts、docs/data-contract.md 與 cli.py。
 - Decision: 2026-11-11 1.6 改成固定類型（Piwi）：每月各自分群的群編號 12 個月不一致，照編號定名會貼錯；改成 12 個月一起 k-means（k=4）得固定中心、每月歸類（architecture AD-27），四型定名為臥室站、住商站、人氣站、辦公站。票面 description／verify 同步改寫。
 - Decision: 2026-11-11 epic 完成：1.1–1.13 全部合併並標 done，Done when 各項達成（1.6 定名 draft=false、12 個月 v3 重建、pytest 通過）；依 Piwi 2026-11-11 授權（合併後代標）設為 done。
+- Decision: 2026-11-14 replan（產品計畫 v2）：epic 重開（status 由 done 改回 in-progress），加 1.14 停班停課日（決定 27）與 1.15 每月更新一個指令，都是階段 3；1.14 受關卡 2 的 unknown 擋住，1.15 等 1.14（都改 cli.py）。編號照產品計畫 v2。取代 2026-11-11「已完成不重開」的做法：當時重開會因整個 epic 的閘門卡住別的 epic，這次同時拿掉首頁、車站個性、活動日檔頭的閘門，改由各票指定，重開就不會卡住別人。兩張都是管線的工作，放在別的 epic 會讓 cli.py、export.py、契約的修改分散到不相干的 epic。已完成的 1.1–1.13 不動。
+- Decision: 2026-11-14 1.14 影響 architecture AD-4（多一種日型）與 AD-7（分母），由 Winston 在同一個 PR 更新。

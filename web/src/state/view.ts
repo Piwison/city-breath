@@ -1,5 +1,5 @@
 // 畫面狀態的唯一一份（AD-16）。時刻、播放、速度、靜態模式、日型、圖層開關（2.3、3.5、3.3）；
-// 選中的行政區、站、卡片範圍與聚焦的流向（3.6）。
+// 選中的行政區、站、卡片範圍與聚焦的流向（3.6）；通勤的起站（3.12 車站卡寫、4.1 接手）。
 // hour、dayType 由 state/url.ts 的 syncUrl() 寫回網址（3.3）；district、station 由 3.15 加進網址，之後再加 month、date、commute。
 // 播放用的連續時間 t 是非 React 欄位（time.t），由 clock.ts 推進；場景在 useFrame 讀它，React 只訂閱整數 hour。
 import { useSyncExternalStore } from "react";
@@ -28,8 +28,13 @@ export interface ViewState {
   station: string | null;
   /** 行政區卡的範圍：這一小時／整天 */
   range: DistrictRange;
-  /** 聚焦的流向（views.ts flowKey「起區>迄區」）：這條照常、其他變淡；null＝不聚焦 */
+  /** 聚焦的流向（views.ts flowKey「起區>迄區」，選站時是「起站 ID>迄站 ID」）：這條照常、其他變淡；null＝不聚焦 */
   focus: string | null;
+  /**
+   * 通勤（AD-16 的 commute）：3.12 車站卡「從這站找通勤」先寫起站 o（站 ID，AD-2），通勤入口打開並帶入；
+   * 4.1 的「找車站／通勤」入口接手，再加迄站與時段。null＝沒有在找通勤。
+   */
+  commute: { o: string } | null;
 }
 
 /** 連續時間（0–24 時）：非 React 欄位，每格由 clock 改寫。 */
@@ -46,6 +51,7 @@ let state: ViewState = {
   station: null,
   range: "hour",
   focus: null,
+  commute: null,
 };
 const listeners = new Set<() => void>();
 
@@ -121,6 +127,16 @@ export function setFocus(focus: string | null) {
 /** 關掉小卡：回到全城、不選站不聚焦；播放維持暫停（走查 F1）。 */
 export function closeCard() {
   if (state.district !== null || state.station !== null || state.focus !== null) set({ district: null, station: null, focus: null });
+}
+
+/** 從某站找通勤（3.12 車站卡）：寫起站，通勤入口打開並帶入（4.1 接手）。每次按都是新物件，讓入口再打開一次。 */
+export function startCommute(o: string) {
+  set({ commute: { o } });
+}
+
+/** 收起通勤（入口關掉時）。 */
+export function clearCommute() {
+  if (state.commute !== null) set({ commute: null });
 }
 
 /** 任何小卡打開就暫停播放（共用卡框掛上時呼叫；走查 2026-11-11 F1）。關卡不恢復播放。 */

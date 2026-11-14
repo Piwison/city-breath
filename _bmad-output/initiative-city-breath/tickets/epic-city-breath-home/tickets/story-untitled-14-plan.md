@@ -3,14 +3,14 @@ title: '列車與雲（示意）'
 type: 'feature'
 ticket: '14'
 created: '2026-11-13'
-status: 'in-progress'
+status: 'built'
 baseline_revision: 'bf7ec0626f81e1c0f4b0f578d2ea003ed685df4a'
 route: 'full'
 route_source: 'auto'
 risk: 'low'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-game-juice/SKILL.md']
 ---
@@ -62,11 +62,11 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `web/src/data/trains.ts`、`trains.test.ts` -- 中點、間隔、尖峰比午間密、null 沒車、收班首班、環狀線排除、slots、首班跨越
-- [ ] `web/src/scene/firstTrain.ts`、`firstTrain.test.ts` -- pulse 曲線、延遲
-- [ ] `web/src/scene/clouds.ts`、`clouds.test.ts` -- 夜裡與放大淡出、佈局決定性
-- [ ] `web/src/scene/Trains.tsx`、`Clouds.tsx`、`Stations.tsx`、`state/view.ts`、`LayerPanel.tsx`、`scene.css`、`ScenePage.tsx` -- 場景與開關
-- [ ] `design/reviews/3.14-trains-clouds/` -- Playwright 390×844：平日 8、14 點、6 點波紋、3 點、白天雲與放大、reduced-motion，與原型同時刻並排；記 draw call、instance 數
+- [x] `web/src/data/trains.ts`、`trains.test.ts` -- 中點、間隔、尖峰比午間密、null 沒車、收班首班、環狀線排除、slots、首班跨越
+- [x] `web/src/scene/firstTrain.ts`、`firstTrain.test.ts` -- pulse 曲線、延遲
+- [x] `web/src/scene/clouds.ts`、`clouds.test.ts` -- 夜裡與放大淡出、佈局決定性
+- [x] `web/src/scene/Trains.tsx`、`Clouds.tsx`、`Stations.tsx`、`state/view.ts`、`LayerPanel.tsx`、`scene.css`、`ScenePage.tsx` -- 場景與開關
+- [x] `design/reviews/3.14-trains-clouds/` -- Playwright 390×844：平日 8、14 點、6 點波紋、3 點、白天雲與放大、reduced-motion，與原型同時刻並排；記 draw call、instance 數
 
 **Acceptance Criteria:**
 - Given 平日 8 點與 14 點, then 板南線上 8 點的列車比 14 點密。
@@ -78,9 +78,24 @@ context: ['{project-root}/DESIGN.md', '{project-root}/.claude/skills/diorama-gam
 
 ## Implementation Notes
 
+- 沒有 subagent 工具：實作與 Quick lens 自審都在這個 session 做（同 3.1、3.4、3.13）；checkpoint 由協調者的委派訊息代替。plan 約 2,100 tokens，超過建議值，沒有拆。中途額度中斷，恢復後合併 origin/main e1384e8（產品計畫 v2、3.12 車站卡），只有 ScenePage 檔頭註解衝突。
+- `TrackView` 加 `line`（baseView 帶入）；`Rails.LIFT` 改成 export 給列車共用高度；`state/service.ts` 加 `firstTrainCrossed()`（和 3.4 的 `firstTrainAt` 同一份班距）。
+- 第一班車：觸發點是「班距由空轉有的整點」＝ 6 點（3.4 提示「約 6 點第一班車」同來源）；OD 的停駛（2–4 點）在 5 點就結束，5 點站已開、站珠照 3.1 亮起，6 點才彈波紋。只在播放中走過才觸發；拖時間軸、暫停、減少動態不觸發。站元件只加最小接口（`waveAt` 乘在站珠縮放、`waveGlow` 往 `--station-glow` 推色），沒有重寫。
+- 效能（Playwright 390×844、DPR 2、swiftshader、full）：列車 1 個 InstancedMesh（每台 112 三角形，lite 50），平日 8 點 83 台、14 點 47 台、3 點 0 台（上限 240）；雲 1 個 InstancedMesh、16 團（每團 80 三角形，lite 8 團、不投影）。暫停在 8 點整個畫面 75 call（3.1 時 72）；雲在飄時陰影 pass 每秒最多重畫 20 次（約 +29 call），播放中光本來就每格在動。原型同一刻 1,565 call。
+- 減少動態：列車停在固定相位（疏密照班距，看得到）、雲不飄、沒有波紋；Playwright 間隔 5 秒兩張截圖逐位元相同。
+- 列車不投影（陰影圖只在光動時重畫，暫停時車還在跑，影子會脫離）。
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+Quick lens（本 session 自審）：high 0、medium 0、low 2、false 1、maybe-false 0。
+
+| 判定 | 去向 | 發現與證據 |
+| --- | --- | --- |
+| low | reject（交 Piwi） | 列車車身是路線色，和同色的路線疊在一起，放大時才看得出是一節節的膠囊（原型同樣做法）；可改成往 `--train-glow` 偏淡。寫進 PR 待 Piwi 決定。 |
+| low | reject（交 Piwi） | 暫停在白天時雲還在飄，陰影圖每秒最多重畫 20 次；不超過播放中的成本，但比之前暫停時 0 次多。可改成暫停時雲也停。寫進 PR。 |
+| false | — | 疑慮：中途開靜態模式，波紋留在半彈狀態。`waveDirty = waving || S.waved` 會多寫一格把 pulse 歸 1。 |
 
 ## Design Notes
 

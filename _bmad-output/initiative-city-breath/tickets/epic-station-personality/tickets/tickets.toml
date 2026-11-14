@@ -1,4 +1,5 @@
 # 使用者認識每個站的個性 的 stories，依建置順序。2026-11-10 replan：建在首頁的車站卡（3.12）上。
+# 2026-11-14 replan（產品計畫 v2）：階段 4；類型與一句話已在 3.12，5.1 不做（dropped），這組只留整天前 10、同類型站與誰來這站。
 
 [[entry]]
 id = 1
@@ -16,13 +17,13 @@ v6_key = "4-1"
 id = 2
 type = "story"
 title = "整天前 10 目的地與同類型站"
-description = "車站卡加整天最常去的 10 站（1.13 擴充的 topDestinations，平日／假日）與同類型其他站；3.12 的「這一小時前 5」不變（C5）。"
-verify = "任一站顯示整天 10 個目的地與同類型站；少於 10 人顯示「少於 10 人」。"
+description = "車站卡的完整高度（3.22）加整天最常去的 10 站（1.13 擴充的 topDestinations，平日／假日）與同類型的其他站（照 3.12 用的 station-types.json 整年最常見的型，AD-27）；3.12 的「這一小時前 5」不變（C5）。類型標籤與一句話已在 3.12。"
+verify = "任一站顯示整天 10 個目的地與同類型站，同類型站的型與 station-types.json 一致（vitest）；少於 10 人顯示「少於 10 人」；環狀線站沒有同類型站。"
 covers = ["R1", "R2"]
-after = [1, "1.13"]
+after = ["3.12", "1.13", "3.22"]
 hitl = false
 risk = "low"
-v6_key = "4-2"
+unknown = "關卡 3：上線滿一個月、Piwi 看過五個指標後，決定階段 4 先做哪幾張。"
 
 [[entry]]
 id = 4
@@ -39,13 +40,12 @@ risk = "low"
 id = 3
 type = "story"
 title = "環狀線車站說明"
-description = "環狀線站出站未計：車站卡不顯示類型標籤、說明原因，「誰來這站」也說明為什麼沒有（3.12 已顯示出站未入檔）。"
-verify = "點環狀線站看到說明文字，無類型標籤，誰來這站的位置是說明而不是空白。"
+description = "環狀線站出站未入檔：車站卡上「誰來這站」與同類型站的位置說明為什麼沒有，不留空白（出站未入檔與不顯示類型標籤 3.12 已做）。"
+verify = "點環狀線站，誰來這站與同類型站的位置是說明文字而不是空白。"
 covers = ["R1", "R2"]
 after = [4]
 hitl = false
 risk = "low"
-v6_key = "4-3"
 
 [[entry]]
 id = 5
@@ -54,6 +54,6 @@ title = "Refactor sweep"
 description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定。"
 verify = "npm test 與 npm run build 通過，延後的整理項目都處理或記錄。"
 covers = ["R1", "R2"]
-after = [1, 2, 4, 3]
+after = [2, 4, 3]
 hitl = false
 risk = "low"
