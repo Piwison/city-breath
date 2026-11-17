@@ -1,15 +1,52 @@
 @import "./tokens.css";
 @import "./base.css";
 
-/* 場景分包載入前的提示（main.tsx）；場景本身的版面在 scene/scene.css。 */
-.boot-status {
-  min-height: 100dvh;
+/* 品牌載入畫面（6.2，核心旅程第 2 步、決定 21）：標記寫在 index.html，樣式在首包 CSS（head 裡的 <link>，
+   第一次繪製就有），不等 three 分包。開場從清晨 5 點播，所以用夜空的色（相位固定的 token，不跟 data-phase 換），
+   接場景時是暗接暗。進度條只動 transform、淡出只動 opacity（合成層，主執行緒忙著解析資料時也順）；
+   時長走 --dur-boot，reduced-motion 時歸零、boot.ts 直接移除。場景本身的版面在 scene/scene.css。 */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
   display: grid;
-  place-items: center;
-  padding: 16px;
-  font-size: var(--text-sm);
-  color: var(--hud-muted);
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  padding: 16px 16px calc(48px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to bottom, var(--sky-top-night), var(--sky-horizon-night));
+  color: var(--station);
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity var(--dur-boot) var(--ease-out);
 }
+.boot[data-state="out"] { opacity: 0; pointer-events: none; }
+.boot-brand { align-self: center; display: grid; gap: 10px; }
+.boot-name {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+}
+.boot-line { margin: 0; font-size: var(--text-md); opacity: 0.86; }
+.boot-foot { display: grid; justify-items: center; gap: 10px; }
+.boot-progress {
+  width: min(200px, 60vw);
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--station) 22%, transparent);
+  overflow: hidden;
+}
+.boot-bar {
+  display: block;
+  height: 100%;
+  background: var(--station-glow);
+  transform-origin: left center;
+  transform: scaleX(0.04); /* boot.ts 直接改這個元素的 transform */
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+.boot-label { margin: 0; font-size: var(--text-xs); opacity: 0.72; font-variant-numeric: tabular-nums; }
 
 /* 存成圖片（4.3）：通勤色的主要按鈕 40px，按下壓一下；時長走 token，reduced-motion 時直接切換 */
 .share { display: grid; gap: 6px; justify-items: start; }

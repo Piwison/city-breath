@@ -30,6 +30,7 @@
   --dur-phase: 600ms;    /* HUD 日夜換色 */
   --dur-enter: 220ms;    /* 浮出提示的進出（時段名，3.3） */
   --dur-sheet: 380ms;    /* 小卡兩段高度的切換（3.22）：放開手指後滑到摘要／完整 */
+  --dur-boot: 520ms;     /* 品牌載入畫面淡出、接場景（6.2） */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-pop: cubic-bezier(0.2, 1.6, 0.4, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* iOS sheet 的曲線（3.22） */
@@ -140,5 +141,6 @@
     --dur-phase: 0ms;
     --dur-enter: 0ms;
     --dur-sheet: 0ms;
+    --dur-boot: 0ms;
   }
 }

@@ -5,6 +5,7 @@
 import { useSyncExternalStore } from "react";
 import type { DayType } from "../data/types";
 import type { DistrictRange } from "../data/views";
+import { track } from "../track";
 
 export type Speed = 1 | 2;
 
@@ -122,17 +123,27 @@ export function setLayer(key: LayerKey, on: boolean) {
 /** 選一區（null＝回到全城）：換區時清掉選站與聚焦；整天／這一小時的選擇保留。 */
 export function selectDistrict(district: string | null) {
   if (district === state.district && state.station === null && state.focus === null) return;
+  const opened = district !== null && district !== state.district;
   set({ district, station: null, focus: null });
+  // 計數（AD-20）：打開一張行政區卡；不帶是哪一區
+  if (opened) track("district_opened");
 }
 
 /** 選一站（站 ID）；行政區維持，回到行政區卡＝selectStation(null)。 */
 export function selectStation(station: string | null) {
-  if (station !== state.station || state.focus !== null) set({ station, focus: null });
+  if (station === state.station && state.focus === null) return;
+  const opened = station !== null && station !== state.station;
+  set({ station, focus: null });
+  // 計數（AD-20）：打開一張車站卡；不帶是哪一站
+  if (opened) track("station_opened");
 }
 
 /** 打開分享連結時還原選取（3.15）：行政區與站一起寫（從行政區卡進的車站卡，回上一層到那一區）。 */
 export function restoreSelection(district: string | null, station: string | null) {
   set({ district, station, focus: null });
+  // 從分享連結打開的卡也算打開（AD-20）：連結還原出車站卡就是車站卡，否則有區就是行政區卡
+  if (station !== null) track("station_opened");
+  else if (district !== null) track("district_opened");
 }
 
 export function setRange(range: DistrictRange) {

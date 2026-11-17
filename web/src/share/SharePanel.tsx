@@ -12,7 +12,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { shareLink, siteLabel } from "../state/url";
-import { getView, setPlaying } from "../state/view";
+import { getView, setPlaying, type ViewState } from "../state/view";
+import { track } from "../track";
 import type { ShareCard } from "./card";
 import { renderShareCard, saveShareCard } from "./render";
 import "./share.css";
@@ -58,6 +59,13 @@ export async function copyText(text: string, field?: HTMLInputElement | null): P
   } catch {
     return false;
   }
+}
+
+/** 複製連結時開著的是哪一種卡（AD-20 share_link_copied 的 kind）；沒開卡＝home。通勤、大日子等之後的票加進 ViewState 後在這裡接。 */
+export function copiedKind(v: Pick<ViewState, "station" | "district">): "station" | "district" | "home" {
+  if (v.station !== null) return "station";
+  if (v.district !== null) return "district";
+  return "home";
 }
 
 /** 「已複製」維持多久再回到「複製連結」（按鈕狀態，不是提示）。 */
@@ -114,7 +122,12 @@ export function SharePanel({ open, target, onClose }: { open: boolean; target: S
     return () => clearTimeout(t);
   }, [copy]);
 
-  const onCopy = async () => setCopy((await copyText(url, field.current)) ? "copied" : "failed");
+  const onCopy = async () => {
+    const ok = await copyText(url, field.current);
+    setCopy(ok ? "copied" : "failed");
+    // 計數（AD-20，北極星的一半）：複製成功才算；kind 是開著的卡，不帶站或區
+    if (ok) track("share_link_copied", { kind: copiedKind(getView()) });
+  };
   const onSave = async () => {
     if (image.status !== "ready") return;
     setSaving(true);

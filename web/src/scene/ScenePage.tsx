@@ -2,9 +2,10 @@
 // 底層：底座、地形台地、海、行政區薄片、河川、綠地、捷運路線、天空與光；上面是全市前 12 大流向。
 // 點一區：區抬起、鏡頭飛過去、流向換成這區的去哪／誰來、站珠展開；下方時間軸換成行政區卡（點站換成車站小卡）。
 // 車站柱與站珠（3.1）、建築與樹（3.13）；點站開車站卡、流向換成這站前 5 目的地的站對站緞帶（3.12）。列車與雲（3.14，示意）；地標等是之後的票。
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NeutralToneMapping } from "three";
+import { bootDone } from "../boot";
 import { DistrictCard } from "../card/DistrictCard";
 import { StationCard } from "../card/StationCard";
 import { loadBasemap, loadDistrictFlows, loadDistricts, loadMonths, loadStations } from "../data/load";
@@ -118,6 +119,17 @@ function World({
       <SelectionCamera view={view} index={stations} reduced={reduced} />
     </>
   );
+}
+
+/** 場景畫出第一格後收起品牌載入畫面（6.2）：再等一個 rAF，確定這一格已經上螢幕。 */
+function FirstFrame() {
+  const fired = useRef(false);
+  useFrame(() => {
+    if (fired.current) return;
+    fired.current = true;
+    requestAnimationFrame(() => bootDone());
+  });
+  return null;
 }
 
 type Loaded = {
@@ -347,6 +359,11 @@ export default function ScenePage() {
     return () => setService(null);
   }, [data]);
 
+  // 資料載入失敗：收起品牌載入畫面，露出錯誤訊息（整頁錯誤畫面在 6.5；不支援 WebGL 由 SceneFallback 收）
+  useEffect(() => {
+    if (error) bootDone();
+  }, [error]);
+
   if (!webgl) return <SceneFallback />;
 
   return (
@@ -374,6 +391,7 @@ export default function ScenePage() {
             />
             {/* 選區時建築與樹跟著區一起彈起（DistrictLift 寫 lifts.ref） */}
             <Blocks view={data.view} month={data.month} reduced={reduced} lift={lifts.ref} />
+            <FirstFrame />
 
           </Canvas>
         )}
@@ -383,7 +401,6 @@ export default function ScenePage() {
       {data && <FlowLabelLayer els={flowLabels} />}
       {data && <PeriodToast source={data.flows} />}
       {data && <SleepHint />}
-      {!data && !error && <p className="scene-status">載入台北盆地中…</p>}
       {error && (
         <p className="scene-status" role="alert">
           資料載入失敗：{error}
