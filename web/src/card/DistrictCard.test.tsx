@@ -97,3 +97,10 @@ describe("行政區卡（3.21）", () => {
     expect(html).not.toContain("留在區內 ");
   });
 });
+
+describe("行政區卡的分享鈕（3.15）", () => {
+  it("標題列、關閉鈕左邊有分享鈕", () => {
+    const html = card(idOf("大安區"));
+    expect(html).toMatch(/class="card-share" aria-label="分享"[^>]*>.*<\/button><button type="button" class="card-close"/);
+  });
+});

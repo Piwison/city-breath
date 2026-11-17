@@ -105,7 +105,7 @@ describe("車站卡", () => {
   it("3.22 環狀線站與停止營運各有對應的句子", async () => {
     const loop = file.stations.find((s) => !s.exitsRecorded)!;
     const html = await card(loop.display);
-    expect(html).toMatch(/<p class="card-answer"[^>]*>[^<]*環狀線出站未入檔[^<]*<\/p>/);
+    expect(html).toMatch(/<p class="card-answer"[^>]*>[^<]*（只算在北捷站下車的人）<\/p>/);
     seek(3);
     expect(await card("頂溪")).toMatch(/<p class="card-answer"[^>]*>平日 3 點捷運停止營運，頂溪沒有列車<\/p>/);
   });
@@ -159,6 +159,18 @@ describe("車站卡", () => {
 
 describe("車站卡的類型標籤（決定 13）", () => {
   const yearly = yearlyOk.status === "ok" ? yearlyOk.file : null!;
+
+  it("3.15：這小時進站／出站／進出排在類型標籤之前（摘要高度就看得到數字）", async () => {
+    const html = await card("台北車站", undefined, yearlyOk);
+    expect(html.indexOf("這小時進站")).toBeGreaterThan(0);
+    expect(html.indexOf("這小時進站")).toBeLessThan(html.indexOf("card-type-tag"));
+  });
+
+  it("3.15：標題列有分享鈕（只分享連結，車站卡沒有分享圖）", async () => {
+    const html = await card("台北車站", undefined, yearlyOk);
+    expect(html).toMatch(/<button type="button" class="card-share" aria-label="分享"/);
+    expect(html).not.toContain("存成圖片");
+  });
 
   it("標籤與一句話等於 station-types.json 裡這站整年最常見的型；當月相同就沒有小字", async () => {
     const s = file.stations[index.byId.get(idOf("台北車站"))!];

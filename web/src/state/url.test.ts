@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { seek } from "./clock";
-import { readQuery, shareUrl, siteLabel, syncUrl, toQuery, URL_WRITE_MS, urlStateOf, writeQuery } from "./url";
-import { setDayType, setPlaying } from "./view";
+import {
+  clearViewQuery, parseQuery, planLink, readQuery, shareLink, shareUrl, siteLabel, syncUrl, toQuery, URL_WRITE_MS, urlStateOf, writeQuery,
+} from "./url";
+import { getView, restoreSelection, setDayType, setMonth, setPlaying } from "./view";
 
 describe("readQuery", () => {
   it("讀 hour 與 day", () => {
@@ -153,5 +155,98 @@ describe("syncUrl（畫面狀態 → 網址）", () => {
     seek(3);
     vi.advanceTimersByTime(URL_WRITE_MS * 2);
     expect(writes).toEqual([]);
+  });
+});
+
+describe("3.15 月份、行政區、站", () => {
+  const full = { month: "2026-09", dayType: "holiday" as const, hour: 14, district: "63000030", station: "sd821b2ec" };
+
+  it("五個鍵固定順序序列化、讀回一致", () => {
+    expect(toQuery(full)).toBe("month=2026-09&day=holiday&hour=14&district=63000030&station=sd821b2ec");
+    expect(readQuery(toQuery(full))).toEqual(full);
+    expect(readQuery(toQuery({ dayType: "weekday", hour: 0, district: "65000010" }))).toEqual({ dayType: "weekday", hour: 0, district: "65000010" });
+  });
+
+  it("不合法的值退回預設（不讀），並列出是哪個鍵", () => {
+    const p = parseQuery("?month=2026-13&day=event&hour=25&district=大安&station=a%20b&x=1");
+    expect(p.state).toEqual({});
+    expect(p.invalid).toEqual(["month", "day", "hour", "district", "station"]);
+    expect(parseQuery("?hour=6.5&district=630000301").invalid).toEqual(["hour", "district"]);
+    expect(parseQuery("?x=1").invalid).toEqual([]);
+  });
+
+  it("urlStateOf：暫停時記月份與時刻，選了區、站才記；播放中只記日型與選取", () => {
+    expect(urlStateOf({ ...full, playing: false })).toEqual(full);
+    expect(urlStateOf({ ...full, district: null, station: null, playing: false })).toEqual({ month: "2026-09", dayType: "holiday", hour: 14 });
+    expect(urlStateOf({ ...full, playing: true })).toEqual({ dayType: "holiday", district: "63000030", station: "sd821b2ec" });
+  });
+
+  it("shareLink：播放中也給暫停的那一刻（分享這一刻）", () => {
+    setMonth("2026-09");
+    setDayType("weekday");
+    setPlaying(true);
+    restoreSelection(null, null);
+    const link = shareLink(getView(), "https://city.example/");
+    expect(link).toBe(`https://city.example/?month=2026-09&day=weekday&hour=${getView().hour}`);
+    setPlaying(false);
+    setMonth(null);
+  });
+
+  it("clearViewQuery 拿掉畫面鍵，留下其他鍵與通勤", () => {
+    const out: string[] = [];
+    clearViewQuery("?hour=99&station=x&from=a&to=b&at=8&ref=1", (s) => out.push(s));
+    expect(out).toEqual(["from=a&to=b&at=8&ref=1"]);
+  });
+});
+
+describe("planLink（對照資料還原或退回全景）", () => {
+  const data = {
+    months: ["2026-08", "2026-09"],
+    latest: "2026-09",
+    hasDistrict: (id: string) => id === "63000030",
+    hasStation: (id: string) => id === "sd821b2ec",
+  };
+  const plan = (q: string) => planLink(parseQuery(q), data);
+
+  it("區與站都在：還原", () => {
+    expect(plan("?month=2026-09&day=holiday&hour=14&district=63000030")).toEqual({ kind: "restore", district: "63000030", station: null, staleMonth: null });
+    expect(plan("?district=63000030&station=sd821b2ec")).toMatchObject({ kind: "restore", district: "63000030", station: "sd821b2ec" });
+  });
+  it("站不存在、月份不在資料裡、格式錯：退回全景", () => {
+    expect(plan("?station=snope")).toEqual({ kind: "fallback", invalid: ["station"] });
+    expect(plan("?month=2030-01&district=63000030")).toEqual({ kind: "fallback", invalid: ["month"] });
+    expect(plan("?hour=25&district=63000030")).toEqual({ kind: "fallback", invalid: ["hour"] });
+    expect(plan("?district=65000999")).toEqual({ kind: "fallback", invalid: ["district"] });
+  });
+  it("舊月份：照樣還原並註明", () => {
+    expect(plan("?month=2026-08&station=sd821b2ec")).toEqual({ kind: "restore", district: null, station: "sd821b2ec", staleMonth: "2026-08" });
+  });
+  it("只有時刻與日型：none（開場已經停在那一刻）", () => {
+    expect(plan("?day=holiday&hour=14")).toEqual({ kind: "none" });
+    expect(plan("")).toEqual({ kind: "none" });
+  });
+});
+
+describe("syncUrl 寫月份、行政區、站（3.15）", () => {
+  it("暫停時寫月份；選區、選站寫進網址，關卡拿掉", () => {
+    vi.useFakeTimers();
+    let search = "";
+    const stop = syncUrl((s) => (search = s), () => search);
+    setPlaying(false);
+    setDayType("holiday");
+    seek(14);
+    setMonth("2026-09");
+    restoreSelection("63000030", null);
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(search).toBe("month=2026-09&day=holiday&hour=14&district=63000030");
+    restoreSelection("63000030", "sd821b2ec");
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(search).toBe("month=2026-09&day=holiday&hour=14&district=63000030&station=sd821b2ec");
+    restoreSelection(null, null);
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(search).toBe("month=2026-09&day=holiday&hour=14");
+    stop();
+    setMonth(null);
+    vi.useRealTimers();
   });
 });

@@ -1,9 +1,12 @@
 // 直式分享卡：依資料在離屏 canvas 重畫，不讀主場景畫面（AD-17）。
-// 外框（天空、面板、品牌列、頁尾的月份／來源／網址）三種卡共用，只換內容區：CONTENT[kind]。
+// 外框（天空、面板、頁尾的月份／來源／網址）三種卡共用，只換內容區：CONTENT[kind]。
+// 3.15（決定 16、18、19）：網站名放在上方天空帶、下方天空留白（IG 介面會蓋住）；只印短網址、不放 QR code；
+// 數字與英文用自帶的 Manrope 子集（--font-num，public/fonts/），中文逐字回退到系統字型。
+// 同一組天空、面板與字型也畫全站固定的連結預覽圖（drawLinkPreview，1200×630，決定 20）。
 // 顏色、字型、字級、圓角都從 tokens.css 讀（AD-8）；卡片的日夜跟卡片時段走，不跟目前頁面。
 // 不畫任何示意物件（街廓、樹、地標造型、列車、雲；AD-23）。
 import tokensCss from "../styles/tokens.css?raw";
-import { canvasColor, cssTokenReader, tokenRgba, type TokenReader } from "../styles/tokens";
+import { canvasColor, cssTokenReader, tokenRgba, type Rgba, type TokenReader } from "../styles/tokens";
 import { phaseAt, tokenAt } from "../scene/daylight";
 import { formatCount } from "../data/commute";
 import { DAY_LABEL, cardFileName, type CommuteCard, type ShareCard } from "./card";
@@ -36,6 +39,9 @@ export interface Theme {
   commute: string;
   station: string;
   shadow: string;
+  /** 天空帶上的字色：依天空亮暗選白天或夜晚的 HUD 字色 */
+  skyInk: string;
+  /** --font-num：數字與英文是自帶字型，中文回退到系統字 */
   font: string;
   size: Record<Size, number>;
   radius: number;
@@ -48,6 +54,16 @@ function tokenPx(name: string, read: TokenReader): number {
   const m = /^([\d.]+)(rem|px)$/.exec(read(name));
   if (!m) throw new Error(`token ${name} 不是 rem 或 px`);
   return Math.round(Number(m[1]) * (m[2] === "rem" ? 16 : 1) * SCALE);
+}
+
+/** 天空上的字：天空亮就用白天的深色字，暗就用夜晚的淺色字（相對亮度 0.18 為界，兩邊對比都在 4.5 以上）。 */
+function skyInkFor([r, g, b]: Rgba, css: string): string {
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return tok("--hud-ink", cssTokenReader(css, lum > 0.18 ? "day" : "night"));
 }
 
 /** 卡片時段的配色；整天的卡（hour 為 null）用正午。取該小時的中點，例如 8 點的卡看 8:30 的天色。 */
@@ -67,7 +83,8 @@ export function resolveTheme(hour: number | null, css: string = tokensCss): Them
     commute: tok("--commute", read),
     station: tok("--station", read),
     shadow: tok("--hud-shadow", read),
-    font: read("--font"),
+    skyInk: skyInkFor(tokenAt("--sky-top", t, read), css),
+    font: read("--font-num"),
     size: Object.fromEntries(sizes.map((s) => [s, tokenPx(`--text-${s}`, read)])) as Record<Size, number>,
     radius: tokenPx("--radius", read),
   };
@@ -289,9 +306,71 @@ function footerLines(ctx: Ctx, card: ShareCard, theme: Theme, w: number): Line[]
   ];
 }
 
+/** 天空帶上的網站名：貼在面板上緣上方（下方天空留白，決定 18）。 */
+function drawBrand(ctx: Ctx, theme: Theme, x: number, panelTop: number, sizes: { name: number; sub: number } = { name: theme.size.lg, sub: theme.size.sm }) {
+  const brand = line([
+    { text: "城市呼吸", size: sizes.name, weight: 700, color: theme.skyInk },
+    { text: "  北捷人流脈搏", size: sizes.sub, weight: 400, color: theme.skyInk },
+  ]);
+  drawLines(ctx, theme, [brand], x, panelTop - brand.height - Math.round(14 * SCALE));
+}
+
+/** 連結預覽圖（Open Graph、Twitter card，決定 20）：1200×630。 */
+export const PREVIEW_W = 1200;
+export const PREVIEW_H = 630;
+/** 預覽圖的天色：傍晚（暖色天空，和開場的清晨分開）。 */
+export const PREVIEW_HOUR = 17;
+
+/**
+ * 全站一張固定的連結預覽圖：天空、玻璃面板、網站名、「上個月的台北捷運」與一句話，右邊是網站圖示。
+ * 不放任何數字（不是某個月的資料）。mark 是已載入的圖示圖片（markSvg），測試可不給。
+ */
+export function drawLinkPreview(ctx: Ctx & Partial<Pick<CanvasRenderingContext2D, "drawImage">>, theme: Theme, mark?: CanvasImageSource): void {
+  const k = PREVIEW_W / CARD_W;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const sky = ctx.createLinearGradient(0, 0, 0, PREVIEW_H);
+  sky.addColorStop(0, theme.sky[0]);
+  sky.addColorStop(1, theme.sky[1]);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, PREVIEW_W, PREVIEW_H);
+
+  const pad = 64;
+  const panel = { x: pad, y: pad, w: PREVIEW_W - pad * 2, h: PREVIEW_H - pad * 2 };
+  ctx.save();
+  ctx.shadowColor = theme.shadow;
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 12;
+  roundRect(ctx, panel.x, panel.y, panel.w, panel.h, theme.radius * k * 1.6);
+  ctx.fillStyle = theme.panel;
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = theme.line;
+  ctx.lineWidth = 2;
+  roundRect(ctx, panel.x, panel.y, panel.w, panel.h, theme.radius * k * 1.6);
+  ctx.stroke();
+
+  const markSize = 300;
+  const markX = panel.x + panel.w - markSize - 56;
+  const markY = panel.y + (panel.h - markSize) / 2;
+  if (mark && ctx.drawImage) ctx.drawImage(mark, markX, markY, markSize, markSize);
+
+  const x = panel.x + 64;
+  const w = markX - 40 - x;
+  const text: Line[] = [
+    line([{ text: "城市呼吸", size: 112, weight: 700, color: theme.ink }], 1.15),
+    space(8),
+    line([{ text: "上個月的台北捷運", size: 52, weight: 700, color: theme.ink }], 1.3),
+    space(20),
+    ...lines(wrapText(ctx, theme, "台北捷運的一天：每小時誰去了哪", 34, 400, w), { size: 34, weight: 400, color: theme.muted }, 1.45),
+    space(12),
+    ...lines(["北捷人流脈搏・公開資料・每月更新"], { size: 26, weight: 400, color: theme.muted }, 1.4),
+  ];
+  drawLines(ctx, theme, text, x, panel.y + (panel.h - heightOf(text)) / 2);
+}
+
 export function drawShareCard(ctx: Ctx, card: ShareCard, theme: Theme): void {
   const box = CONTENT_BOX;
-  const { size } = theme;
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
@@ -317,39 +396,47 @@ export function drawShareCard(ctx: Ctx, card: ShareCard, theme: Theme): void {
   roundRect(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, theme.radius);
   ctx.stroke();
 
-  // 品牌列
-  const head = line([
-    { text: "城市呼吸", size: size.md, weight: 700, color: theme.ink },
-    { text: "  北捷人流脈搏", size: size.sm, weight: 400, color: theme.muted },
-  ]);
-  drawLines(ctx, theme, [head], box.x, box.y);
+  // 網站名：上方天空帶（決定 18）；面板裡不再有品牌列
+  drawBrand(ctx, theme, box.x, PANEL.y);
   const rule = (y: number) => {
     ctx.fillStyle = theme.line;
     ctx.fillRect(box.x, y, box.w, Math.max(2, Math.round(SCALE / 2)));
   };
   const gap = Math.round(14 * SCALE);
-  rule(box.y + head.height + gap / 2);
 
   const foot = footerLines(ctx, card, theme, box.w);
   const footTop = box.y + box.h - heightOf(foot);
   drawLines(ctx, theme, foot, box.x, footTop);
   rule(footTop - gap / 2);
 
-  const inner: Box = { x: box.x, y: box.y + head.height + gap * 1.5, w: box.w, h: footTop - gap * 1.5 - (box.y + head.height + gap * 1.5) };
+  const inner: Box = { x: box.x, y: box.y, w: box.w, h: footTop - gap * 1.5 - box.y };
   (CONTENT[card.kind] as (ctx: Ctx, box: Box, card: ShareCard, theme: Theme) => void)(ctx, inner, card, theme);
 }
 
 // ── 瀏覽器：產生圖片、存檔 ──
 
-/** 等字型可用。沒有自帶字型（DESIGN.md 待辦），系統字也要等 fonts.ready 才保證量得準。 */
+/** 等字型可用：自帶的數字字型（--font-num）畫之前一定要先載好，系統字也要等 fonts.ready 才保證量得準。 */
 async function fontsReady(theme: Theme, sample: string): Promise<void> {
   if (!("fonts" in document)) return;
   await document.fonts.ready;
-  await Promise.all([400, 700].map((w) => document.fonts.load(fontOf(theme, 40, w), sample).catch(() => [])));
+  await Promise.all([400, 700].map((w) => document.fonts.load(fontOf(theme, 40, w), `0123456789${sample}`).catch(() => [])));
 }
 
 /** 卡上會出現的字（各種卡通用：直接取資料模型的所有字串）。 */
 const sampleText = (card: ShareCard) => `${JSON.stringify(card)}城市呼吸北捷人流脈搏少於人平均每天和你同一個小時起訖`;
+
+/** 連結預覽圖（給 scripts/brand-assets.mjs 用）：畫在 canvas 上回傳 PNG。 */
+export async function renderLinkPreview(mark?: CanvasImageSource): Promise<Blob> {
+  const theme = resolveTheme(PREVIEW_HOUR);
+  await fontsReady(theme, "城市呼吸上個月的台北捷運的一天：每小時誰去了哪北捷人流脈搏・公開資料・每月更新");
+  const canvas = document.createElement("canvas");
+  canvas.width = PREVIEW_W;
+  canvas.height = PREVIEW_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("這個瀏覽器無法產生圖片");
+  drawLinkPreview(ctx, theme, mark);
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("圖片產生失敗"))), "image/png"));
+}
 
 /** 依資料在離屏 canvas 畫出卡片，回傳 PNG。 */
 export async function renderShareCard(card: ShareCard): Promise<Blob> {

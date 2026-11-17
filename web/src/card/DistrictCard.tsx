@@ -11,6 +11,7 @@ import { districtRanks, FLOW_KEYS, flowKey, type DistrictRank, type FlowSource, 
 import { FlowLegend, type LegendLink } from "../scene/FlowLegend";
 import { closeCard, selectStation, setFocus, setRange, useView } from "../state/view";
 import { CardFrame } from "./CardFrame";
+import { ShareAction } from "../share/SharePanel";
 
 // 人數一律經 data/format.ts（少於 10 人不寫數字，3.22）
 export const monthLabel = (month: string) => `${month.slice(0, 4)} 年 ${Number(month.slice(5))} 月`;
@@ -85,12 +86,15 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
     operating: ranks.operating,
     out: ranks.out.map((r) => ({ name: rankName(r, names), value: r.value })),
   });
+  const when = whenLabel(dayType, whole ? "day" : hour, whole || operating);
   return (
     <CardFrame
       kind="district"
       kicker="行政區"
       title={d?.name ?? id}
-      when={whenLabel(dayType, whole ? "day" : hour, whole || operating)}
+      when={when}
+      // 分享（3.15）：先只有複製連結；3.16 在 target 加 image（存成圖片）
+      actions={<ShareAction target={() => ({ kicker: "行政區", title: d?.name ?? id, when, summary: answer })} />}
       onClose={closeCard}
       answer={answer}
       footer={<FlowLegend source={source} stations={stations} link={legend} />}

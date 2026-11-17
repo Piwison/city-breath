@@ -12,8 +12,11 @@ import type { BasemapFile, DistrictFlowsFile, DistrictsFile, LineId } from "../d
 import { baseView, flowSource, stationIndex, type BaseView, type FlowSource, type StationIndex } from "../data/views";
 import { startClock } from "../state/clock";
 import { setService } from "../state/service";
-import { readQuery, syncUrl } from "../state/url";
-import { setDayType, setPlaying, useView } from "../state/view";
+import { clearViewQuery, parseQuery, planLink, syncUrl, type ParsedQuery } from "../state/url";
+import { getView, restoreSelection, setDayType, setMonth, setPlaying, useView } from "../state/view";
+import { monthLabel } from "../card/DistrictCard";
+import { whenLabel } from "../data/periods";
+import { SharePanel, ShareIcon, type ShareTarget } from "../share/SharePanel";
 import { Blocks } from "./Blocks";
 import { CameraRig, type CameraLink } from "./CameraRig";
 import { Clouds } from "./Clouds";
@@ -130,7 +133,51 @@ type Loaded = {
   month: string;
   /** 官方班距（第一班車約幾點，3.4） */
   headway: BasemapFile["headway"];
+  /** months.json 列的所有月份（分享連結的月份檢查，3.15） */
+  months: string[];
 };
+
+/** 上方「分享這一刻」（3.15，DESIGN.md 上方一排）：沒開卡時才有；按了停在這一刻、開分享面板（只有複製連結）。 */
+function ShareMoment({ month }: { month?: string }) {
+  const [target, setTarget] = useState<ShareTarget | null>(null);
+  const cardOpen = useView((s) => s.district !== null || s.station !== null);
+  if (cardOpen && !target) return null;
+  const open = () => {
+    // 停在這一刻再讀時刻（播放中按也分享畫面上的那一小時）
+    setPlaying(false);
+    const v = getView();
+    const when = whenLabel(v.dayType, v.hour);
+    setTarget({
+      kicker: "全城",
+      title: month ? `台北捷運・${monthLabel(month)}` : "台北捷運",
+      when,
+      summary: `${when}的台北捷運：各行政區之間，每小時誰去了哪。`,
+    });
+  };
+  return (
+    <>
+      <button type="button" className="hud scene-share-btn" aria-label="分享這一刻" title="分享這一刻" aria-haspopup="dialog" disabled={!month} onClick={open}>
+        <ShareIcon />
+        <span>分享這一刻</span>
+      </button>
+      {target && <SharePanel open target={target} onClose={() => setTarget(null)} />}
+    </>
+  );
+}
+
+/** 打開的連結有問題時的說明（3.15）：點 × 才收。 */
+function LinkNotice({ text, onClose }: { text: string; onClose: () => void }) {
+  return (
+    <div className="hud scene-notice" role="status">
+      <p>{text}</p>
+      <button type="button" aria-label="知道了，關閉說明" onClick={onClose}>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 /** 下方：沒選東西時是時間軸；選了區是行政區卡、選了站是車站小卡（卡框與卡內時間列共用，打開就暫停）。 */
 function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
@@ -193,13 +240,43 @@ export default function ScenePage() {
   const dock = useRef<HTMLDivElement>(null);
   const main = useRef<HTMLElement>(null);
 
-  // 開場讀網址（停在網址的時刻與日型），之後使用者操作後把 hour、dayType 寫回網址（AD-16）
+  // 開場讀網址（AD-16）：停在網址的時刻與日型；任一鍵不合法就照常從清晨播放（資料到了再退回全景並說明）。
+  // 區與站要等資料載入後才查得到在不在（下一個 effect）；網址的寫回（syncUrl）也等還原完才開始，免得先把區與站洗掉。
+  const link = useRef<ParsedQuery | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   useEffect(() => {
-    const q = readQuery(location.search);
-    if (q.dayType) setDayType(q.dayType);
-    startClock({ hour: q.hour, reducedMotion: reduced });
-    return syncUrl();
+    const q = parseQuery(location.search);
+    link.current = q;
+    const bad = q.invalid.length > 0;
+    if (q.state.dayType && !bad) setDayType(q.state.dayType);
+    startClock({ hour: bad ? undefined : q.state.hour, reducedMotion: reduced });
   }, [reduced]);
+
+  // 資料到了：還原連結裡的區與站（開好那張卡、暫停在那一刻），或退回全景並說明（3.15）
+  useEffect(() => {
+    if (!data) return;
+    setMonth(data.month);
+    const q = link.current ?? parseQuery(location.search);
+    const plan = planLink(q, {
+      months: data.months,
+      latest: data.month,
+      hasDistrict: (id) => data.districtNames.has(id),
+      hasStation: (id) => data.stations.byId.has(id),
+    });
+    if (plan.kind === "fallback") {
+      // 退回首頁全景：不選區站、照常從清晨播放，網址拿掉看不懂的部分
+      restoreSelection(null, null);
+      setDayType("weekday");
+      if (!getView().playing) startClock({ reducedMotion: reduced });
+      clearViewQuery();
+      setNotice("這個連結裡的站、行政區或時段在資料裡找不到，先帶你看全城。");
+    } else if (plan.kind === "restore") {
+      restoreSelection(plan.district, plan.station);
+      if (plan.staleMonth)
+        setNotice(`這個連結是 ${monthLabel(plan.staleMonth)}的，網站顯示的是最新的 ${monthLabel(data.month)}資料。`);
+    }
+    return syncUrl();
+  }, [data, reduced]);
 
   // 流向標籤的安全區：上方 HUD 的下緣到時間軸（或小卡）的上緣；畫面、HUD 大小變了或換成小卡就重量。
   // 小卡兩段高度（3.22）只動 transform（大小不變），所以換段、拖曳結束與滑動結束（transitionend）也重量：標籤讓路到卡片上方
@@ -232,8 +309,12 @@ export default function ScenePage() {
   useEffect(() => {
     if (!webgl) return;
     let alive = true;
+    let monthsList: string[] = [];
     loadMonths()
-      .then(({ latest }) => Promise.all([loadBasemap(), loadDistricts(latest), loadDistrictFlows(latest), loadStations(latest)]))
+      .then(({ latest, months }) => {
+        monthsList = months;
+        return Promise.all([loadBasemap(), loadDistricts(latest), loadDistrictFlows(latest), loadStations(latest)]);
+      })
       .then(([basemap, districts, flows, stations]) => {
         if (!alive) return;
         if (flows.month !== districts.month || stations.month !== districts.month)
@@ -250,6 +331,7 @@ export default function ScenePage() {
           box: plinthBox(view.bbox),
           month: districts.month,
           headway: basemap.headway,
+          months: monthsList,
         });
       })
       .catch((e: Error) => alive && setError(e.message));
@@ -329,7 +411,9 @@ export default function ScenePage() {
             <circle cx="8" cy="8" r="1.8" fill="currentColor" />
           </svg>
         </button>
+        <ShareMoment month={data?.month} />
         <LayerPanel />
+        {notice && <LinkNotice text={notice} onClose={() => setNotice(null)} />}
       </div>
       <div ref={dock}>
         <Bottom data={data} legend={overlays.legend} />
