@@ -26,6 +26,19 @@
     <meta name="theme-color" content="%THEME_COLOR%" />
   </head>
   <body>
+    <!-- 品牌載入畫面（6.2）：不等任何 JS，樣式在首包 CSS（app.css .boot）；進度與接場景由 src/boot.ts 處理 -->
+    <div id="boot" class="boot">
+      <div class="boot-brand">
+        <h1 class="boot-name">城市呼吸</h1>
+        <p class="boot-line">台北捷運的一天：每小時誰去了哪</p>
+      </div>
+      <div class="boot-foot">
+        <div class="boot-progress" role="progressbar" aria-label="載入進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span class="boot-bar"></span>
+        </div>
+        <p class="boot-label" aria-hidden="true">載入中…</p>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

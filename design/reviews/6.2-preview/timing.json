@@ -1,0 +1,124 @@
+{
+  "base": "http://localhost:4173",
+  "network": "9 Mbps / 60 ms, cache disabled, 390×844",
+  "results": [
+    {
+      "name": "motion",
+      "reducedMotion": false,
+      "paint": {
+        "first-paint": 252,
+        "first-contentful-paint": 252
+      },
+      "bootGone": 4721,
+      "res": [
+        {
+          "file": "/assets/index-B2d0uzja.js",
+          "start": 80,
+          "end": 212,
+          "kb": 68
+        },
+        {
+          "file": "/assets/rolldown-runtime-XKyaHtl9.js",
+          "start": 80,
+          "end": 149,
+          "kb": 1
+        },
+        {
+          "file": "/assets/ScenePage-BLXg5qWl.js",
+          "start": 238,
+          "end": 805,
+          "kb": 333
+        },
+        {
+          "file": "/data/months.json",
+          "start": 242,
+          "end": 312,
+          "kb": 0
+        },
+        {
+          "file": "/data/basemap.json",
+          "start": 243,
+          "end": 635,
+          "kb": 139
+        },
+        {
+          "file": "/data/2026-09/stations.json",
+          "start": 313,
+          "end": 512,
+          "kb": 35
+        },
+        {
+          "file": "/data/2026-09/districts.json",
+          "start": 313,
+          "end": 474,
+          "kb": 20
+        },
+        {
+          "file": "/data/2026-09/district-flows.json",
+          "start": 314,
+          "end": 491,
+          "kb": 25
+        }
+      ]
+    },
+    {
+      "name": "reduced",
+      "reducedMotion": true,
+      "paint": {
+        "first-paint": 188,
+        "first-contentful-paint": 188
+      },
+      "bootGone": 3344,
+      "res": [
+        {
+          "file": "/assets/index-B2d0uzja.js",
+          "start": 76,
+          "end": 208,
+          "kb": 68
+        },
+        {
+          "file": "/assets/rolldown-runtime-XKyaHtl9.js",
+          "start": 76,
+          "end": 147,
+          "kb": 1
+        },
+        {
+          "file": "/assets/ScenePage-BLXg5qWl.js",
+          "start": 232,
+          "end": 820,
+          "kb": 333
+        },
+        {
+          "file": "/data/months.json",
+          "start": 234,
+          "end": 321,
+          "kb": 0
+        },
+        {
+          "file": "/data/basemap.json",
+          "start": 235,
+          "end": 633,
+          "kb": 139
+        },
+        {
+          "file": "/data/2026-09/stations.json",
+          "start": 324,
+          "end": 521,
+          "kb": 35
+        },
+        {
+          "file": "/data/2026-09/districts.json",
+          "start": 325,
+          "end": 481,
+          "kb": 20
+        },
+        {
+          "file": "/data/2026-09/district-flows.json",
+          "start": 327,
+          "end": 497,
+          "kb": 25
+        }
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@ title: '分享面板、連結預覽與網址記狀態'
 type: 'feature'
 ticket: '15'
 created: '2026-11-17'
-status: 'built'
+status: done
 baseline_revision: '358948f2ac7846bbf5c9f6d3b319e36658934f26'
 route: 'full'
 route_source: 'auto'

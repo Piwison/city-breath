@@ -20,3 +20,7 @@
 - source_plan: `_bmad-output/initiative-city-breath/tickets/epic-city-breath-home/tickets/story-untitled-12-plan.md`
   summary: 3.12 第二個 PR：車站卡的類型標籤與一句話（整年最常見的型，管線輸出不分月份的 station-types.json，當月不同時加一行小字），含 data-contract、pytest 與 vitest。
   evidence: 產品計畫 v2（2026-11-14，決定 13、14）在 3.12 實作途中改了票面；協調者指示第一個 PR 照原 plan 範圍完成，類型標籤由同一張票的第二個 PR 補上。
+
+- source_plan: `_bmad-output/initiative-city-breath/tickets/epic-source-and-launch/tickets/story-vercel-plan.md`
+  summary: 預覽期 robots.txt 的 Disallow all 可能讓 LINE、Threads 的連結預覽抓不到標題與圖，6.4 用真的分享連結確認。
+  evidence: 未驗證（maybe-false，若成立為 medium）；尊重 robots.txt 的預覽爬蟲不會抓頁面。在 6.4 把部署網址貼到 LINE 與 Threads 看有沒有預覽即可確認；不行就移除 robots.txt 的 Disallow、只留 X-Robots-Tag: noindex。

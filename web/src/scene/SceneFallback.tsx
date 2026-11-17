@@ -1,9 +1,12 @@
 // WebGL 不可用（或場景建立失敗）時的替代畫面：靜態說明＋通勤同路人（AD-11）。
 // 首頁就是場景（3.5），所以通勤表單直接放在這裡，不再連回首頁。
-import { Component, type ReactNode } from "react";
+import { Component, useEffect, type ReactNode } from "react";
+import { bootDone } from "../boot";
 import { CommuteForm } from "../commute/CommuteForm";
 
 export function SceneFallback({ reason }: { reason?: string }) {
+  // 替代畫面出現時收起品牌載入畫面（6.2）
+  useEffect(() => bootDone(), []);
   return (
     <main className="scene-fallback">
       <div className="hud scene-fallback-card">

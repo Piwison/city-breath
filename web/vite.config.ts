@@ -22,6 +22,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
   return {
     plugins: [react(), previewTags(env.VITE_SITE_URL ?? process.env.VITE_SITE_URL ?? "")],
+    // 計數只在 Vercel 上建置時送出（AD-20，6.2）：Vercel 的建置環境有 VERCEL=1；本機、測試、CI 沒有
+    define: { __VERCEL_ANALYTICS__: JSON.stringify(process.env.VERCEL === "1") },
     // css: true 讓測試能以 ?raw 讀到 CSS 原文（tokens.test.ts 檢查色票）
     test: { environment: "node", css: true },
   };

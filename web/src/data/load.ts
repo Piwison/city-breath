@@ -166,6 +166,22 @@ export async function loadBasemap(): Promise<BasemapFile> {
   return b;
 }
 /**
+ * 首頁要的資料一次開始抓（6.2、AD-6）：main.tsx 一啟動就呼叫，和場景分包同時開始。底圖不分月份，馬上抓；
+ * 三個首頁資料檔要知道最新月份，等 months.json（約 0.2 KB）回來就抓。ScenePage 之後呼叫同一批 load 函式
+ * 會拿到這裡的快取（getJson 的 promise 快取），不會重抓。回傳各檔的 promise 給載入畫面算進度；失敗由 ScenePage 顯示。
+ */
+export function preloadHome(): Promise<unknown>[] {
+  const months = loadMonths();
+  const latest = months.then((m) => m.latest);
+  return [
+    months,
+    loadBasemap(),
+    latest.then(loadStations),
+    latest.then(loadDistricts),
+    latest.then(loadDistrictFlows),
+  ];
+}
+/**
  * 不分月份的 station-types.json（約 5 KB，3.12，AD-27）：每站整年最常見的類型，打開車站卡才載（AD-6）。
  * 版本由 getJson 驗；另外檢查形狀。站 ID 為鍵，跨月份通用（AD-2），當月沒有的站自然查不到。
  */
