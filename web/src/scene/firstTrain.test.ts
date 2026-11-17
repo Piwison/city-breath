@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { triggerWave, wave, waveAt, waveGlow, wavePulse, waveRunning, WAVE_DELAY, WAVE_PEAK, WAVE_RISE, WAVE_SETTLE } from "./firstTrain";
+import { triggerWave, wave, waveAt, waveGlow, wavePulse, wavePulseAt, waveRunning, WAVE_DELAY, WAVE_PEAK, WAVE_RISE, WAVE_SETTLE, WAVE_WIDE } from "./firstTrain";
 
 afterEach(() => {
   wave.start = Number.NEGATIVE_INFINITY;
@@ -28,7 +28,7 @@ describe("waveAt", () => {
     triggerWave(100);
     const now = 100 + WAVE_RISE;
     expect(waveAt(now, 0)).toBeCloseTo(WAVE_PEAK, 2);
-    // 遠 10 單位的站晚 0.3 秒，此刻還沒開始
+    // 遠 10 單位的站晚 0.3 秒，這時還沒開始
     expect(waveAt(now, 10)).toBe(1);
     expect(waveAt(now + 10 * WAVE_DELAY, 10)).toBeCloseTo(WAVE_PEAK, 2);
     expect(waveRunning(now, 40)).toBe(true);
@@ -41,5 +41,14 @@ describe("waveGlow", () => {
     expect(waveGlow(1)).toBe(0);
     expect(waveGlow(0.9)).toBe(0);
     expect(waveGlow(WAVE_PEAK)).toBeCloseTo(0.6);
+  });
+});
+
+describe("wavePulseAt（3.21：全景時波紋加大）", () => {
+  it("放大時照原型；全景時偏離 1 的量乘 WAVE_WIDE；靜止時都是 1", () => {
+    expect(wavePulseAt(WAVE_PEAK, true)).toBe(WAVE_PEAK);
+    expect(wavePulseAt(WAVE_PEAK, false)).toBeCloseTo(1 + (WAVE_PEAK - 1) * WAVE_WIDE, 10);
+    expect(wavePulseAt(1, false)).toBe(1);
+    expect(WAVE_WIDE).toBeGreaterThan(1);
   });
 });

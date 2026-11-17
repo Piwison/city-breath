@@ -114,7 +114,7 @@ export function TimeBar({ month, source, children }: { month?: string; source?: 
         </div>
       </div>
       <div className="row scrub-row">
-        <div className="scrub-wrap">
+        <div className="scrub-wrap" style={{ ["--scrub-bg" as string]: background }}>
           <input
             ref={scrub}
             className="scrub"
@@ -124,7 +124,6 @@ export function TimeBar({ month, source, children }: { month?: string; source?: 
             step={0.05}
             defaultValue={time.t}
             aria-label="時間"
-            style={{ background }}
             onChange={(e) => {
               setPlaying(false);
               seek(Number(e.target.value));

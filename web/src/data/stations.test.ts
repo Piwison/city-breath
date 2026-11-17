@@ -40,7 +40,7 @@ function fakeIndex(exitsRecorded = true): StationIndex {
   return { ...ix, peak: 400 };
 }
 
-describe("pillarHeight（柱高＝此刻進出，平方根比例）", () => {
+describe("pillarHeight（柱高＝這小時進出，平方根比例）", () => {
   it("0 人是最矮的柱，最大值是 MIN＋GAIN", () => {
     expect(pillarHeight(0, 1000)).toBe(PILLAR_MIN);
     expect(pillarHeight(1000, 1000)).toBeCloseTo(PILLAR_MIN + PILLAR_GAIN);

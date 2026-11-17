@@ -4,16 +4,15 @@
 // stationRules.ts），緞帶目前不能點（聚焦從行政區卡點，之後加在這一步），再用 raycaster 打 21 區的地塊
 // （一個平面陣列、不遞迴，threejs-core-raycaster）；點到空白處關卡。
 // 按下時那區微微壓扁、放開彈回（DistrictLift），按在站上時不壓區；Android 輕震。
-// 鏡頭：選區飛到那區、選站飛到那站、聚焦一條流向（含車站卡的站對站，3.12）飛到它的中點，關卡回到全景；
-// 減少動態或靜態模式時直接切換。
+// 鏡頭：選區飛到那區、選站飛到那站、聚焦一條流向（含車站卡的站對站，3.12）飛到它的中點；減少動態或靜態模式時直接切換。
+// 關卡（點空白處或 ×）只關卡片、鏡頭留在原地（產品計畫 v2 決定 6：誤觸不該讓人丟掉正在看的位置）；回全景只靠「回到全景」。
 // 手機上目標往南偏，讓主體落在小卡之上（原型 lookAt）。
 import type { CameraControls } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { Raycaster, Vector2, type Intersection, type Mesh, type Object3D } from "three";
 import type { BaseView, StationIndex } from "../data/views";
 import { closeCard, getView, selectDistrict, selectStation, useView } from "../state/view";
-import { home } from "./CameraRig";
 import type { PressLink } from "./DistrictLift";
 import type { StationLink } from "./Stations";
 import { project } from "./projection";
@@ -97,7 +96,7 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
       if (!d || e.target !== el || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return;
       const v = getView();
       const r = el.getBoundingClientRect();
-      // 1. 站：spots 只有此刻點得到的站（放大、選中的區、已選站），手指在站珠 22px 內就算點站
+      // 1. 站：spots 只有這一格點得到的站（放大、選中的區、已選站），手指在站珠 22px 內就算點站
       const sid = nearestSpot(stations.spots, e.clientX - r.left, e.clientY - r.top);
       if (sid) {
         navigator.vibrate?.(6);
@@ -167,7 +166,6 @@ export function SelectionCamera({ view, index, reduced }: { view: BaseView; inde
       ),
     [view],
   );
-  const had = useRef(false);
   useEffect(() => {
     if (!controls) return;
     const narrow = aspect < 0.8;
@@ -200,10 +198,8 @@ export function SelectionCamera({ view, index, reduced }: { view: BaseView; inde
     } else if (district) {
       const b = boxes.get(district);
       if (b) fly(b.cx, b.cz, b.size * 1.9 + 34);
-    } else if (had.current) {
-      void controls.setLookAt(...home(aspect), !calm);
     }
-    had.current = district !== null || station !== null;
+    // 什麼都沒選（關卡）：不動鏡頭（決定 6）
     // 只在選取換了時飛；縮放視窗、換靜態模式不重飛
   }, [controls, district, station, focus]);
   return null;

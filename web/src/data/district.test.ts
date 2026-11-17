@@ -78,37 +78,36 @@ describe("districtFlows（地圖：這區前 5 去哪、前 5 誰來）", () => 
   });
 });
 
-describe("districtRanks（卡片：去哪、誰來，含區內）", () => {
-  it("這一小時：直接讀矩陣，區內也列（標 self）", () => {
+describe("districtRanks（卡片：去哪、誰來只列跨區，另寫留在區內；決定 12）", () => {
+  it("這一小時：直接讀矩陣，排名不含自己，區內是對角線", () => {
     const r = districtRanks(f, "weekday", "hour", 0, "B");
     expect(r.operating).toBe(true);
     expect(r.out).toEqual([
-      { id: "B", value: 900, self: true },
-      { id: "C", value: 40, self: false },
-      { id: "A", value: 30, self: false },
+      { id: "C", value: 40 },
+      { id: "A", value: 30 },
     ]);
-    expect(r.in.map((x) => x.id)).toEqual(["B", "A", "C"]);
+    expect(r.in.map((x) => x.id)).toEqual(["A", "C"]);
+    expect(r.stay).toBe(900);
   });
   it("整天：每格只加公開的小時，null 不當 0；全部 null 的格不列", () => {
     const r = districtRanks(f, "weekday", "day", 0, "A");
-    // A→A 500+600、A→B 120（小時 1 為 null）、A→C 50（小時 0 為 null）
+    // A→B 120（小時 1 為 null）、A→C 50（小時 0 為 null）；A→A 500+600
     expect(r.out).toEqual([
-      { id: "A", value: 1100, self: true },
-      { id: "B", value: 120, self: false },
-      { id: "C", value: 50, self: false },
+      { id: "B", value: 120 },
+      { id: "C", value: 50 },
     ]);
     // B→A 30（小時 1 null）、C→A 11（小時 0 null）
     expect(r.in).toEqual([
-      { id: "A", value: 1100, self: true },
-      { id: "B", value: 30, self: false },
-      { id: "C", value: 11, self: false },
+      { id: "B", value: 30 },
+      { id: "C", value: 11 },
     ]);
+    expect(r.stay).toBe(1100);
   });
-  it("停止營運的小時：operating false、沒有排名；整天跳過停止營運的小時", () => {
-    expect(districtRanks(f, "weekday", "hour", 2, "A")).toEqual({ operating: false, out: [], in: [] });
+  it("停止營運的小時：operating false、沒有排名、沒有區內；整天跳過停止營運的小時", () => {
+    expect(districtRanks(f, "weekday", "hour", 2, "A")).toEqual({ operating: false, out: [], in: [], stay: null });
     expect(districtRanks(f, "weekday", "day", 2, "A").operating).toBe(true);
   });
-  it("有營運但這區全是 null：空的排名（畫面寫每個方向都少於 10 人）", () => {
+  it("有營運但這區全是 null：空的排名、區內 null（畫面寫少於 10 人）", () => {
     const q = synthetic(
       [
         [null, null],
@@ -117,9 +116,26 @@ describe("districtRanks（卡片：去哪、誰來，含區內）", () => {
       [[1]] as DistrictMatrix,
     );
     q.districts = ["A", "B"];
-    expect(districtRanks(q, "weekday", "hour", 0, "A")).toEqual({ operating: true, out: [], in: [] });
+    expect(districtRanks(q, "weekday", "hour", 0, "A")).toEqual({ operating: true, out: [], in: [], stay: null });
   });
-  it("2026-09 永和區平日 8 點，去哪前四名是中正、中山、大安、信義（1,505／1,411／1,026／756）", () => {
+  it("對角線 null、別的格有數字：排名照列、區內 null", () => {
+    const q = synthetic(
+      [
+        [null, 50, null],
+        [20, 900, null],
+        [null, null, null],
+      ],
+      [
+        [null, null, null],
+        [null, null, null],
+        [null, null, null],
+      ],
+    );
+    const r = districtRanks(q, "weekday", "day", 0, "A");
+    expect(r.out).toEqual([{ id: "B", value: 50 }]);
+    expect(r.stay).toBeNull();
+  });
+  it("2026-09 永和區平日 8 點，去哪前四名是中正、中山、大安、信義（1,505／1,411／1,026／756），沒有永和自己", () => {
     const r = districtRanks(flows, "weekday", "hour", 8, idOf("永和區"));
     expect(r.out.slice(0, 4).map((x) => [nameOf(x.id), x.value])).toEqual([
       ["中正區", 1505],
@@ -127,17 +143,32 @@ describe("districtRanks（卡片：去哪、誰來，含區內）", () => {
       ["大安區", 1026],
       ["信義區", 756],
     ]);
+    expect(r.out.some((x) => x.id === idOf("永和區"))).toBe(false);
+    expect(r.in.some((x) => x.id === idOf("永和區"))).toBe(false);
   });
-  it("2026-09 大安區假日整天，去哪前三名是中正、大安（區內）、信義", () => {
+  it("2026-09 留在區內＝district-flows.json 的對角線（每一區、兩種日型、這一小時與整天）", () => {
+    for (const id of flows.districts) {
+      const i = flows.districts.indexOf(id);
+      for (const day of ["weekday", "holiday"] as const) {
+        for (const h of [3, 8, 18]) {
+          const m = flows[day][h];
+          expect(districtRanks(flows, day, "hour", h, id).stay, `${id} ${day} ${h}`).toBe(m ? m[i][i] : null);
+        }
+        const cells = flows[day].map((m) => m?.[i][i] ?? null).filter((v): v is number => v !== null);
+        expect(districtRanks(flows, day, "day", 8, id).stay).toBe(cells.length ? cells.reduce((a, b) => a + b, 0) : null);
+      }
+    }
+  });
+  it("2026-09 大安區假日整天，去哪前二是中正、信義（區內另列）", () => {
     const r = districtRanks(flows, "holiday", "day", 8, idOf("大安區"));
-    expect(r.out.slice(0, 3).map((x) => nameOf(x.id))).toEqual(["中正區", "大安區", "信義區"]);
-    expect(r.out[1].self).toBe(true);
+    expect(r.out.slice(0, 2).map((x) => nameOf(x.id))).toEqual(["中正區", "信義區"]);
+    expect(r.stay).toBeGreaterThan(r.out[1].value);
     // 整天＝24 小時中有公開人數的小時加總
     const zz = idOf("中正區");
     const i = flows.districts.indexOf(idOf("大安區"));
     const j = flows.districts.indexOf(zz);
     const total = flows.holiday.reduce((s, m) => s + (m?.[i][j] ?? 0), 0);
-    expect(r.out[0]).toEqual({ id: zz, value: total, self: false });
+    expect(r.out[0]).toEqual({ id: zz, value: total });
   });
 });
 
@@ -188,7 +219,7 @@ describe("stationFrames（展開一區的站）", () => {
       for (const s of frames) expect(stations.stations[s.index].district).toBe(d.id);
     }
   });
-  it("站珠的值＝此刻進＋出；停止營運為 null；路線色 token 都有定義", () => {
+  it("站珠的值＝這小時進＋出；停止營運為 null；路線色 token 都有定義", () => {
     const read = cssTokenReader(tokensCss);
     const daan = stationFrames(index, idOf("大安區"), "weekday", 8);
     for (const s of daan) {

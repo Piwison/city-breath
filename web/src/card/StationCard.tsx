@@ -21,6 +21,7 @@ import {
 } from "../data/views";
 import { seek } from "../state/clock";
 import { closeCard, selectStation, setFocus, setPlaying, startCommute, useView } from "../state/view";
+import { FlowLegend, type LegendLink } from "../scene/FlowLegend";
 import { CardFrame } from "./CardFrame";
 import { monthLabel } from "./DistrictCard";
 
@@ -47,6 +48,8 @@ export interface StationCardProps {
   districtNames: Map<string, string>;
   /** 從行政區卡進來時，回到那一區（「‹ 大安區」） */
   backTo?: string;
+  /** 卡底的流向圖例（3.21：站對站緞帶以這站最大的目的地當最粗，圖例寫「最粗 N 人」） */
+  legend?: LegendLink;
 }
 
 export function StationCard(props: StationCardProps) {
@@ -63,6 +66,7 @@ export function StationCardView({
   lineNames,
   districtNames,
   backTo,
+  legend,
   od,
   yearly = { status: "loading" },
 }: StationCardProps & { od: OdState; yearly?: StationTypesState }) {
@@ -89,6 +93,7 @@ export function StationCardView({
       when={whenLabel(dayType, hour, operating)}
       back={backTo ? { label: backTo, onClick: () => selectStation(null) } : undefined}
       onClose={closeCard}
+      footer={legend ? <FlowLegend source={source} stations={stations} link={legend} /> : undefined}
     >
       <div className="card-lines">
         {stations.lines(i).map((l) => (

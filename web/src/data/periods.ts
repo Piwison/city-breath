@@ -86,9 +86,9 @@ export function firstTrainHour(headway: Headway | undefined, dayType: DayType, h
 
 export const SLEEP_TITLE = "捷運停駛中";
 
-/** 睡覺提示：標題固定；第一班車推得出才加「約 6 點第一班車」。 */
+/** 睡覺提示：標題固定；第一班車推得出才加「約 6 點發車」（產品計畫 v2 決定 8：整句「捷運停駛中・約 6 點發車」）。 */
 export function sleepHint(first: number | null): { title: string; sub: string | null } {
-  return { title: SLEEP_TITLE, sub: first === null ? null : `約 ${first} 點第一班車` };
+  return { title: SLEEP_TITLE, sub: first === null ? null : `約 ${first} 點發車` };
 }
 
 /** 停駛前的過渡（小時）：停駛前這段由 0 升到 1。1x 播放約 0.5 秒。 */

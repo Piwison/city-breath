@@ -92,7 +92,7 @@ export function buildingHeight(score: number, r: number): number {
   return 0.28 + 1.3 * Math.pow(Math.min(1, Math.max(0, score)), 0.8) * (0.75 + 0.5 * r);
 }
 
-/** 整區的高度倍數：0.7 + 0.5·√(此刻進出 ÷ 當月最大)；停止營運（0）是 0.7。 */
+/** 整區的高度倍數：0.7 + 0.5·√(這小時進出 ÷ 當月最大)；停止營運（0）是 0.7。 */
 export function breathScale(a: number, max: number): number {
   return 0.7 + 0.5 * Math.sqrt(Math.min(1, Math.max(0, a) / Math.max(1, max)));
 }
