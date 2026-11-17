@@ -50,6 +50,22 @@ describe("行政區卡（3.21）", () => {
     expect(text(html)).toContain(`留在區內 ${num(diag!)} 人`);
   });
 
+  it("3.22 第一行的一句答案：永和平日 8 點最常去的區＝卡上去哪的第一名，寫在表格上面", () => {
+    const html = card(idOf("永和區"));
+    const answer = html.match(/<p class="card-answer"[^>]*>([^<]*)<\/p>/)?.[1];
+    const first = html.match(/<span class="n">([^<]*)<\/span>/)?.[1];
+    expect(answer).toBe(`平日 8 點，永和的人最常去${first}`);
+    if (month === "2026-09") expect(first).toBe("中正區");
+    expect(html.indexOf("card-answer")).toBeLessThan(html.indexOf("card-body"));
+    expect(answer).not.toMatch(/此刻|現在/);
+  });
+
+  it("3.22 停止營運的時段：答案說停止營運，不是空白", () => {
+    seek(3);
+    const html = card(idOf("永和區"));
+    expect(html).toMatch(/<p class="card-answer"[^>]*>平日 3 點捷運停止營運，永和沒有列車<\/p>/);
+  });
+
   it("整天：留在區內＝對角線各小時（有公開人數的）加總", () => {
     setRange("day");
     const id = idOf("大安區");

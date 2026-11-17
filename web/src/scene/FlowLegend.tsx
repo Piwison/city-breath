@@ -8,6 +8,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
+import { formatCount, formatNumber } from "../data/format";
 import { BAND_W, bandCuts, FLOW_KEYS, ribbonScale, ribbonWidth, type FlowSource, type StationIndex } from "../data/views";
 import { useView } from "../state/view";
 import { useFlowNow } from "./flowNow";
@@ -24,7 +25,7 @@ export interface LegendLink {
 const MIN_PX = 1.5;
 const barPx = (w: number, px: number, k: number) => Math.max(MIN_PX, w * px * k);
 const people = (v: number) => (v >= 1000 && v % 100 === 0 ? `${v / 1000} 千` : fmt(v));
-const fmt = (n: number) => Math.round(n).toLocaleString("zh-TW");
+const fmt = (n: number) => formatNumber(n);
 /** 光帶圖例的短寫（手機一行放得下）：2000 → 2千；不是整百的照寫人數 */
 const short = (v: number) => (v >= 1000 && v % 100 === 0 ? `${v / 1000}千` : String(Math.round(v)));
 
@@ -90,7 +91,7 @@ export function FlowLegend({ source, stations, link }: { source?: FlowSource; st
   const widths: { v: number; label: string }[] = scale.local
     ? [
         ...(scale.legend[1] < scale.max ? [{ v: scale.legend[1], label: people(scale.legend[1]) }] : []),
-        { v: scale.max, label: `最粗 ${fmt(scale.max)} 人` },
+        { v: scale.max, label: `最粗 ${formatCount(scale.max)}` },
       ]
     : scale.legend.map((v) => ({ v, label: people(v) }));
   return (

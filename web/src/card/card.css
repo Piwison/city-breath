@@ -1,30 +1,88 @@
-/* 共用小卡（3.6）：取代時間軸的位置，最高 34vh（DESIGN.md 版面）；只用 tokens.css 的 token。 */
+/* 共用小卡（3.6）：取代時間軸的位置；只用 tokens.css 的 token。
+   兩段高度（3.22，決定 10）：卡片固定高 --sheet-full（完整），摘要時整張往下推 (full − peek)，畫面上只露出 --sheet-peek。
+   兩個值與 sheet.ts 的 SHEET_FULL_VH／SHEET_PEEK_VH 相同（測試比對）。只動 transform；內容在 .card-scroll 裡捲。 */
 
 .card {
+  --sheet-full: 70dvh;
+  --sheet-peek: 34dvh;
   position: absolute;
   left: 12px;
   right: 12px;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   max-width: 640px;
-  max-height: 34vh;
+  height: var(--sheet-full);
   margin: 0 auto;
-  padding: 10px 12px 12px;
-  display: grid;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-content: start;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   box-shadow: 0 8px 24px var(--hud-shadow);
-  transition: transform var(--dur-enter) var(--ease-out), opacity var(--dur-enter) var(--ease-out),
-    background-color var(--dur-phase) var(--ease-out), color var(--dur-phase) var(--ease-out);
+  /* 摘要＝往下推；完整＝0。拖曳時 CardFrame 直接寫 style.transform，放開後由這裡的 transition 接手（可中途再抓住） */
+  transform: translateY(calc(var(--sheet-full) - var(--sheet-peek)));
+  touch-action: none;
+  transition: transform var(--dur-sheet) var(--ease-drawer), translate var(--dur-enter) var(--ease-out),
+    opacity var(--dur-enter) var(--ease-out), background-color var(--dur-phase) var(--ease-out), color var(--dur-phase) var(--ease-out);
 }
-/* 進場：由下往上 24px＋淡入；減少動態時 --dur-enter 是 0＝直接出現 */
+.card[data-sheet="full"] { transform: translateY(0); }
+/* 鍵盤切換、Tab 自動展開：直接到位（不播滑動） */
+.card[data-instant] { transition: none; }
+/* 進場：由下往上 24px＋淡入（translate 屬性，和 sheet 的 transform 疊加）；減少動態時 --dur-enter 是 0＝直接出現 */
 @starting-style {
   .card {
-    transform: translateY(24px);
+    translate: 0 24px;
     opacity: 0;
   }
 }
+
+/* 把手：卡片最上緣置中的一條；按鈕本身 --tap-min 高（決定 25），點了切換兩段高度 */
+.card-grip {
+  flex: none;
+  align-self: center;
+  width: 72px;
+  height: var(--tap-min);
+  margin-bottom: -18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  display: grid;
+  place-items: start center;
+  padding-top: 7px;
+}
+.card-grip i {
+  display: block;
+  width: 36px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--hud-line);
+  transition: background-color var(--dur-quick) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.card-grip:active i { background: var(--hud-muted); transform: scaleX(1.12); }
+
+/* 第一行的一句答案（決定 11）：標題下、表格上 */
+.card-answer {
+  flex: none;
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+/* 內容：完整時在卡內捲動；摘要時不捲，往上拉＝展開 */
+.card-scroll {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding-bottom: 12px;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+.card[data-sheet="full"] .card-scroll { overflow-y: auto; touch-action: pan-y; }
 
 .card button {
   touch-action: manipulation;
@@ -32,7 +90,7 @@
   user-select: none;
 }
 
-.card-head { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.card-head { flex: none; display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
 .card-titles { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .card-titles h2 { font-size: var(--text-md); font-weight: 700; }
 .card-kicker { font-size: var(--text-2xs); color: var(--hud-muted); letter-spacing: 0.06em; }
@@ -76,7 +134,7 @@
 .card-close svg { width: 14px; height: 14px; }
 
 /* 卡內時間列：‹ 時間 ›＋平日／假日 */
-.card-time { display: flex; align-items: center; gap: 6px; }
+.card-time { flex: none; display: flex; align-items: center; gap: 6px; }
 .card-step {
   width: 36px;
   height: var(--tap-min);

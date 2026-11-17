@@ -35,7 +35,14 @@ export interface ViewState {
    * 4.1 的「找車站／通勤」入口接手，再加迄站與時段。null＝沒有在找通勤。
    */
   commute: { o: string } | null;
+  /**
+   * 小卡的高度（3.22，決定 10）：peek＝摘要（約三分之一），full＝完整（約七成）。不進網址、不保存；
+   * 開卡從摘要開始，行政區卡與車站卡之間切換時維持，關卡回到摘要。
+   */
+  sheet: SheetDetent;
 }
+
+export type SheetDetent = "peek" | "full";
 
 /** 連續時間（0–24 時）：非 React 欄位，每格由 clock 改寫。 */
 export const time = { t: 8 };
@@ -52,6 +59,7 @@ let state: ViewState = {
   range: "hour",
   focus: null,
   commute: null,
+  sheet: "peek",
 };
 const listeners = new Set<() => void>();
 
@@ -126,7 +134,13 @@ export function setFocus(focus: string | null) {
 
 /** 關掉小卡：回到全城、不選站不聚焦；播放維持暫停（走查 F1）。 */
 export function closeCard() {
-  if (state.district !== null || state.station !== null || state.focus !== null) set({ district: null, station: null, focus: null });
+  if (state.district !== null || state.station !== null || state.focus !== null || state.sheet !== "peek")
+    set({ district: null, station: null, focus: null, sheet: "peek" });
+}
+
+/** 小卡切到摘要或完整（把手、上下滑、鍵盤；3.22）。 */
+export function setSheet(sheet: SheetDetent) {
+  if (sheet !== state.sheet) set({ sheet });
 }
 
 /** 從某站找通勤（3.12 車站卡）：寫起站，通勤入口打開並帶入（4.1 接手）。每次按都是新物件，讓入口再打開一次。 */

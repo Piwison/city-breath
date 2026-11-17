@@ -2,6 +2,8 @@
 // 鏡頭飛過去）、這區的車站與這個時段的進出人數（第一個是「這個時段最忙」，點了開車站小卡），卡內圖例寫明藍與橘紅的意思（走查 F5）。
 // 產品計畫 v2（3.21）：排名只列跨區，另一行「留在區內 N 人」（決定 12）；不用表示即時的字眼（決定 2、體驗原則 3）。
 // 數字都由 views.ts／traits.ts 的純函式算：null 不排名、不當 0（AD-3），整天只加有公開人數的小時。
+import { districtAnswer } from "../data/answer";
+import { formatCount, SUPPRESS_BELOW, UNDER } from "../data/format";
 import { whenLabel } from "../data/periods";
 import { busiestStations } from "../data/traits";
 import type { DistrictFlowsFile, DistrictsFile } from "../data/types";
@@ -10,7 +12,7 @@ import { FlowLegend, type LegendLink } from "../scene/FlowLegend";
 import { closeCard, selectStation, setFocus, setRange, useView } from "../state/view";
 import { CardFrame } from "./CardFrame";
 
-const fmt = (n: number) => Math.round(n).toLocaleString("zh-TW");
+// 人數一律經 data/format.ts（少於 10 人不寫數字，3.22）
 export const monthLabel = (month: string) => `${month.slice(0, 4)} 年 ${Number(month.slice(5))} 月`;
 
 export interface DistrictCardProps {
@@ -41,7 +43,7 @@ function RankList({ list, kind, district, names }: { list: DistrictRank[]; kind:
           <li key={r.id}>
             <button type="button" aria-pressed={on} onClick={() => setFocus(on ? null : key)}>
               <span className="n">{rankName(r, names)}</span>
-              <span className="v num">{fmt(r.value)} 人</span>
+              <span className="v num">{formatCount(r.value)}</span>
               <span className="s" aria-hidden="true">
                 <i style={{ width: `${((r.value / max) * 100).toFixed(1)}%`, background: `var(${token})` }} />
               </span>
@@ -55,7 +57,7 @@ function RankList({ list, kind, district, names }: { list: DistrictRank[]; kind:
           {more.map((r, k) => (
             <span key={r.id}>
               {k > 0 && "・"}
-              {k + 4}. {rankName(r, names)} <span className="num">{fmt(r.value)}</span> 人
+              {k + 4}. {rankName(r, names)} <span className="num">{formatCount(r.value)}</span>
             </span>
           ))}
         </p>
@@ -76,6 +78,13 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
   const list = busiestStations(stations.stations, stations.byDistrict.get(id) ?? [], dayType, whole ? "day" : hour);
   const busiest = list.find((x) => x.volume.value !== null)?.index;
   const outKey = FLOW_KEYS.district;
+  const answer = districtAnswer({
+    name: d?.name ?? id,
+    dayType,
+    hour: whole ? "day" : hour,
+    operating: ranks.operating,
+    out: ranks.out.map((r) => ({ name: rankName(r, names), value: r.value })),
+  });
   return (
     <CardFrame
       kind="district"
@@ -83,6 +92,7 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
       title={d?.name ?? id}
       when={whenLabel(dayType, whole ? "day" : hour, whole || operating)}
       onClose={closeCard}
+      answer={answer}
       footer={<FlowLegend source={source} stations={stations} link={legend} />}
     >
       <div className="card-range" role="group" aria-label="範圍">
@@ -111,7 +121,7 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
           </div>
           <p className="card-stay">
             留在區內{" "}
-            {ranks.stay === null ? "少於 10 人" : <><b className="num">{fmt(ranks.stay)}</b> 人</>}
+            {ranks.stay !== null && ranks.stay >= SUPPRESS_BELOW ? <b className="num">{formatCount(ranks.stay)}</b> : UNDER}
           </p>
         </div>
       ) : (
@@ -127,7 +137,7 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
               {index === busiest && <span className="top">{whole ? "整天最忙" : "這個時段最忙"}</span>}
               {s.display}
               <span className="v num">
-                {volume.value === null ? "停止營運" : `${fmt(volume.value)} 人`}
+                {formatCount(volume.value, "停止營運")}
                 {volume.entriesOnly && volume.value !== null ? "（只有進站）" : ""}
               </span>
             </button>

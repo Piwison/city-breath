@@ -1,6 +1,8 @@
+import { formatCount } from "./format";
 import type { DayType, OdShard } from "./types";
 
-export const SUPPRESS_BELOW = 10;
+// 人數格式與「少於 10 人」的門檻在 format.ts（3.22 共用）；這裡沿用原本的匯出名。
+export { formatCount, SUPPRESS_BELOW } from "./format";
 
 export interface CommuteResult {
   /** 平均同路人數；null 表示少於 10 人 */
@@ -15,11 +17,6 @@ export interface CommuteResult {
   rankedOf: number;
   /** 該時段從起站出發最常去的 5 站（不含起站本身） */
   top: { station: number; avg: number }[];
-}
-
-export function formatCount(n: number | null): string {
-  if (n === null) return `少於 ${SUPPRESS_BELOW} 人`;
-  return `${n.toLocaleString("zh-TW")} 人`;
 }
 
 export function computeCommute(

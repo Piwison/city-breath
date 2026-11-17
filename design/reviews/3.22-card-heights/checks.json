@@ -1,0 +1,93 @@
+{
+ "yongheAnswer": "平日 8 點，永和的人最常去中正區",
+ "peekTop": 561,
+ "afterSwipeUp": {
+  "sheet": "full",
+  "playing": false,
+  "district": "65000040",
+  "station": null,
+  "top": 245
+ },
+ "afterSwipeDown": {
+  "sheet": "peek",
+  "playing": false,
+  "district": "65000040",
+  "station": null,
+  "top": 511
+ },
+ "afterSwipeDownAgain": {
+  "sheet": "peek",
+  "playing": false,
+  "district": null,
+  "station": null,
+  "card": false
+ },
+ "afterGripTap": {
+  "sheet": "full",
+  "playing": false,
+  "district": "65000040",
+  "station": null
+ },
+ "afterArrowDown": {
+  "sheet": "peek",
+  "playing": false,
+  "district": "65000040",
+  "station": null
+ },
+ "afterEnter": {
+  "sheet": "full",
+  "playing": false,
+  "district": "65000040",
+  "station": null
+ },
+ "logs1": [],
+ "dingxiAnswer": "平日 8 點，從頂溪出發的人最常去松江南京",
+ "dingxiFull": {
+  "sheet": "full",
+  "playing": false,
+  "district": "65000040",
+  "station": "sd3f4ec1f"
+ },
+ "sparkLabels": [
+  "0 點 324 人",
+  "1 點 17 人",
+  "2 點 停止營運",
+  "3 點 停止營運",
+  "4 點 停止營運",
+  "5 點 少於 10 人",
+  "6 點 1,172 人",
+  "7 點 5,372 人",
+  "8 點 8,364 人",
+  "9 點 4,997 人",
+  "10 點 3,051 人",
+  "11 點 2,716 人",
+  "12 點 2,728 人",
+  "13 點 2,759 人",
+  "14 點 2,457 人",
+  "15 點 2,669 人",
+  "16 點 3,981 人",
+  "17 點 6,075 人",
+  "18 點 8,414 人",
+  "19 點 5,305 人",
+  "20 點 3,414 人",
+  "21 點 3,489 人",
+  "22 點 2,618 人",
+  "23 點 977 人"
+ ],
+ "logs2": [],
+ "loopAnswer": "平日 8 點，從中和出發的人最常去松江南京（環狀線出站未入檔，只算在北捷各站下車的人）",
+ "logs3": [],
+ "closedAnswer": "平日 3 點捷運停止營運，永和沒有列車",
+ "closedStationAnswer": "平日 3 點捷運停止營運，頂溪沒有列車",
+ "logs4": [],
+ "reducedDuringDrag": 545,
+ "reducedAfter50ms": {
+  "sheet": "full",
+  "playing": false,
+  "district": "65000040",
+  "station": null,
+  "top": 241,
+  "peekTop": 545
+ },
+ "logs5": []
+}
