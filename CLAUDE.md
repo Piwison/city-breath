@@ -71,6 +71,7 @@ uv run city-breath fetch-events --month 2026-09  # 小巨蛋、花博、中山�
 uv run city-breath fetch-basemap                 # 底圖原始檔到 data/raw/basemap/（建最新月份時 build 會重寫 basemap.json，需要它）
 uv run city-breath build --month 2026-09    # 彙總到 web/public/data/（約 8 秒）
 uv run city-breath fit-types --months 2025-10..2026-09  # 重新擬合四型車站中心（平常不用跑；跑完要 Piwi 對照名稱，AD-27）
+uv run city-breath station-types                        # 擬合或重建各月之後跑：每站整年最常見的型 → web/public/data/station-types.json（AD-27）
 uv run --group dev pytest
 
 # 網站
