@@ -19,8 +19,8 @@
   --radius: 14px;        /* HUD 面板 */
   --radius-sm: 10px;     /* 按鈕、輸入框 */
   --radius-pill: 999px;
-  --tap: 40px;           /* 主要按鈕（DESIGN.md 版面） */
-  --tap-min: 30px;       /* 點擊目標下限 */
+  --tap: 44px;           /* 主要按鈕（DESIGN.md 版面；產品計畫 v2 決定 25，原 40） */
+  --tap-min: 36px;       /* 次要點擊目標下限（決定 25，原 30） */
 
   /* ── 動態：reduced-motion 時時長歸零（直接切換，AD-8） ── */
   --dur-press: 120ms;
@@ -106,7 +106,7 @@
   --hud-ink: #1b2033;
   --hud-muted: #586079;
   --hud-line: rgba(27, 32, 51, 0.12);
-  --hud-accent: #2a7fd0;
+  --hud-accent: #1f6fb8;
   --hud-chip: rgba(27, 32, 51, 0.07);
   --hud-on: #ffffff;
   --hud-shadow: rgba(0, 0, 0, 0.18);

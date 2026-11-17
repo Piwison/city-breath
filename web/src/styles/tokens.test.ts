@@ -138,6 +138,40 @@ describe("tokens.css 與 DESIGN.md 一致", () => {
   });
 });
 
+/** WCAG 相對亮度（sRGB 0–255）。 */
+const luminance = ([r, g, b]: number[]) => {
+  const lin = (c: number) => (c / 255 <= 0.04045 ? c / 255 / 12.92 : Math.pow((c / 255 + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+const contrast = (a: number[], b: number[]) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+/** 半透明的前景疊在不透明的背景上（sRGB 直接混，和瀏覽器合成相同）。 */
+const over = ([r, g, b, a]: number[], [R, G, B]: number[]) => [r * a + R * (1 - a), g * a + G * (1 - a), b * a + B * (1 - a)];
+
+describe("HUD 文字對比（產品計畫 v2 決定 24、25）", () => {
+  it("白天 --hud-accent 是 #1f6fb8，和 DESIGN.md 色票表相同", () => {
+    expect(parseColor(root.get("--hud-accent")!)).toEqual(parseColor("#1f6fb8"));
+    const row = designMd.split("\n").find((l) => l.startsWith("| HUD 白天 "))!;
+    expect(row).toContain("#1f6fb8");
+  });
+  it("白天 --hud-accent 當文字：對 HUD 底色 4.5:1 以上（底色是半透明，疊在白天最深的天色上算最壞情況）", () => {
+    const accent = parseColor(root.get("--hud-accent")!)!;
+    const bg = parseColor(root.get("--hud-bg")!)!;
+    for (const sky of ["--sky-top-day", "--sky-horizon-day"]) {
+      const under = parseColor(root.get(sky)!)!;
+      expect(contrast(accent, over(bg, under)), sky).toBeGreaterThanOrEqual(4.5);
+    }
+    // 對照：舊的 #2a7fd0 不到 4.5
+    expect(contrast(parseColor("#2a7fd0")!, over(bg, parseColor(root.get("--sky-top-day")!)!))).toBeLessThan(4.5);
+  });
+  it("點擊目標：主要 44px、次要 36px", () => {
+    expect(root.get("--tap")).toBe("44px");
+    expect(root.get("--tap-min")).toBe("36px");
+  });
+});
+
 describe("只有 tokens.css 定義顏色（CLAUDE.md 規則 5）", () => {
   const sources = import.meta.glob(["../**/*.{ts,tsx,css}", "!../**/*.test.ts", "!./tokens.css"], {
     query: "?raw",
