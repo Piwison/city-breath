@@ -91,6 +91,25 @@ describe("車站卡", () => {
     expect(html).toMatch(/aria-label="8 點 [\d,]+ 人" aria-current="true"/);
   });
 
+  it("3.22 第一行的一句答案：頂溪平日 8 點最常去的站＝前 5 目的地的第一名", async () => {
+    const id = idOf("頂溪");
+    selectStation(id);
+    const html = await card("頂溪");
+    const shard = await odFiles[`../../public/data/${month}/od/${id}.json`]();
+    const top = stationDestinations(shard, index.byId.get(id)!, "weekday", 8).top[0];
+    const answer = html.match(/<p class="card-answer"[^>]*>([^<]*)<\/p>/)?.[1];
+    expect(answer).toBe(`平日 8 點，從頂溪出發的人最常去${file.stations[top.index].display}`);
+    expect(html.indexOf("card-answer")).toBeLessThan(html.indexOf("card-body"));
+  });
+
+  it("3.22 環狀線站與停止營運各有對應的句子", async () => {
+    const loop = file.stations.find((s) => !s.exitsRecorded)!;
+    const html = await card(loop.display);
+    expect(html).toMatch(/<p class="card-answer"[^>]*>[^<]*環狀線出站未入檔[^<]*<\/p>/);
+    seek(3);
+    expect(await card("頂溪")).toMatch(/<p class="card-answer"[^>]*>平日 3 點捷運停止營運，頂溪沒有列車<\/p>/);
+  });
+
   it("環狀線站：出站寫「未入檔」並附說明，沒有個性", async () => {
     const loop = file.stations.find((s) => !s.exitsRecorded)!;
     const html = await card(loop.display);

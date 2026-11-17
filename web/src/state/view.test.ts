@@ -9,6 +9,7 @@ import {
   setFocus,
   setPlaying,
   setRange,
+  setSheet,
   startCommute,
 } from "./view";
 
@@ -43,6 +44,18 @@ describe("選取（3.6）", () => {
     expect(getView().playing).toBe(false);
     closeCard();
     expect(getView()).toMatchObject({ district: null, station: null, focus: null, playing: false });
+  });
+
+  it("小卡兩段高度（3.22）：開卡是摘要；行政區卡↔車站卡維持；關卡回到摘要", () => {
+    selectDistrict("63000030");
+    expect(getView().sheet).toBe("peek");
+    setSheet("full");
+    selectStation("s1");
+    expect(getView().sheet).toBe("full");
+    selectStation(null);
+    expect(getView().sheet).toBe("full");
+    closeCard();
+    expect(getView().sheet).toBe("peek");
   });
 
   it("從這站找通勤（3.12）：寫起站；每按一次都是新的值（入口再打開）；收起清掉", () => {

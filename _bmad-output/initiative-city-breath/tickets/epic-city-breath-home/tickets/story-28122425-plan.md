@@ -3,7 +3,7 @@ title: '體驗調整（設計決定 2–8、12、24、25）'
 type: 'feature'
 ticket: '21'
 created: '2026-11-14'
-status: 'built'
+status: done
 baseline_revision: '3086282e3c1a06e2dcef2faa0bd0f5ddc1e57541'
 route: 'full'
 route_source: 'auto'

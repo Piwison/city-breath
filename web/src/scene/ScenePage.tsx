@@ -188,6 +188,7 @@ export default function ScenePage() {
   );
   const showLabels = useView((s) => s.layers.label);
   const cardOpen = useView((s) => s.district !== null || s.station !== null);
+  const sheet = useView((s) => s.sheet);
   const top = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
   const main = useRef<HTMLElement>(null);
@@ -200,7 +201,9 @@ export default function ScenePage() {
     return syncUrl();
   }, [reduced]);
 
-  // 流向標籤的安全區：上方 HUD 的下緣到時間軸（或小卡）的上緣；畫面、HUD 大小變了或換成小卡就重量
+  // 流向標籤的安全區：上方 HUD 的下緣到時間軸（或小卡）的上緣；畫面、HUD 大小變了或換成小卡就重量。
+  // 小卡兩段高度（3.22）只動 transform（大小不變），所以換段、拖曳結束與滑動結束（transitionend）也重量：標籤讓路到卡片上方
+  // 時要跟著卡片的上緣（體驗原則 5）。
   useEffect(() => {
     const bottom = () => dock.current?.querySelector<HTMLElement>(".scene-dock, .card") ?? null;
     const measure = () => {
@@ -215,11 +218,16 @@ export default function ScenePage() {
     const ro = new ResizeObserver(measure);
     for (const el of [top.current, bottom()]) if (el) ro.observe(el);
     addEventListener("resize", measure);
+    const d = dock.current;
+    d?.addEventListener("transitionend", measure);
+    d?.addEventListener("pointerup", measure);
     return () => {
       ro.disconnect();
       removeEventListener("resize", measure);
+      d?.removeEventListener("transitionend", measure);
+      d?.removeEventListener("pointerup", measure);
     };
-  }, [overlays, cardOpen, data]);
+  }, [overlays, cardOpen, sheet, data]);
 
   useEffect(() => {
     if (!webgl) return;

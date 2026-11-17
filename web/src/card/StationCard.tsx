@@ -5,7 +5,9 @@
 // 環狀線站出站未入檔（A7）：出站寫「未入檔」並附說明，不排名、沒有個性；目的地照 od 分片。
 // 類型標籤與一句話（第二個 PR，決定 13）：整年最常見的那一型（station-types.json，打開卡才載），當月不同加一行小字；
 // 環狀線站與沒有類型的站不顯示。整天前 10、同類型站與誰來這站由 epic-station-personality 加進同一張卡。
-import { whenLabel } from "../data/periods";
+import { stationAnswer } from "../data/answer";
+import { formatCount, formatNumber } from "../data/format";
+import { CLOSED, whenLabel } from "../data/periods";
 import { fitRangeLabel, stationTypeLabel, useStationTypes, type StationTypesState } from "../data/stationType";
 import { daySeries, stationTraits, stationVolume } from "../data/traits";
 import type { LineId } from "../data/types";
@@ -25,7 +27,8 @@ import { FlowLegend, type LegendLink } from "../scene/FlowLegend";
 import { CardFrame } from "./CardFrame";
 import { monthLabel } from "./DistrictCard";
 
-const fmt = (v: number | null) => (v === null ? "—" : Math.round(v).toLocaleString("zh-TW"));
+// 人數一律經 data/format.ts：少於 10 人不寫數字（3.22）；數字欄的單位寫在標籤上
+const fmt = (v: number | null) => formatNumber(v, "—");
 
 /** 點整天長條的某一格：停止播放、跳到那個時段（卡、緞帶、柱高跟著換）。 */
 export function pickHour(h: number) {
@@ -85,6 +88,16 @@ export function StationCardView({
   const districtName = districtNames.get(s.district);
   const yearlyFile = yearly.status === "ok" ? yearly.file : null;
   const kind = stationTypeLabel(s, stations.types, yearlyFile);
+  const dest = od.status === "ok" ? stationDestinations(od.shard, i, dayType, hour) : null;
+  const answer = stationAnswer({
+    name: s.display,
+    dayType,
+    hour,
+    operating: operating && (dest?.operating ?? true),
+    entriesOnly: v.entriesOnly,
+    volume: v.value,
+    top: dest ? dest.top.map((d) => ({ name: stations.stations[d.index].display, value: d.value })) : null,
+  });
   return (
     <CardFrame
       kind="station"
@@ -93,6 +106,7 @@ export function StationCardView({
       when={whenLabel(dayType, hour, operating)}
       back={backTo ? { label: backTo, onClick: () => selectStation(null) } : undefined}
       onClose={closeCard}
+      answer={answer}
       footer={legend ? <FlowLegend source={source} stations={stations} link={legend} /> : undefined}
     >
       <div className="card-lines">
@@ -152,7 +166,7 @@ export function StationCardView({
             <button
               key={h}
               type="button"
-              aria-label={series[h] === null ? `${h} 點 停止營運` : `${h} 點 ${fmt(series[h])} 人`}
+              aria-label={`${h} 點 ${formatCount(series[h], CLOSED)}`}
               aria-current={h === hour ? "true" : undefined}
               data-off={r === null ? "" : undefined}
               onClick={() => pickHour(h)}
@@ -257,7 +271,7 @@ function Destinations({
                   <span className="k num">{k + 1}</span>
                   {to.display}
                 </span>
-                <span className="v num">{fmt(d.value)} 人</span>
+                <span className="v num">{formatCount(d.value)}</span>
                 <span className="s" aria-hidden="true">
                   <i style={{ width: `${((d.value / max) * 100).toFixed(1)}%`, background: "var(--flow-out)" }} />
                 </span>
@@ -276,7 +290,7 @@ function Destinations({
         {areas.map((a, k) => (
           <span key={a.id}>
             {k > 0 && "・"}
-            {districtNames.get(a.id) ?? a.id} <span className="num">{fmt(a.value)}</span> 人
+            {districtNames.get(a.id) ?? a.id} <span className="num">{formatCount(a.value)}</span>
           </span>
         ))}
         （上面 {dest.top.length} 站依所在區加總）

@@ -3,13 +3,13 @@
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { Matrix4, Vector3 } from "three";
+import { formatNumber } from "../data/format";
 import { sleepAt } from "../state/service";
 import { getView, time } from "../state/view";
 import type { LabelBoard } from "./DistrictLabels";
 import { bez, type Arc } from "./flowGeometry";
 import { placeLabel } from "./labelPlace";
 
-const fmt = (n: number) => Math.round(n).toLocaleString("zh-TW");
 
 /** 前三大標籤的 DOM（Canvas 外）：路線、人數；文字與位置由 FlowLabelProjector 直接寫，不經 React。 */
 export type FlowLabelEls = MutableRefObject<(HTMLDivElement | null)[]>;
@@ -71,8 +71,8 @@ export function FlowLabelProjector({
       const num = el.querySelector<HTMLElement>(".num");
       const unit = el.querySelector<HTMLElement>(".unit");
       if (route) route.textContent = `${names.get(a.flow.from) ?? ""} → ${names.get(a.flow.to) ?? ""}`;
-      if (num) num.textContent = a.flow.value === null ? "少於 10 人" : fmt(a.flow.value);
-      if (unit) unit.hidden = a.flow.value === null;
+      if (num) num.textContent = formatNumber(a.flow.value);
+      if (unit) unit.hidden = false; // formatNumber 寫「少於 10」，單位照放
     });
   }, [top, names, els]);
 
