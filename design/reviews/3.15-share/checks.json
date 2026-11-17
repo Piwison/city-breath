@@ -1,0 +1,94 @@
+{
+  "1-district-card": {
+    "title": "大安區",
+    "when": "假日 14 點"
+  },
+  "1-panel": {
+    "heading": "分享這張卡",
+    "buttons": [
+      "複製連結"
+    ]
+  },
+  "1-copied": {
+    "link": "http://localhost:4199/?month=2026-09&day=holiday&hour=14&district=63000030",
+    "button": "已複製",
+    "status": "已複製連結"
+  },
+  "1-esc-closes-panel-only": {
+    "panel": false,
+    "card": true
+  },
+  "1-new-tab": {
+    "title": "大安區",
+    "when": "假日 14 點",
+    "whenLater": "假日 14 點",
+    "hm": "14:00",
+    "url": "http://localhost:4199/?month=2026-09&day=holiday&hour=14&district=63000030"
+  },
+  "2-station-card": {
+    "title": "大安",
+    "back": "‹ 大安區",
+    "statsBeforeType": true
+  },
+  "2-station-panel": {
+    "hasSaveImage": false,
+    "hasCopy": true,
+    "url": "http://localhost:4199/?month=2026-09&day=holiday&hour=14&district=63000030&station=sb11da7c7"
+  },
+  "3-moment": {
+    "playLabelBefore": "暫停",
+    "playLabelAfter": "播放一整天",
+    "clock": "06:50",
+    "url": "http://localhost:4199/?month=2026-09&day=weekday&hour=7",
+    "heading": "分享這一刻",
+    "hasSaveImage": false
+  },
+  "3-still-paused": {
+    "clock": "07:00",
+    "play": "播放一整天",
+    "addressBar": "http://localhost:4199/?month=2026-09&day=weekday&hour=7"
+  },
+  "9-invalid-station": {
+    "card": false,
+    "notice": "這個連結裡的站、行政區或時段在資料裡找不到，先帶你看全城。",
+    "play": "暫停（自動播放中）",
+    "addressBar": "http://localhost:4199/",
+    "dayAfterFallback": "平日"
+  },
+  "10-invalid-hour": {
+    "card": false,
+    "notice": "這個連結裡的站、行政區或時段在資料裡找不到，先帶你看全城。",
+    "play": "暫停",
+    "addressBar": "http://localhost:4199/"
+  },
+  "11-invalid-month": {
+    "card": false,
+    "notice": "這個連結裡的站、行政區或時段在資料裡找不到，先帶你看全城。",
+    "play": "暫停",
+    "addressBar": "http://localhost:4199/"
+  },
+  "12-stale-month": {
+    "card": "大安區",
+    "notice": "這個連結是 2026 年 8 月的，網站顯示的是最新的 2026 年 9 月資料。"
+  },
+  "13-reduced-motion-panel": {
+    "opacity": "1",
+    "translate": "none",
+    "dur": "0s, 0s, 0s, 0s"
+  },
+  "14-share-font": {
+    "loaded": [
+      "400:loaded",
+      "700:loaded"
+    ]
+  },
+  "15-meta": {
+    "ogTitle": "城市呼吸｜上個月的台北捷運",
+    "twitter": "summary_large_image",
+    "og": 200,
+    "icon": 200,
+    "touch": 200
+  },
+  "external-requests": [],
+  "errors": []
+}

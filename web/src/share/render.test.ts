@@ -7,7 +7,8 @@ import { CONTRACT_VERSION } from "../data/load";
 import type { MetaFile, OdShard } from "../data/types";
 import { cardFileName, commuteCard, type CommuteCard } from "./card";
 import {
-  CARD_H, CARD_W, CONTENT_BOX, SAFE_BOTTOM, SAFE_TOP, drawShareCard, fitText, resolveTheme, wrapText, type Ctx, type Theme,
+  CARD_H, CARD_W, CONTENT_BOX, PANEL, PREVIEW_H, PREVIEW_HOUR, PREVIEW_W, SAFE_BOTTOM, SAFE_TOP, drawLinkPreview, drawShareCard, fitText,
+  resolveTheme, wrapText, type Ctx, type Theme,
 } from "./render";
 
 const meta: Pick<MetaFile, "month" | "source" | "dayCounts"> = {
@@ -25,7 +26,7 @@ const URL_ = "https://example.test/?month=2026-09&from=sA&to=sB&at=8";
 
 /** 記錄 fillText 的假 context；字寬：中文一個字級，英數 0.55 個字級。 */
 function fakeCtx() {
-  const texts: { text: string; x: number; y: number; size: number; width: number; color: unknown }[] = [];
+  const texts: { text: string; x: number; y: number; size: number; width: number; color: unknown; font: string }[] = [];
   const gradients: string[][] = [];
   const fills: unknown[] = [];
   const sizeOf = (font: string) => Number(/([\d.]+)px/.exec(font)![1]);
@@ -40,7 +41,7 @@ function fakeCtx() {
     fillRect() {},
     measureText(t: string) { return { width: measure(this.font, t) }; },
     fillText(t: string, x: number, y: number) {
-      texts.push({ text: t, x, y, size: sizeOf(this.font), width: measure(this.font, t), color: this.fillStyle });
+      texts.push({ text: t, x, y, size: sizeOf(this.font), width: measure(this.font, t), color: this.fillStyle, font: this.font });
     },
     createLinearGradient() {
       const stops: string[] = [];
@@ -122,7 +123,8 @@ describe("通勤卡", () => {
     ["夜間", card(1, 23)],
     ["長站名", card(1, 8, ["很長很長很長很長很長很長很長很長很長很長很長很長的起站", "另一個也非常非常非常非常非常非常長的迄站名稱"])],
   ])("%s：每行字都在內容區內、不互相重疊", (_name, c) => {
-    const { texts } = draw(c);
+    // 網站名在面板外的天空帶（決定 18），其餘每行字都在內容區
+    const texts = draw(c).texts.filter((t) => t.y > PANEL.y);
     const box = CONTENT_BOX;
     for (const t of texts) {
       expect(t.x, t.text).toBeGreaterThanOrEqual(box.x);
@@ -167,9 +169,11 @@ describe("日夜跟著卡片時段", () => {
     expect(resolveTheme(null).sky[0]).toBe(hex(day("--sky-top-day")));
   });
 
-  it("字級與字型取自 token", () => {
+  it("字級與字型取自 token：數字與英文用自帶字型（--font-num），中文回退到系統字", () => {
     const t = resolveTheme(8);
-    expect(t.font).toBe(day("--font"));
+    expect(t.font).toBe(day("--font-num"));
+    expect(t.font.startsWith('"Manrope Num"')).toBe(true);
+    expect(t.font).toContain(day("--font"));
     expect(t.size.xl).toBe(Math.round(40 * (1080 / 390)));
   });
 });
@@ -191,5 +195,63 @@ describe("排版工具", () => {
     const cut = wrapText(f.ctx, theme, "一二三四五六七八九十一二三四五六七八九十", 40, 400, 200, 2);
     expect(cut).toHaveLength(2);
     expect(cut[1].endsWith("…")).toBe(true);
+  });
+});
+
+describe("3.15 版型：天空帶、短網址、自帶字型（決定 16、18、19）", () => {
+  it("網站名在上方天空帶（面板上緣之上、IG 頂端安全區內），面板裡沒有品牌列", () => {
+    const { texts } = draw(card(1));
+    const brand = texts.filter((t) => t.text === "城市呼吸" || t.text.includes("北捷人流脈搏"));
+    expect(brand).toHaveLength(2);
+    for (const t of brand) {
+      expect(t.y).toBeLessThan(PANEL.y);
+      expect(t.y - t.size).toBeGreaterThan(0);
+    }
+    expect(texts.filter((t) => t.y > PANEL.y && t.text.includes("城市呼吸"))).toHaveLength(0);
+  });
+
+  it("下方天空留白：面板下緣以下沒有任何字", () => {
+    for (const c of [card(1), card(3), card(1, 23)]) {
+      const { texts } = draw(c);
+      expect(texts.every((t) => t.y <= PANEL.y + PANEL.h)).toBe(true);
+      expect(PANEL.y + PANEL.h).toBeLessThan(CARD_H - SAFE_BOTTOM + 100);
+    }
+  });
+
+  it("只印短網址：沒有協定與 query（不放 QR code，圖上只有字與幾何）", () => {
+    const { all } = draw(card(1));
+    expect(all()).toContain("example.test");
+    expect(all()).not.toContain("https://");
+    expect(all()).not.toContain("month=");
+    expect(all()).not.toMatch(/QR/i);
+  });
+
+  it("數字用自帶字型的字族", () => {
+    const { texts } = draw(card(1));
+    const digits = texts.filter((t) => /\d/.test(t.text));
+    expect(digits.length).toBeGreaterThan(0);
+    for (const t of digits) expect(t.font).toContain('"Manrope Num"');
+  });
+
+  it("天空上的字色依天色選深或淺", () => {
+    const hex = (raw: string) => canvasColor(parseColor(raw)!);
+    expect(resolveTheme(12).skyInk).toBe(hex(cssTokenReader(tokensCss, "day")("--hud-ink")));
+    expect(resolveTheme(23).skyInk).toBe(hex(cssTokenReader(tokensCss, "night")("--hud-ink")));
+  });
+});
+
+describe("連結預覽圖（決定 20）", () => {
+  it("1200×630，有網站名與「上個月的台北捷運」，沒有數字，字都在畫面內", () => {
+    const f = fakeCtx();
+    drawLinkPreview(f.ctx, resolveTheme(PREVIEW_HOUR));
+    expect([PREVIEW_W, PREVIEW_H]).toEqual([1200, 630]);
+    expect(f.all()).toContain("城市呼吸");
+    expect(f.all()).toContain("上個月的台北捷運");
+    expect(f.all()).not.toMatch(/\d/);
+    for (const t of f.texts) {
+      expect(t.x + t.width).toBeLessThanOrEqual(PREVIEW_W);
+      expect(t.y).toBeLessThanOrEqual(PREVIEW_H);
+      expect(t.y - t.size).toBeGreaterThanOrEqual(0);
+    }
   });
 });

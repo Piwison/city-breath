@@ -48,7 +48,8 @@ export interface StationAnswerInput {
   top: readonly { name: string; value: number }[] | null;
 }
 
-export const LOOP_NOTE = "（環狀線出站未入檔，只算在北捷各站下車的人）";
+// 括號縮短（3.15 預設，Piwi 可推翻）：未入檔的說明在卡內另一行
+export const LOOP_NOTE = "（只算在北捷站下車的人）";
 
 export function stationAnswer({ name, dayType, hour, operating, entriesOnly, volume, top }: StationAnswerInput): string {
   const when = whenLabel(dayType, hour);

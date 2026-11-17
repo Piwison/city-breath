@@ -78,6 +78,8 @@ describe("車站卡的一句答案", () => {
   it("環狀線站：照常寫第一名並註明出站未入檔；od 還沒到時只說進站", () => {
     const loop = { ...base, entriesOnly: true };
     expect(stationAnswer({ ...loop, top: [{ name: "乙站", value: 58 }] })).toBe(`平日 8 點，從甲站出發的人最常去乙站${LOOP_NOTE}`);
+    // 3.15：括號縮短
+    expect(LOOP_NOTE).toBe("（只算在北捷站下車的人）");
     expect(stationAnswer({ ...loop, top: null })).toBe("平日 8 點，甲站進站 1,234 人，出站未入檔");
   });
 

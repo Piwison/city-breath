@@ -144,7 +144,8 @@ export function CardFrame({ title, kicker, when, actions, back, timeRow = true, 
   }, []);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // 分享面板開著時 Esc 只關面板（面板會 preventDefault）
+      if (e.key === "Escape" && !e.defaultPrevented) onClose();
     };
     addEventListener("keydown", key);
     return () => removeEventListener("keydown", key);

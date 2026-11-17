@@ -1,0 +1,58 @@
+// 建置後檢查（3.15，`npm run build` 的最後一步，CI 也跑）：
+// - dist/index.html 有連結預覽標籤（og:title「城市呼吸｜上個月的台北捷運」、og:description、og:image、twitter:card）與網站圖示，
+//   而且 %SITE_URL% 這類佔位字都換掉了（AD-18）；
+// - 預覽圖、網站圖示、自帶字型與授權檔都在 dist/；
+// - 建置產物沒有向外部網址載入字型（AD-1）：CSS 的 @font-face 與 url() 只指向站內路徑，也沒有常見字型 CDN 的網址。
+import { readdir, readFile, stat } from "node:fs/promises";
+import { join, resolve, dirname, extname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const dist = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
+const problems = [];
+const html = await readFile(join(dist, "index.html"), "utf8");
+
+const meta = (attr, key) => new RegExp(`<meta ${attr}="${key}" content="([^"]*)"`).exec(html)?.[1];
+const expect = (ok, msg) => ok || problems.push(msg);
+
+expect(meta("property", "og:title") === "城市呼吸｜上個月的台北捷運", "og:title 不是「城市呼吸｜上個月的台北捷運」");
+expect(!!meta("property", "og:description"), "沒有 og:description");
+expect(/\/og\.png$/.test(meta("property", "og:image") ?? ""), "og:image 沒有指向 og.png");
+expect(meta("name", "twitter:card") === "summary_large_image", "twitter:card 不是 summary_large_image");
+expect(/<link rel="icon" href="\/favicon\.svg"/.test(html), "沒有 favicon");
+expect(/<link rel="apple-touch-icon" href="\/apple-touch-icon\.png"/.test(html), "沒有 apple-touch-icon");
+expect(!/%[A-Z_]+%/.test(html), "index.html 還有沒換掉的 %佔位字%");
+
+for (const f of ["og.png", "favicon.svg", "apple-touch-icon.png", "fonts/manrope-num-400.woff2", "fonts/manrope-num-700.woff2", "fonts/OFL.txt"]) {
+  try {
+    const s = await stat(join(dist, f));
+    expect(s.size > 0, `${f} 是空的`);
+  } catch {
+    problems.push(`dist/ 沒有 ${f}`);
+  }
+}
+
+const FONT_CDN = /fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit\.net|fonts\.bunny\.net|cdn\.jsdelivr\.net\/npm\/@fontsource/;
+async function* walk(dir) {
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) yield* walk(p);
+    else yield p;
+  }
+}
+for await (const file of walk(dist)) {
+  const ext = extname(file);
+  if (![".css", ".js", ".html"].includes(ext)) continue;
+  const text = await readFile(file, "utf8");
+  if (FONT_CDN.test(text)) problems.push(`${file} 有外部字型網址`);
+  if (ext === ".css") {
+    for (const m of text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
+      if (/^(https?:)?\/\//.test(m[1])) problems.push(`${file} 從外部網址載入：${m[1]}`);
+    }
+  }
+}
+
+if (problems.length) {
+  console.error(`建置檢查失敗：\n- ${problems.join("\n- ")}`);
+  process.exit(1);
+}
+console.log("建置檢查通過：連結預覽標籤、預覽圖、網站圖示、自帶字型都在，沒有外部字型網址");

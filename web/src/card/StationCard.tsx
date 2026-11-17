@@ -25,6 +25,7 @@ import { seek } from "../state/clock";
 import { closeCard, selectStation, setFocus, setPlaying, startCommute, useView } from "../state/view";
 import { FlowLegend, type LegendLink } from "../scene/FlowLegend";
 import { CardFrame } from "./CardFrame";
+import { ShareAction } from "../share/SharePanel";
 import { monthLabel } from "./DistrictCard";
 
 // 人數一律經 data/format.ts：少於 10 人不寫數字（3.22）；數字欄的單位寫在標籤上
@@ -104,6 +105,12 @@ export function StationCardView({
       kicker={districtName ? `車站・${districtName}` : "車站"}
       title={s.display}
       when={whenLabel(dayType, hour, operating)}
+      // 車站卡只分享連結，不做分享圖（Piwi 2026-11-11）
+      actions={
+        <ShareAction
+          target={() => ({ kicker: districtName ? `車站・${districtName}` : "車站", title: s.display, when: whenLabel(dayType, hour, operating), summary: answer })}
+        />
+      }
       back={backTo ? { label: backTo, onClick: () => selectStation(null) } : undefined}
       onClose={closeCard}
       answer={answer}
@@ -118,23 +125,7 @@ export function StationCardView({
         ))}
       </div>
 
-      {kind && (
-        <div className="card-type">
-          <span className="card-type-tag">{kind.label}</span>
-          <p>{kind.description}</p>
-          {kind.monthly && <p className="card-type-month">這個月偏{kind.monthly}</p>}
-        </div>
-      )}
-
-      {personality.ranked && (
-        <div className="card-story">
-          <b>{personality.traits.length ? "這一站的個性" : "這一站"}</b>
-          {(personality.traits.length ? personality.traits : personality.fallback ? [personality.fallback] : []).map((t) => (
-            <p key={t.key}>{t.text}</p>
-          ))}
-        </div>
-      )}
-
+      {/* 摘要高度就看得到數字（3.15 預設，Piwi 可推翻）：這小時進站／出站／進出排在類型標籤之前 */}
       {operating ? (
         <div className="card-stats">
           <div>
@@ -157,6 +148,23 @@ export function StationCardView({
         <p className="card-note card-warn">
           環狀線的出站由新北捷運營運、不在這份資料裡（未入檔）：這站的進出只算進站，所以不列個性與全線名次。
         </p>
+      )}
+
+      {kind && (
+        <div className="card-type">
+          <span className="card-type-tag">{kind.label}</span>
+          <p>{kind.description}</p>
+          {kind.monthly && <p className="card-type-month">這個月偏{kind.monthly}</p>}
+        </div>
+      )}
+
+      {personality.ranked && (
+        <div className="card-story">
+          <b>{personality.traits.length ? "這一站的個性" : "這一站"}</b>
+          {(personality.traits.length ? personality.traits : personality.fallback ? [personality.fallback] : []).map((t) => (
+            <p key={t.key}>{t.text}</p>
+          ))}
+        </div>
       )}
 
       <div className="card-spark-wrap">

@@ -3,7 +3,7 @@ title: '卡片兩段高度與一句答案'
 type: 'feature'
 ticket: '22'
 created: '2026-11-17'
-status: 'built'
+status: done
 baseline_revision: '71538f6604d4af6f5d6f90ae7f31931c5c60fd19'
 route: 'full'
 route_source: 'auto'
