@@ -110,7 +110,7 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
             <RankList list={ranks.in} kind="in" district={id} names={names} />
           </div>
           <p className="card-stay">
-            留在{d?.name ?? "區"}內{" "}
+            留在區內{" "}
             {ranks.stay === null ? "少於 10 人" : <><b className="num">{fmt(ranks.stay)}</b> 人</>}
           </p>
         </div>

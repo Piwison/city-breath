@@ -37,7 +37,7 @@ describe("行政區卡（3.21）", () => {
     seek(8);
   });
 
-  it("永和區平日 8 點：去哪、誰來的排名裡沒有永和，另有「留在永和區內 N 人」＝對角線", () => {
+  it("永和區平日 8 點：去哪、誰來的排名裡沒有永和，另有「留在區內 N 人」＝對角線", () => {
     const id = idOf("永和區");
     const html = card(id);
     const ranks = [...html.matchAll(/<span class="n">([^<]*)<\/span>/g)].map((m) => m[1]);
@@ -47,7 +47,7 @@ describe("行政區卡（3.21）", () => {
     const i = flows.districts.indexOf(id);
     const diag = flows.weekday[8]![i][i];
     expect(diag).not.toBeNull();
-    expect(text(html)).toContain(`留在永和區內 ${num(diag!)} 人`);
+    expect(text(html)).toContain(`留在區內 ${num(diag!)} 人`);
   });
 
   it("整天：留在區內＝對角線各小時（有公開人數的）加總", () => {
@@ -55,7 +55,7 @@ describe("行政區卡（3.21）", () => {
     const id = idOf("大安區");
     const i = flows.districts.indexOf(id);
     const total = flows.weekday.reduce((s, m) => s + (m?.[i][i] ?? 0), 0);
-    expect(text(card(id))).toContain(`留在大安區內 ${num(total)} 人`);
+    expect(text(card(id))).toContain(`留在區內 ${num(total)} 人`);
   });
 
   it("對角線少於 10 人（null）：寫「少於 10 人」，不寫 0", () => {
@@ -63,7 +63,7 @@ describe("行政區卡（3.21）", () => {
     const i = flows.districts.findIndex((_, k) => flows.weekday[8]![k][k] === null);
     if (i < 0) return;
     const html = text(card(flows.districts[i]));
-    expect(html).toMatch(/留在.*內 少於 10 人/);
+    expect(html).toMatch(/留在區內 少於 10 人/);
   });
 
   it("最忙的站標「這個時段最忙」，整天標「整天最忙」；卡上沒有「此刻」", () => {
@@ -78,6 +78,6 @@ describe("行政區卡（3.21）", () => {
     seek(3);
     const html = text(card(idOf("永和區")));
     expect(html).toContain("停止營運");
-    expect(html).not.toContain("留在永和區內");
+    expect(html).not.toContain("留在區內 ");
   });
 });
