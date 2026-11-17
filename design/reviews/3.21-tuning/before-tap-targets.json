@@ -1,0 +1,398 @@
+{
+ "timebar": [
+  {
+   "el": "button.hud commute-pill",
+   "text": "找你的通勤",
+   "w": 124,
+   "h": 40
+  },
+  {
+   "el": "button.hud scene-home-btn",
+   "text": "回到全景",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.hud scene-layer-btn",
+   "text": "圖層",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.play",
+   "text": "播放一整天",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.",
+   "text": "平日",
+   "w": 48,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "假日",
+   "w": 48,
+   "h": 30
+  },
+  {
+   "el": "input.scrub",
+   "text": "時間",
+   "w": 226,
+   "h": 22
+  },
+  {
+   "el": "button.mini num",
+   "text": "1x",
+   "w": 36,
+   "h": 30
+  },
+  {
+   "el": "button.mini still",
+   "text": "靜態關",
+   "w": 62,
+   "h": 30
+  }
+ ],
+ "district": [
+  {
+   "el": "button.hud commute-pill",
+   "text": "找你的通勤",
+   "w": 124,
+   "h": 40
+  },
+  {
+   "el": "button.hud scene-home-btn",
+   "text": "回到全景",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.hud scene-layer-btn",
+   "text": "圖層",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.card-close",
+   "text": "關閉",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.card-step",
+   "text": "‹",
+   "w": 36,
+   "h": 30
+  },
+  {
+   "el": "button.card-step",
+   "text": "›",
+   "w": 36,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "平日",
+   "w": 48,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "假日",
+   "w": 48,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "這一小時",
+   "w": 72,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "整天",
+   "w": 48,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "中正區1,505 人",
+   "w": 165,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "中山區1,411 人",
+   "w": 165,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "大安區1,026 人",
+   "w": 165,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "中和區189 人",
+   "w": 165,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "中正區154 人",
+   "w": 165,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "大安區70 人",
+   "w": 165,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "最忙頂溪8,364 人",
+   "w": 156,
+   "h": 30
+  }
+ ],
+ "station": [
+  {
+   "el": "button.hud commute-pill",
+   "text": "找你的通勤",
+   "w": 124,
+   "h": 40
+  },
+  {
+   "el": "button.hud scene-home-btn",
+   "text": "回到全景",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.hud scene-layer-btn",
+   "text": "圖層",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.card-back",
+   "text": "‹ 永和區",
+   "w": 56,
+   "h": 30
+  },
+  {
+   "el": "button.card-close",
+   "text": "關閉",
+   "w": 40,
+   "h": 40
+  },
+  {
+   "el": "button.card-step",
+   "text": "‹",
+   "w": 36,
+   "h": 30
+  },
+  {
+   "el": "button.card-step",
+   "text": "›",
+   "w": 36,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "平日",
+   "w": 48,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "假日",
+   "w": 48,
+   "h": 30
+  },
+  {
+   "el": "button.",
+   "text": "0 點 155 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "1 點 1 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "2 點 停止營運",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "3 點 停止營運",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "4 點 停止營運",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "5 點 0 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "6 點 687 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "7 點 3,457 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "8 點 4,988 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "9 點 2,351 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "10 點 1,269 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "11 點 984 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "12 點 979 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "13 點 991 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "14 點 865 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "15 點 915 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "16 點 1,634 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "17 點 2,648 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "18 點 3,664 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "19 點 2,535 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "20 點 1,390 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "21 點 1,382 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "22 點 1,206 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "23 點 439 人",
+   "w": 12,
+   "h": 44
+  },
+  {
+   "el": "button.",
+   "text": "1松江南京383 人",
+   "w": 340,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "2行天宮298 人",
+   "w": 340,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "3南京復興231 人",
+   "w": 340,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "4台北車站182 人",
+   "w": 340,
+   "h": 41
+  },
+  {
+   "el": "button.",
+   "text": "5民權西路180 人",
+   "w": 340,
+   "h": 41
+  },
+  {
+   "el": "button.card-action",
+   "text": "從這站找通勤",
+   "w": 136,
+   "h": 40
+  }
+ ]
+}
