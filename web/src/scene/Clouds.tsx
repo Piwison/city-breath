@@ -1,7 +1,8 @@
 // 雲（3.14，純裝飾，AD-23）：幾朵低多邊形雲在沙盤上空由西往東飄，白天在地圖上投下影子；入夜與放大看細節時淡出（clouds.ts）。
 // 全部雲團一個 InstancedMesh（AD-6）；顏色 --cloud（AD-8）。點不到（raycast 關掉）。
 // 影子跟著淡：陰影用的深度材質依不透明度抖動丟棄片段（半透明的雲投半淡的影），PCF 再把抖動抹平。
-// 陰影圖只在光移動時重畫（Daylight）：雲在飄就補 shadowMap.needsUpdate，暫停時節流到每秒約 20 次。
+// 陰影圖只在光移動時重畫（Daylight）：播放中雲在飄就補 shadowMap.needsUpdate（播放中光本來就每格在動）。
+// 暫停時雲也停、不再為雲重畫陰影圖（3.21 預設，Piwi 可推翻；場景讓位給卡片，體驗原則 5）；淡入淡出照補。
 // lite（quality.ts）：2 朵、不投影。減少動態或靜態模式：雲停在原位不飄。
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -13,8 +14,6 @@ import { useTier, type Tier } from "./quality";
 import { useTokenColor } from "./useTokenColor";
 
 const COUNT: Record<Tier, number> = { full: 4, lite: 2 };
-/** 暫停時雲影最多多久重畫一次（秒）。 */
-const SHADOW_EVERY = 0.05;
 
 function buildMesh(tier: Tier, box: PlinthBox) {
   const layout = cloudLayout(box, COUNT[tier]);
@@ -69,7 +68,7 @@ export function Clouds({ box, reduced }: { box: PlinthBox; reduced: boolean }) {
   // 每朵雲目前的 x（從佈局的起點開始飄）
   const xs = useMemo(() => built.layout.clouds.map((c) => c.x), [built]);
   const o = useMemo(() => new Object3D(), []);
-  const last = useRef({ shown: false, since: 0, placed: false, fade: -1 });
+  const last = useRef({ shown: false, placed: false, fade: -1 });
 
   // 圖層開關、換等級：陰影圖補一次
   useEffect(() => {
@@ -92,10 +91,11 @@ export function Clouds({ box, reduced }: { box: PlinthBox; reduced: boolean }) {
     mat.opacity = fade;
     built.shadow.value = fade / CLOUD_OPACITY;
 
-    const drift = !calm;
+    // 只在播放中飄（暫停時雲也停）
+    const drift = !calm && v.playing;
     if (drift || !L.placed) {
       const { clouds, puffs } = built.layout;
-      const k = Math.min(dt, 0.1) * (v.playing ? v.speed : 1);
+      const k = Math.min(dt, 0.1) * v.speed;
       if (drift) for (let c = 0; c < clouds.length; c++) xs[c] = driftX(xs[c], clouds[c].v * k, box);
       for (let i = 0; i < puffs.length; i++) {
         const p = puffs[i];
@@ -109,13 +109,11 @@ export function Clouds({ box, reduced }: { box: PlinthBox; reduced: boolean }) {
       L.placed = true;
     }
 
-    // 雲影：剛出現、淡入淡出或飄動時補畫；暫停時節流（播放中光本來就每格在動）
+    // 雲影：剛出現、淡入淡出或飄動（只在播放中）時補畫；暫停時雲不動，陰影圖不為雲重畫
     if (mesh.castShadow) {
-      L.since += dt;
       const changed = !L.shown || Math.abs(fade - L.fade) > 0.02;
-      if (changed || (drift && (v.playing || L.since >= SHADOW_EVERY))) {
+      if (changed || drift) {
         gl.shadowMap.needsUpdate = true;
-        L.since = 0;
         L.fade = fade;
       }
     }

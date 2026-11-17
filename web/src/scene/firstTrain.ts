@@ -10,6 +10,11 @@ export const WAVE_DELAY = 0.03;
 export const WAVE_PEAK = 1.8;
 export const WAVE_RISE = 0.18;
 export const WAVE_SETTLE = 0.5;
+/**
+ * 全景（沒放大）時波紋加大幾倍（3.21 預設，Piwi 可推翻）：全景一個場景單位只有約 6px，站珠半徑不到 2px，
+ * 1.8 倍幾乎看不出來；放大後照原型的 1.8。
+ */
+export const WAVE_WIDE = 1.6;
 /** 站珠在高點時往站燈色推多少。 */
 export const WAVE_GLOW = 0.6;
 /** 圓心的站（stations.json 的 name）；找不到就用底座中心。 */
@@ -32,7 +37,7 @@ export function wavePulse(elapsed: number): number {
   return WAVE_PEAK + (1 - WAVE_PEAK) * settle((elapsed - WAVE_RISE) / WAVE_SETTLE);
 }
 
-/** 離圓心 dist 單位的站此刻的縮放倍數。 */
+/** 離圓心 dist 單位的站這一格的縮放倍數。 */
 export function waveAt(now: number, dist: number): number {
   return wavePulse(now - wave.start - dist * WAVE_DELAY);
 }
@@ -46,4 +51,9 @@ export function waveRunning(now: number, maxDist: number): boolean {
 /** 縮放倍數 → 往站燈色推多少（0–WAVE_GLOW）。 */
 export function waveGlow(pulse: number): number {
   return WAVE_GLOW * Math.min(1, Math.max(0, (pulse - 1) / (WAVE_PEAK - 1)));
+}
+
+/** 依鏡頭放大與否調整的縮放倍數：全景時偏離 1 的量乘 WAVE_WIDE。 */
+export function wavePulseAt(pulse: number, zoomed: boolean): number {
+  return zoomed ? pulse : 1 + (pulse - 1) * WAVE_WIDE;
 }

@@ -1,5 +1,6 @@
 // 行政區卡（3.6；原型 renderDistrictCard 移植）：這一小時／整天、這區的人去哪與誰來這裡前 3（點了聚焦那條緞帶、
-// 鏡頭飛過去）、這區的車站與此刻進出人數（第一個是此刻最忙，點了開車站小卡），卡內圖例寫明藍與橘紅的意思（走查 F5）。
+// 鏡頭飛過去）、這區的車站與這個時段的進出人數（第一個是「這個時段最忙」，點了開車站小卡），卡內圖例寫明藍與橘紅的意思（走查 F5）。
+// 產品計畫 v2（3.21）：排名只列跨區，另一行「留在區內 N 人」（決定 12）；不用表示即時的字眼（決定 2、體驗原則 3）。
 // 數字都由 views.ts／traits.ts 的純函式算：null 不排名、不當 0（AD-3），整天只加有公開人數的小時。
 import { whenLabel } from "../data/periods";
 import { busiestStations } from "../data/traits";
@@ -21,8 +22,7 @@ export interface DistrictCardProps {
   legend: LegendLink;
 }
 
-/** 排名列的名稱：區內移動寫「大安區內」（手機兩欄放得下）。 */
-const rankName = (r: DistrictRank, names: Map<string, string>) => `${names.get(r.id) ?? r.id}${r.self ? "內" : ""}`;
+const rankName = (r: DistrictRank, names: Map<string, string>) => names.get(r.id) ?? r.id;
 
 function RankList({ list, kind, district, names }: { list: DistrictRank[]; kind: "out" | "in"; district: string; names: Map<string, string> }) {
   const focus = useView((s) => s.focus);
@@ -83,7 +83,7 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
       title={d?.name ?? id}
       when={whenLabel(dayType, whole ? "day" : hour, whole || operating)}
       onClose={closeCard}
-      footer={<FlowLegend source={source} link={legend} />}
+      footer={<FlowLegend source={source} stations={stations} link={legend} />}
     >
       <div className="card-range" role="group" aria-label="範圍">
         <button type="button" aria-pressed={!whole} onClick={() => setRange("hour")}>
@@ -109,18 +109,22 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
             </h3>
             <RankList list={ranks.in} kind="in" district={id} names={names} />
           </div>
+          <p className="card-stay">
+            留在{d?.name ?? "區"}內{" "}
+            {ranks.stay === null ? "少於 10 人" : <><b className="num">{fmt(ranks.stay)}</b> 人</>}
+          </p>
         </div>
       ) : (
         <p className="card-note">這個時段停止營運，沒有列車。</p>
       )}
-      <h3 className="card-sec">這區的車站・{whole ? "整天" : "此刻"}進出人數（點了看那一站）</h3>
+      <h3 className="card-sec">這區的車站・{whole ? "整天" : "這個時段"}進出人數（點了看那一站）</h3>
       <div className="card-chips">
         {list.map(({ index, volume }) => {
           const s = stations.stations[index];
           return (
             <button key={s.id} type="button" onClick={() => selectStation(s.id)}>
               <i style={{ background: `var(${stations.token(index)})` }} aria-hidden="true" />
-              {index === busiest && <span className="top">最忙</span>}
+              {index === busiest && <span className="top">{whole ? "整天最忙" : "這個時段最忙"}</span>}
               {s.display}
               <span className="v num">
                 {volume.value === null ? "停止營運" : `${fmt(volume.value)} 人`}
@@ -134,7 +138,7 @@ export function DistrictCard({ id, flows, districts, source, stations, legend }:
         {monthLabel(flows.month)}
         {dayType === "weekday" ? "平日" : "假日"}平均。
         {whole ? "整天＝各小時的平均人次加總，只算有公開人數的小時；地圖上的流向仍是這一小時。" : "每小時平均人次。"}
-        少於 10 人的方向不列出。
+        去哪、誰來只列別區，留在區內的另寫一行；少於 10 人的方向不列出。
         {d?.inflowPartial ? "這區有環狀線車站，出站未入檔，「誰來」會少算。" : ""}
       </p>
     </CardFrame>

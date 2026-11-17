@@ -369,27 +369,27 @@ export function stationFlows(dest: StationDestinations, origin: number, stations
 /** 卡片的範圍：這一小時，或整天（各小時平均人次加總）。 */
 export type DistrictRange = "hour" | "day";
 
-/** 卡片上的一列：另一區（可能就是這區自己＝區內）與人數。 */
+/** 卡片上的一列：另一區與人數（只列跨區，決定 12）。 */
 export interface DistrictRank {
   id: string;
   value: number;
-  /** 區內移動（起訖都在這區） */
-  self: boolean;
 }
 
 export interface DistrictRanks {
   /** 這一小時停止營運（整天模式永遠 true） */
   operating: boolean;
-  /** 這區的人去哪（含區內），由大到小；少於 10 人（null）不列 */
+  /** 這區的人去哪（只列別區），由大到小；少於 10 人（null）不列 */
   out: DistrictRank[];
-  /** 誰來這裡（含區內），由大到小 */
+  /** 誰來這裡（只列別區），由大到小 */
   in: DistrictRank[];
+  /** 留在區內（起訖都在這區，矩陣對角線）；null＝少於 10 人或沒有公開的小時 */
+  stay: number | null;
 }
 
 /**
  * 去哪／誰來的排名（卡片用）。這一小時：直接讀矩陣；整天：每格只加有公開人數的小時（null 不當 0，
- * 停止營運的小時跳過），全部小時都是 null 的格才算「少於 10 人」、不列。區內（大安→大安）也列，
- * 因為「我住的區的人去哪」包含留在區內的人（3.6 verify：大安假日整天前三是中正、大安、信義）。
+ * 停止營運的小時跳過），全部小時都是 null 的格才算「少於 10 人」、不列。
+ * 產品計畫 v2 決定 12：排名只列跨區（「去哪」的直覺是去別的地方），區內另成一行 stay（對角線），不讓它消失。
  */
 export function districtRanks(file: DistrictFlowsFile, dayType: DayType, range: DistrictRange, hour: number, id: string): DistrictRanks {
   const ids = file.districts;
@@ -397,13 +397,17 @@ export function districtRanks(file: DistrictFlowsFile, dayType: DayType, range: 
   const hours = range === "day" ? file[dayType].map((_, h) => h) : [((Math.floor(hour) % 24) + 24) % 24];
   const out = new Map<number, number>();
   const inn = new Map<number, number>();
+  let stay: number | null = null;
   let operating = range === "day";
   if (i >= 0)
     for (const h of hours) {
       const m = file[dayType][h];
       if (!m) continue;
       operating = true;
+      const self = m[i][i];
+      if (self !== null) stay = (stay ?? 0) + self;
       for (let j = 0; j < ids.length; j++) {
+        if (j === i) continue;
         const a = m[i][j];
         const b = m[j][i];
         if (a !== null) out.set(j, (out.get(j) ?? 0) + a);
@@ -413,9 +417,9 @@ export function districtRanks(file: DistrictFlowsFile, dayType: DayType, range: 
   const ranked = (map: Map<number, number>) =>
     [...map.entries()]
       .filter(([, v]) => v > 0)
-      .map(([j, value]) => ({ id: ids[j], value, self: j === i }))
+      .map(([j, value]) => ({ id: ids[j], value }))
       .sort((a, b) => b.value - a.value || a.id.localeCompare(b.id));
-  return { operating, out: ranked(out), in: ranked(inn) };
+  return { operating, out: ranked(out), in: ranked(inn), stay: operating ? stay : null };
 }
 
 /** 圖例的三個人數：當月最大取首位數（例 6,582 → 6,000），再取約 1/6、1/2，進位到百人。 */
@@ -423,6 +427,33 @@ export function legendValues(max: number): [number, number, number] {
   const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, max))));
   const top = Math.max(1, Math.floor(max / p) * p);
   return [Math.round(top / 6 / 100) * 100 || 100, Math.round(top / 2 / 100) * 100 || 100, top];
+}
+
+/** 地圖上畫的是哪一種流向：全城前 12 大、選了區、選了站（3.12 站對站）。 */
+export type FlowMode = "city" | "district" | "station";
+
+/** 線寬的比例：max＝最粗的那條代表幾人；legend＝圖例三值（光帶分級同一組）；local＝用畫面上這幾條自己的比例。 */
+export interface FlowScale {
+  max: number;
+  legend: [number, number, number];
+  local: boolean;
+}
+
+/**
+ * 線寬比例（產品計畫 v2 決定 7）：全城用當月最大流向（不變）；選區、選站時改用畫面上這幾條裡最大的那條當最粗
+ * （螢幕寬度上限仍是 RIBBON_MAX_PX），圖例的最後一值就是那條的人數。畫面上沒有任何有人數的流向時照全城比例。
+ */
+export function flowScale(
+  mode: FlowMode,
+  flows: readonly Pick<FlowFrame, "value">[] | null,
+  cityMax: number,
+  cityLegend: [number, number, number],
+): FlowScale {
+  if (mode === "city") return { max: cityMax, legend: cityLegend, local: false };
+  const top = (flows ?? []).reduce((m, f) => (f.value !== null && f.value > m ? f.value : m), 0);
+  if (!(top > 0)) return { max: cityMax, legend: cityLegend, local: false };
+  const [a, b] = legendValues(top);
+  return { max: top, legend: [Math.min(a, top), Math.min(b, top), top], local: true };
 }
 
 // ── 靜態模式的光帶（3.3）：光點換成依人數分級粗細的靜態光帶（diorama-game-juice「減少動態」） ──
@@ -453,14 +484,13 @@ export function bandWidth(value: number | null, legend: readonly [number, number
 
 // ── 圖例的顏色說明（3.3；走查 F5）：文字跟著模式換。3.6 加選區模式（藍＝這區的人去哪、橘紅＝誰來這裡）。 ──
 
-export type FlowMode = "city" | "district";
-
 export const FLOW_KEYS: Record<FlowMode, { token: string; label: string }[]> = {
   city: [{ token: "--flow-neutral", label: "橘＝全城流向" }],
   district: [
     { token: "--flow-out", label: "藍＝這區的人去哪" },
     { token: "--flow-in", label: "橘紅＝誰來這裡" },
   ],
+  station: [{ token: "--flow-out", label: "藍＝從這站去哪" }],
 };
 
 /** 緞帶、光點、標籤的顏色 token：去哪藍、誰來橘紅、全城橘（DESIGN.md 色票）。 */
@@ -484,7 +514,7 @@ export interface StationFrame {
   token: string;
   /** 廣場：最後一條路線的色 token（轉乘站看得到兩種顏色；單線站同 token） */
   plazaToken: string;
-  /** 此刻進出人數（traits.ts stationVolume）；停止營運為 null */
+  /** 這小時進出人數（traits.ts stationVolume）；停止營運為 null */
   value: number | null;
   /** 這個日型的全日進出（停止營運的小時跳過；名牌挑「重要的站」用） */
   dayTotal: number;
@@ -539,7 +569,7 @@ export function stationIndex(file: StationsFile, stationLines: Record<string, Li
 
 /**
  * 站的 frame：district 給一區的站（3.6 行政區卡、展開），null 給全部的站（3.1 車站柱）。
- * 位置、路線色與此刻進出都從 stations.json＋basemap.json 的 stationLines 來（traits.ts，AD-26）。
+ * 位置、路線色與這小時進出都從 stations.json＋basemap.json 的 stationLines 來（traits.ts，AD-26）。
  */
 export function stationFrames(index: StationIndex, district: string | null, dayType: DayType, hour: number): StationFrame[] {
   const list = district === null ? index.stations.map((_, i) => i) : (index.byDistrict.get(district) ?? []);
@@ -562,7 +592,7 @@ export function stationFrames(index: StationIndex, district: string | null, dayT
   });
 }
 
-// ── 車站柱（3.1）：柱高＝此刻進出人數。人數決定的高度不是高程，不經 elevation()、不乘地形倍數（AD-12）。 ──
+// ── 車站柱（3.1）：柱高＝這小時進出人數。人數決定的高度不是高程，不經 elevation()、不乘地形倍數（AD-12）。 ──
 
 /** 0 人時的柱高（場景單位）：最矮但看得到，和停止營運（沒有柱）分得出來（AD-5）。 */
 export const PILLAR_MIN = 0.35;

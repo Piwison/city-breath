@@ -49,7 +49,7 @@ function station(over: Partial<Station> = {}): Station {
   };
 }
 
-describe("stationVolume（此刻進出）", () => {
+describe("stationVolume（這小時進出）", () => {
   it("這一小時＝進＋出", () => {
     expect(stationVolume(station(), "weekday", 8)).toEqual({ value: 150, entries: 100, exits: 50, entriesOnly: false });
   });
@@ -81,7 +81,7 @@ describe("busiestStations（這區最忙）", () => {
 });
 
 describe("daySeries（整天長條）", () => {
-  it("24 格＝每小時的此刻進出；停止營運是 null", () => {
+  it("24 格＝每小時的進出；停止營運是 null", () => {
     const s = daySeries(station(), "weekday");
     expect(s).toHaveLength(24);
     expect(s[8]).toBe(150);

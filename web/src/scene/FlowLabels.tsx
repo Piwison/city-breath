@@ -1,4 +1,5 @@
-// 流向的弧頂標籤（3.21 從 Flows.tsx 拆出，行為不變）：前三大的人數標籤 DOM（Canvas 外）與每格的投影、避讓。
+// 流向的弧頂標籤（3.21 從 Flows.tsx 拆出）：前三大的人數標籤 DOM（Canvas 外）與每格的投影、避讓。
+// 選了區時這區的站名優先（產品計畫 v2 決定 5）：流向標籤避開已放的站名（board.stationRects，上一格 Stations 放的）。
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { Matrix4, Vector3 } from "three";
@@ -76,7 +77,7 @@ export function FlowLabelProjector({
   }, [top, names, els]);
 
   const P = useMemo(() => new Vector3(), []);
-  const last = useRef({ m: new Matrix4(), w: 0, h: 0, top: null as Arc[] | null, visible: false, safe: -1 });
+  const last = useRef({ m: new Matrix4(), w: 0, h: 0, top: null as Arc[] | null, visible: false, safe: -1, sv: -1 });
   // 標籤大小只在文字換了之後量一次（量的時候要先顯示），鏡頭移動時不再逼瀏覽器重排
   const dims = useRef<{ top: Arc[] | null; wh: [number, number][] }>({ top: null, wh: [] });
   useFrame(({ camera, size }) => {
@@ -84,7 +85,11 @@ export function FlowLabelProjector({
     const visible = layerOn && sleepAt(time.t, getView().dayType, reduced) < 0.5;
     const L = last.current;
     const safeKey = board.safeTop * 10000 + board.safeBottom;
+    // 選了區：站名先放，流向標籤讓路；站名換了位置就重算
+    const stationFirst = getView().district !== null;
+    const sv = stationFirst ? board.stationVersion : -1;
     if (
+      L.sv === sv &&
       L.top === top &&
       L.visible === visible &&
       L.safe === safeKey &&
@@ -99,6 +104,7 @@ export function FlowLabelProjector({
     L.top = top;
     L.visible = visible;
     L.safe = safeKey;
+    L.sv = sv;
     if (visible && dims.current.top !== top) {
       dims.current.top = top;
       dims.current.wh = els.current.map((el, k) => {
@@ -107,7 +113,7 @@ export function FlowLabelProjector({
         return [el.offsetWidth || 90, el.offsetHeight || 34];
       });
     }
-    const taken: [number, number, number, number][] = [];
+    const taken: [number, number, number, number][] = stationFirst ? [...board.stationRects] : [];
     els.current.forEach((el, k) => {
       if (!el) return;
       const a = top[k];
@@ -136,7 +142,7 @@ export function FlowLabelProjector({
       taken.push(spot.rect);
       el.style.transform = `translate(${spot.x.toFixed(1)}px, ${spot.y.toFixed(1)}px) translate(-50%, -100%)`;
     });
-    board.rects = taken;
+    board.rects = stationFirst ? taken.slice(board.stationRects.length) : taken;
     board.version++;
   });
   return null;

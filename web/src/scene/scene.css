@@ -203,6 +203,13 @@
 .legend .lrow { display: flex; flex-basis: 100%; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .legend .bar { display: inline-block; width: 22px; border-radius: var(--radius-pill); background: var(--flow-neutral); }
 .legend .dotk { width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--flow-neutral); box-shadow: 0 0 0 2px var(--hud-chip); }
+/* 柱高（決定 4）：細柱＋站珠的小圖示，和場景裡的車站同一個樣子 */
+.legend .pillark {
+  width: 7px;
+  height: 12px;
+  background: linear-gradient(90deg, transparent 0 36%, var(--hud-muted) 36% 64%, transparent 64%) bottom / 100% 9px no-repeat,
+    radial-gradient(circle at 50% 3px, var(--hud-ink) 0 2.6px, transparent 3px);
+}
 .legend .sep { width: 1px; height: 10px; background: var(--hud-line); }
 /* 顏色代表什麼（3.3／走查 F5）：色塊＋「橘＝全城流向」，3.6 加去哪、誰來 */
 .legend .key { color: var(--hud-ink); font-weight: 700; }
@@ -291,14 +298,31 @@
 }
 .scene-dock .scrub-row { align-items: flex-start; gap: 8px; }
 .scene-dock .scrub-wrap { position: relative; flex: 1; min-width: 0; display: grid; gap: 2px; }
+/* 拖曳條：看得到的是 22px 的天色條（.scrub-wrap::before，底色由 TimeBar 寫進 --scrub-bg），
+   點得到的是整個 --tap-min 高的 input（決定 25：次要點擊目標至少 36px），上下各伸出去、不改版面 */
+.scene-dock .scrub-wrap::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22px;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hud-line);
+  background: var(--scrub-bg);
+  pointer-events: none;
+}
 .scene-dock .scrub {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   min-width: 0;
-  height: 22px;
-  margin: 0;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--hud-line);
+  height: var(--tap-min);
+  margin: calc((22px - var(--tap-min)) / 2) 0;
+  border: 0;
+  background: transparent;
   -webkit-appearance: none;
   appearance: none;
   cursor: pointer;
@@ -323,6 +347,7 @@
 /* 停止營運（資料整格 null 的小時）：斜紋疊在拖曳條上，位置和圓鈕中心對齊（TimeBar at()） */
 .scene-dock .scrub-closed {
   position: absolute;
+  z-index: 1;
   top: 1px;
   height: 20px;
   pointer-events: none;
@@ -349,8 +374,8 @@
 .scene-dock .mini.still[aria-pressed="true"] { background: var(--hud-accent); border-color: transparent; color: var(--hud-on); }
 .scene-dock .mini.still[aria-pressed="true"] b { color: var(--hud-on); }
 
-/* 時段名浮出（3.3）與停駛時的睡覺提示（3.4）：上方第二排（此刻最忙，3.10）之下的同一個位置；
-   停駛時段名不浮出，所以兩個不會同時出現。收起時看不見、不接手指 */
+/* 時段名浮出（3.3）與停駛時的睡覺提示（3.4）：上方第二排（這個時段最忙，8.2）之下；睡覺提示 3.21 移到時間軸正上方
+   （決定 8，不蓋住月亮）。停駛時段名不浮出，所以兩個不會同時出現。收起時看不見、不接手指 */
 .period-toast,
 .sleep-hint {
   position: absolute;
@@ -382,8 +407,16 @@
 }
 .period-toast b { font-weight: 700; }
 .period-toast small { font-size: var(--text-xs); color: var(--hud-muted); }
-/* 睡覺提示：比時段名安靜（不浮出又收起，整段停駛都在），一彎月亮＋字，不搶畫面 */
-.sleep-hint { align-items: center; gap: 6px; }
+/* 睡覺提示：比時段名安靜（不浮出又收起，整段停駛都在），一彎月亮＋字，不搶畫面。
+   位置：時間軸（或小卡）正上方 8px（決定 8）；--dock-top＝畫面底到時間軸上緣的距離，ScenePage 量好寫在 .scene-page 上；
+   出現時由下往上浮 8px（減少動態時 --dur-enter 歸零＝直接出現） */
+.sleep-hint {
+  top: auto;
+  bottom: calc(var(--dock-top, 170px) + 8px);
+  align-items: center;
+  gap: 6px;
+  transform: translate(-50%, 8px);
+}
 .sleep-hint b { font-weight: 600; }
 .sleep-hint small { font-size: var(--text-xs); color: var(--hud-muted); }
 .sleep-hint .moon {

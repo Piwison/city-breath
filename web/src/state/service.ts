@@ -1,4 +1,4 @@
-// 營運時段（3.4 城市睡覺）：這個日型、這個小時有沒有停駛，第一班車約幾點，場景此刻入睡多少。
+// 營運時段（3.4 城市睡覺）：這個日型、這個小時有沒有停駛，第一班車約幾點，場景入睡多少。
 // 停駛只看資料（district-flows.json 整小時 null，AD-5），不寫死 2–4 點；第一班車只看 basemap.json 的官方班距。
 // 資料載入後由 ScenePage 呼叫 setService()；還沒載入時一律當作營運中（不顯示睡覺狀態）。
 //
@@ -63,7 +63,7 @@ export function sleepAt(t: number, dayType: DayType, reduced = false): number {
   return sleepLevel(t, closedRangesOf(dayType), reduced ? 0 : SLEEP_RAMP);
 }
 
-/** React：現在的小時是否停駛。 */
+/** React：目前的小時是否停駛。 */
 export function useClosed(): boolean {
   const hour = useView((s) => s.hour);
   const dayType = useView((s) => s.dayType);

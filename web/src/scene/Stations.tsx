@@ -1,10 +1,13 @@
 // 車站（3.1，取代 3.6 的 DistrictStations）：每站「廣場＋細柱＋站珠」，全部 120 站用三個 InstancedMesh（AD-6、AD-11）。
-// 柱高＝此刻進出人數（views.ts pillarAt：stations.json，平方根比例，不乘地形倍數，AD-12）；停止營運時柱收進廣場、
+// 柱高＝這小時進出人數（views.ts pillarAt：stations.json，平方根比例，不乘地形倍數，AD-12）；停止營運時柱收進廣場、
 // 站珠熄燈（AD-5），和 3.4 城市睡覺用同一條入睡曲線（state/service.ts sleepAt：停駛前淡出、減少動態時直接切換）。站在台地上（levelHeight → elevation()），跟著行政區抬起與按壓（lift.ts）。
 // 廣場與站珠是路線色（--line-*，AD-21），細柱是 --station；夜裡站珠以路線色自發光（天光：夜裡亮的是窗、站珠、列車）。
 // 放大或選了區才點得到、才標站名，只標重要的（stationRules.ts）；點站時站珠彈一下（gsap），減少動態或靜態模式時直接切換。
 // 只吃 views.ts 的 StationFrame（AD-19）；站屬哪區只看 stations.json 的 district（AD-9）。
-// 第一班車（3.14）：播放中走過第一班車的整點，站珠從台北車站往外依距離彈一下、亮一下（firstTrain.ts；Trains 觸發）。
+// 第一班車（3.14）：播放中走過第一班車的整點，站珠從台北車站往外依距離彈一下、亮一下（firstTrain.ts；Trains 觸發）；
+// 全景時波紋加大（3.21 預設）。
+// 產品計畫 v2（3.21）：全城視角不畫站柱（決定 3），放大到門檻、選了區（那區的站）或選中的站才長出來，約 0.4 秒，
+// 減少動態時直接出現；站珠與廣場一直都在。選了區時這區的站名先放、流向標籤讓路（決定 5），名牌依全日人數挑。
 import { useFrame, useThree } from "@react-three/fiber";
 import gsap from "gsap";
 import { useEffect, useMemo, useRef } from "react";
@@ -14,12 +17,12 @@ import { sleepAt } from "../state/service";
 import { getView, time, useView } from "../state/view";
 import { sunAt } from "./daylight";
 import type { LabelBoard } from "./DistrictLabels";
-import { waveAt, waveGlow, waveRunning, WAVE_ORIGIN } from "./firstTrain";
+import { waveAt, waveGlow, wavePulseAt, waveRunning, WAVE_ORIGIN, WAVE_WIDE } from "./firstTrain";
 import type { LegendLink } from "./FlowLegend";
 import { lifts, liftOf } from "./lift";
 import { levelHeight, project, terrainLevelAt } from "./projection";
 import { useTier, type Tier } from "./quality";
-import { chooseStationLabels, isZoomed, labelTier, stationPickable, type LabelCandidate } from "./stationRules";
+import { chooseStationLabels, isZoomed, labelTier, pillarShown, PILLAR_GROW_RATE, stationPickable, type LabelCandidate } from "./stationRules";
 import { TILE_TOP } from "./Terrain";
 import { useTokenColor, useTokenColors } from "./useTokenColor";
 
@@ -223,6 +226,8 @@ export function Stations({
   const st = useRef({
     shown: new Float32Array(0),
     open: new Float32Array(0),
+    /** 站柱長出的程度 0–1（決定 3） */
+    grow: new Float32Array(0),
     colors: null as unknown,
     colorStation: undefined as string | null | undefined,
     index: null as StationIndex | null,
@@ -243,6 +248,7 @@ export function Stations({
     if (reset) {
       S.shown = new Float32Array(n);
       S.open = new Float32Array(n);
+      S.grow = new Float32Array(n);
       S.index = index;
       S.meshes = meshes;
     }
@@ -264,6 +270,17 @@ export function Stations({
     let moved = reset;
     let recolor = reset;
     let openSum = 0;
+    // 站柱：全城視角收起，放大、選區、選站才長出來（決定 3）
+    const zoomed = isZoomed(scale.px);
+    const kg = calm || reset ? 1 : 1 - Math.exp(-dt * PILLAR_GROW_RATE);
+    for (let i = 0; i < n; i++) {
+      const f = frames[i];
+      const g = pillarShown({ zoomed, district: v.district, station: v.station, id: f.id, stationDistrict: f.district }) ? 1 : 0;
+      let dg = (g - S.grow[i]) * kg;
+      if (Math.abs(g - S.grow[i] - dg) < 1e-3) dg = g - S.grow[i];
+      if (dg !== 0) moved = true;
+      S.grow[i] += dg;
+    }
     for (let i = 0; i < n; i++) {
       pillarAt(index, frames[i].index, v.dayType, t, smooth, want);
       const dh = (want.height * awake - S.shown[i]) * k;
@@ -279,7 +296,8 @@ export function Stations({
     // 第一班車波紋（減少動態或靜態模式時不彈：站珠照停駛結束直接亮）；結束後再多寫一格回到 1
     const waving = !calm && waveRunning(clock.elapsedTime, wave.max);
     const waveDirty = waving || S.waved;
-    if (waveDirty) for (let i = 0; i < n; i++) wave.pulse[i] = waving ? waveAt(clock.elapsedTime, wave.dist[i] ?? 0) : 1;
+    if (waveDirty)
+      for (let i = 0; i < n; i++) wave.pulse[i] = waving ? wavePulseAt(waveAt(clock.elapsedTime, wave.dist[i] ?? 0), zoomed) : 1;
 
     // 矩陣：廣場貼地、細柱依高度、站珠在柱頂上；整區抬起時跟著抬、按壓時跟著壓扁（地塊的 group 以 y=0 縮放）
     const matKey = `${liftKey}|${station}|${pop.v.toFixed(3)}`;
@@ -290,7 +308,7 @@ export function Stations({
         const g = spots[i];
         const press = lifts.press.get(f.district) ?? 1;
         const base = g.ground * press + liftOf(f.district);
-        const h = S.shown[i];
+        const h = S.shown[i] * S.grow[i];
         o.position.set(g.x, base, g.z);
         o.scale.set(1, 1, 1);
         o.updateMatrix();
@@ -317,7 +335,7 @@ export function Stations({
       for (let i = 0; i < n; i++) {
         c.copy(beadColors[i] ?? glow).lerp(stationColor, CLOSED_FADE * (1 - S.open[i]));
         if (frames[i].id === station) c.lerp(glow, 0.45);
-        if (waveDirty) c.lerp(glow, waveGlow(wave.pulse[i]));
+        if (waveDirty) c.lerp(glow, waveGlow(1 + (wave.pulse[i] - 1) / (zoomed ? 1 : WAVE_WIDE)));
         meshes.bead.setColorAt(i, c);
       }
       if (meshes.bead.instanceColor) meshes.bead.instanceColor.needsUpdate = true;
@@ -330,23 +348,25 @@ export function Stations({
     // 名牌與可點的站：鏡頭、畫面、柱高、抬起、選取或流向標籤變了才重算
     const L = last.current;
     const key = `${station}|${district}|${board.safeTop}|${board.safeBottom}`;
-    if (!moved && !popping && L.key === key + liftKey && L.bv === board.version && L.w === size.width && L.h === size.height && L.m.equals(camera.matrixWorld) && link.els.size === L.els)
+    // 選了區：站名先放，不看流向標籤（決定 5），所以流向標籤變了也不必重算（否則兩邊會每格互相觸發）
+    const first = district !== null;
+    const bv = first ? -2 : board.version;
+    if (!moved && !popping && L.key === key + liftKey && L.bv === bv && L.w === size.width && L.h === size.height && L.m.equals(camera.matrixWorld) && link.els.size === L.els)
       return;
     L.key = key + liftKey;
-    L.bv = board.version;
+    L.bv = bv;
     L.w = size.width;
     L.h = size.height;
     L.m.copy(camera.matrixWorld);
     L.els = link.els.size;
 
-    const zoomed = isZoomed(scale.px);
     const cands: LabelCandidate[] = [];
     const pick: StationLink["spots"] = [];
     for (let i = 0; i < n; i++) {
       const f = frames[i];
       const g = spots[i];
       const press = lifts.press.get(f.district) ?? 1;
-      const top = g.ground * press + liftOf(f.district) + 0.08 + S.shown[i] + BEAD_GAP;
+      const top = g.ground * press + liftOf(f.district) + 0.08 + S.shown[i] * S.grow[i] + BEAD_GAP;
       P.set(g.x, top, g.z).project(camera);
       const sx = (P.x * 0.5 + 0.5) * size.width;
       const sy = (-P.y * 0.5 + 0.5) * size.height;
@@ -362,7 +382,7 @@ export function Stations({
     const placed = chooseStationLabels(
       cands,
       { width: size.width, height: size.height, top: board.safeTop, bottom: board.safeBottom },
-      board.rects,
+      first ? [] : board.rects,
     );
     // 點站名也算點那一站（名牌中心也是一個點擊位置；名牌只出現在點得到的站）
     const pickable = new Set(pick.map((p) => p.id));

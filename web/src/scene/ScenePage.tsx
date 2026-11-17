@@ -146,6 +146,7 @@ function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
         lineNames={data.lineNames}
         districtNames={data.districtNames}
         backTo={district ? data.districtNames.get(district) : undefined}
+        legend={legend}
       />
     );
   if (data && district)
@@ -161,7 +162,7 @@ function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
     );
   return (
     <TimeBar month={data?.month} source={data?.flows}>
-      <FlowLegend source={data?.flows} link={legend} />
+      <FlowLegend source={data?.flows} stations={data?.stations} link={legend} />
     </TimeBar>
   );
 }
@@ -189,6 +190,7 @@ export default function ScenePage() {
   const cardOpen = useView((s) => s.district !== null || s.station !== null);
   const top = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
+  const main = useRef<HTMLElement>(null);
 
   // 開場讀網址（停在網址的時刻與日型），之後使用者操作後把 hour、dayType 寫回網址（AD-16）
   useEffect(() => {
@@ -206,6 +208,8 @@ export default function ScenePage() {
       const d = bottom()?.getBoundingClientRect();
       overlays.board.safeTop = t ? Math.round(t.bottom) + 6 : 0;
       overlays.board.safeBottom = d ? Math.round(d.top) - 6 : innerHeight;
+      // 停駛提示放在時間軸（或小卡）正上方（決定 8）：畫面底到它上緣的距離交給 CSS
+      if (d) main.current?.style.setProperty("--dock-top", `${Math.round(innerHeight - d.top)}px`);
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -256,7 +260,7 @@ export default function ScenePage() {
   if (!webgl) return <SceneFallback />;
 
   return (
-    <main className="scene-page">
+    <main ref={main} className="scene-page">
       <SceneBoundary>
         {data && (
           <Canvas
@@ -265,7 +269,7 @@ export default function ScenePage() {
             shadows="percentage"
             gl={GL}
             camera={CAMERA}
-            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線、示意的建築與樹、示意的列車（間隔依官方班距）與飄過的雲、依此刻進出人數升降的車站柱，以及 ${data.month} 各行政區之間人數最多的流向；點一個行政區看這區的人去哪、誰來這裡，放大後可點車站`}
+            aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線、示意的建築與樹、示意的列車（間隔依官方班距）與飄過的雲、依這小時進出人數升降的車站柱（放大或點一區才出現），以及 ${data.month} 各行政區之間人數最多的流向；點一個行政區看這區的人去哪、誰來這裡，放大後可點車站`}
             role="img"
             onPointerDown={() => setPlaying(false)}
           >

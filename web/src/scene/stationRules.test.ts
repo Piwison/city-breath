@@ -1,6 +1,6 @@
 // 3.1 車站的點擊與名牌規則。
 import { describe, expect, it } from "vitest";
-import { chooseStationLabels, GENERAL_LABELS, isZoomed, labelTier, stationPickable, ZOOM_PX, type LabelCandidate } from "./stationRules";
+import { chooseStationLabels, GENERAL_LABELS, isZoomed, labelTier, pillarShown, stationPickable, ZOOM_PX, type LabelCandidate } from "./stationRules";
 
 const area = { width: 390, height: 844, top: 100, bottom: 700 };
 const cand = (id: string, x: number, y: number, tier: 0 | 1 | 2, rank = 0, front = true): LabelCandidate => ({
@@ -101,5 +101,23 @@ describe("chooseStationLabels（避開重疊、只標重要的）", () => {
         const [bx, by, bw, bh] = out[b].rect;
         expect(Math.abs(ax - bx) < (aw + bw) / 2 && Math.abs(ay - by) < (ah + bh) / 2).toBe(false);
       }
+  });
+});
+
+describe("pillarShown（決定 3：全城視角不畫站柱）", () => {
+  const base = { zoomed: false, district: null, station: null, id: "s1", stationDistrict: "A" };
+  it("全城沒放大：沒有站柱", () => {
+    expect(pillarShown(base)).toBe(false);
+  });
+  it("放大到門檻：每站都有", () => {
+    expect(pillarShown({ ...base, zoomed: true })).toBe(true);
+  });
+  it("選了區：只有這區的站長出柱子", () => {
+    expect(pillarShown({ ...base, district: "A" })).toBe(true);
+    expect(pillarShown({ ...base, district: "B" })).toBe(false);
+  });
+  it("選中的站一定有", () => {
+    expect(pillarShown({ ...base, station: "s1" })).toBe(true);
+    expect(pillarShown({ ...base, station: "s2" })).toBe(false);
   });
 });

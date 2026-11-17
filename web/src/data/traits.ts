@@ -1,6 +1,6 @@
-// 站的指標只有這一個出處（AD-26）。3.6 先放「此刻進出」與「這區最忙」；
+// 站的指標只有這一個出處（AD-26）。3.6 先放「這小時進出」與「這區最忙」；
 // 3.12 車站卡的個性（全日人次、假日倍數、早上進出比、晚上與清晨占比，全線排名與「前 20 的特質」）在這裡；
-// 3.10 此刻最忙皇冠、3.9 徽章也加在這裡，大日子時改餵那天的 daily 資料、用同一個函式。
+// 8.2 這個時段最忙皇冠、3.9 徽章也加在這裡，大日子時改餵那天的 daily 資料、用同一個函式。
 // 都是純函式，不寫死站名或數字：換月份就從那個月的 stations.json 重算。
 import type { DayType, Station } from "./types";
 
@@ -27,7 +27,7 @@ const sum = (xs: (number | null)[]) => {
 };
 
 /**
- * 此刻進出（車站卡、行政區卡、站珠共用）：hour 為 "day" 時加總整天（停止營運的小時跳過）。
+ * 這小時進出（車站卡、行政區卡、站珠共用）：hour 為 "day" 時加總整天（停止營運的小時跳過）。
  * 站的進出是站層級總量，不受少於 10 人的限制（AD-3）；整小時 null 就是停止營運，不當 0。
  */
 export function stationVolume(s: Station, dayType: DayType, hour: number | "day"): StationVolume {
@@ -39,7 +39,7 @@ export function stationVolume(s: Station, dayType: DayType, hour: number | "day"
   return { value, entries, exits, entriesOnly: !s.exitsRecorded };
 }
 
-/** 一組站（例如一區的站，stations.json 索引）依此刻進出由多到少；停止營運的站排在最後。 */
+/** 一組站（例如一區的站，stations.json 索引）依這小時進出由多到少；停止營運的站排在最後。 */
 export function busiestStations(
   stations: readonly Station[],
   indices: readonly number[],

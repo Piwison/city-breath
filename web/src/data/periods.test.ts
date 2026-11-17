@@ -104,7 +104,10 @@ describe("firstTrainHour（3.4，只看官方班距）", () => {
 
 describe("sleepHint", () => {
   it("推得出第一班車就附時間，否則只寫停駛中", () => {
-    expect(sleepHint(6)).toEqual({ title: "捷運停駛中", sub: "約 6 點第一班車" });
+    expect(sleepHint(6)).toEqual({ title: "捷運停駛中", sub: "約 6 點發車" });
+    // 畫面上逐字是「捷運停駛中・約 6 點發車」（SleepHint 以「・」接起來，決定 8）
+    const h = sleepHint(6);
+    expect(`${h.title}・${h.sub}`).toBe("捷運停駛中・約 6 點發車");
     expect(sleepHint(null)).toEqual({ title: "捷運停駛中", sub: null });
   });
 });

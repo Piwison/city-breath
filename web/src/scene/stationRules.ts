@@ -29,6 +29,17 @@ export function stationPickable(o: {
 }
 
 /**
+ * 這一站畫不畫站柱（產品計畫 v2 決定 3）：全城視角不畫（120 根柱子搶畫面，全城要看的是區與區怎麼流動）；
+ * 放大到 ZOOM_PX、站在選中的區、或就是選中的站，才長出來。站珠與廣場一直都在（第一班車的波紋要看得到）。
+ */
+export function pillarShown(o: { zoomed: boolean; district: string | null; station: string | null; id: string; stationDistrict: string }): boolean {
+  return o.zoomed || o.id === o.station || (o.district !== null && o.stationDistrict === o.district);
+}
+
+/** 站柱長出／收起的速度（每秒，指數趨近）：約 0.4 秒到位；減少動態或靜態模式時直接切換。 */
+export const PILLAR_GROW_RATE = 8;
+
+/**
  * 名牌的等級：0＝選中的站（一定標）、1＝選中的區裡的站（全部試著標）、2＝一般（只在放大且沒選區時，取前 GENERAL_LABELS 個）；
  * null＝不標。
  */

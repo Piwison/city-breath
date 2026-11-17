@@ -1,13 +1,17 @@
 // 列車（3.14，示意，AD-23）：沿 basemap.json 的真實軌道雙向跑；同線同向相鄰兩車的間隔＝官方班距的代表值 × 固定比例
 // （data/trains.ts），尖峰較密；班距 null 的小時（營運外）沒有列車，環狀線沒有班距不畫。位置是示意：車在畫面上跑多快、
 // 從哪裡排起都不是真實列車，也不顯示數字、點不到（raycast 關掉）。
-// 全部列車一個 InstancedMesh（AD-6、AD-11）：車身＝路線色（--line-*，instanceColor），夜裡以 --train-glow 乘路線色自發光（天光）。
+// 全部列車一個 InstancedMesh（AD-6、AD-11）：車身＝路線色往 --train-glow 偏亮（--line-*，instanceColor；3.21 和同色軌道分開），
+// 夜裡以 --train-glow 乘車身色自發光（天光）。
 // 高度照 Rails：薄片頂面＋路線浮起，選區時跟著所在的區一起彈起（lift.ts）。
 // 不投影：陰影圖只在光移動時重畫（Daylight），暫停時車還在跑，影子會留在原地。
 // 播放中走過第一班車的整點時觸發站珠波紋（firstTrain.ts，3.4 的 service.ts 同一份班距）。
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CapsuleGeometry, Color, InstancedMesh, MeshStandardMaterial, Object3D } from "three";
+
+/** 車身往 --train-glow 推多少（0＝路線色、1＝全是車燈色）。 */
+const BODY_LIGHTEN = 0.45;
 import { trainGap, trainLines, trainSlots, type TrainGap } from "../data/trains";
 import type { Headway } from "../data/periods";
 import type { TrackView } from "../data/views";
@@ -166,8 +170,10 @@ export function Trains({
 
   // 顏色只從 token 來（AD-8）
   const tokens = useMemo(() => list.map((t) => t.token), [list]);
-  const colors = useTokenColors(tokens);
+  const lineColors = useTokenColors(tokens);
   const glow = useTokenColor("--train-glow");
+  // 車身＝路線色往 --train-glow 推一段（3.21 預設，Piwi 可推翻）：和同色的軌道分得開，一節節的膠囊看得出是車
+  const colors = useMemo(() => lineColors.map((c) => c.clone().lerp(glow, BODY_LIGHTEN)), [lineColors, glow]);
   useEffect(() => {
     (mesh.material as MeshStandardMaterial).emissive.copy(glow);
   }, [mesh, glow]);

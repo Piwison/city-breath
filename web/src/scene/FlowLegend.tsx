@@ -1,13 +1,16 @@
 // 流向圖例（時間軸下方）：顏色代表什麼（依模式換字，3.3／走查 F5）、線寬＝每小時人次（三段，用 views.ts 同一個 ribbonWidth）、
 // 一顆光點＝N 人；靜態模式時光點換成光帶，最後一段改成光帶三級（views.ts bandCuts、BAND_W）。
+// 3.21：選區、選站時線寬用畫面上最大的那條當最粗，圖例寫「最粗 N 人」（決定 7，flowNow.ts 與緞帶同一份）；
+// 加一行柱高「柱子越高人越多」（決定 4，不寫倍數）。
 // 粗細要和畫面一致：ScaleProbe 在 Canvas 裡每格依目前鏡頭算「鏡頭看著的那一點，一個場景單位是幾像素」與
 // 緞帶縮放倍數 k（views.ts ribbonScale：放大時最粗的緞帶不超過 RIBBON_MAX_PX），緞帶、光帶、光點與圖例共用同一組值；
 // 每個 bar 的場景寬放在 data-w，高度直接改 DOM，不經 React。
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
-import { BAND_W, bandCuts, FLOW_KEYS, ribbonScale, ribbonWidth, type FlowMode, type FlowSource } from "../data/views";
+import { BAND_W, bandCuts, FLOW_KEYS, ribbonScale, ribbonWidth, type FlowSource, type StationIndex } from "../data/views";
 import { useView } from "../state/view";
+import { useFlowNow } from "./flowNow";
 
 /** Canvas 內外共用的一個物件：圖例 bar 的 DOM、量到的像素比例與緞帶縮放倍數。 */
 export interface LegendLink {
@@ -20,26 +23,50 @@ export interface LegendLink {
 
 const MIN_PX = 1.5;
 const barPx = (w: number, px: number, k: number) => Math.max(MIN_PX, w * px * k);
-const people = (v: number) => (v >= 1000 ? `${v / 1000} 千` : String(v));
-/** 光帶圖例的短寫（手機一行放得下）：2000 → 2千 */
-const short = (v: number) => (v >= 1000 ? `${v / 1000}千` : String(v));
+const people = (v: number) => (v >= 1000 && v % 100 === 0 ? `${v / 1000} 千` : fmt(v));
+const fmt = (n: number) => Math.round(n).toLocaleString("zh-TW");
+/** 光帶圖例的短寫（手機一行放得下）：2000 → 2千；不是整百的照寫人數 */
+const short = (v: number) => (v >= 1000 && v % 100 === 0 ? `${v / 1000}千` : String(Math.round(v)));
 
-export function FlowLegend({ source, link }: { source?: FlowSource; link: LegendLink }) {
-  const hour = useView((s) => s.hour);
-  const dayType = useView((s) => s.dayType);
+/**
+ * 柱高（決定 4、22 的文字圖例）：維持平方根，只寫「越高人越多」、不寫倍數。
+ * 全城視角不畫站柱（決定 3），所以補一句放大或選區才出現。
+ */
+const PILLAR_ROW = (
+  <div className="lrow">
+    <span className="item">
+      <i className="pillark" aria-hidden="true" />
+      柱子越高人越多（車站這小時進出，放大或選區才出現）
+    </span>
+  </div>
+);
+
+export function FlowLegend({ source, stations, link }: { source?: FlowSource; stations?: StationIndex; link: LegendLink }) {
   const on = useView((s) => s.layers.flow);
   const still = useView((s) => s.still);
-  // 選了區：圖例換成選區模式（藍＝這區的人去哪、橘紅＝誰來這裡，走查 F5），光點換算用畫面上那一組
-  const district = useView((s) => s.district);
-  const mode: FlowMode = district === null ? "city" : "district";
-  if (!source) return <div className="legend" />;
-  if (!on) return <div className="legend">流向已關閉，可從右上角「圖層」打開</div>;
-  const now = district === null ? source.at(dayType, hour) : source.district(dayType, hour, district);
-  if (now.flows === null) return <div className="legend">停止營運：這個時段沒有列車</div>;
+  // 選了區或站：圖例換成那個模式（藍＝這區的人去哪、橘紅＝誰來這裡，走查 F5），線寬與光點換算用畫面上那一組（flowNow.ts）
+  const flow = useFlowNow(source, stations);
+  if (!source || !flow) return <div className="legend" />;
+  if (!on)
+    return (
+      <div className="legend">
+        流向已關閉，可從右上角「圖層」打開
+        {PILLAR_ROW}
+      </div>
+    );
+  const { mode, now, scale } = flow;
+  if (now.flows === null)
+    return (
+      <div className="legend">
+        停止營運：這個時段沒有列車
+        {PILLAR_ROW}
+      </div>
+    );
   if (now.flows.length === 0)
     return (
       <div className="legend">
-        {district === null ? "這一小時，各區之間的流向都少於 10 人" : "這一小時，這區往來各區都少於 10 人"}
+        {mode === "city" ? "這一小時，各區之間的流向都少於 10 人" : mode === "district" ? "這一小時，這區往來各區都少於 10 人" : "這一小時，從這站出發的每個方向都少於 10 人，或還在載入"}
+        {PILLAR_ROW}
       </div>
     );
   link.bars.length = 0;
@@ -58,15 +85,22 @@ export function FlowLegend({ source, link }: { source?: FlowSource; link: Legend
       />
     );
   };
-  const [a, b] = bandCuts(source.legend);
+  const [a, b] = bandCuts(scale.legend);
+  // 選區、選站（決定 7）：最粗的那條就是畫面上最大的流向，寫它的人數；前面再放一段對照（相同就不放）
+  const widths: { v: number; label: string }[] = scale.local
+    ? [
+        ...(scale.legend[1] < scale.max ? [{ v: scale.legend[1], label: people(scale.legend[1]) }] : []),
+        { v: scale.max, label: `最粗 ${fmt(scale.max)} 人` },
+      ]
+    : scale.legend.map((v) => ({ v, label: people(v) }));
   return (
     <div className="legend" aria-label="流向圖例">
       <div className="lrow">
         <span>線寬＝每小時人次</span>
-        {source.legend.map((v, k) => (
+        {widths.map(({ v, label }, k) => (
           <span className="item" key={k}>
-            {bar(ribbonWidth(v, source.max), "bar")}
-            <span className="num">{people(v)}</span>
+            {bar(ribbonWidth(v, scale.max), "bar")}
+            <span className="num">{label}</span>
           </span>
         ))}
       </div>
@@ -103,6 +137,7 @@ export function FlowLegend({ source, link }: { source?: FlowSource; link: Legend
           </span>
         )}
       </div>
+      {PILLAR_ROW}
     </div>
   );
 }

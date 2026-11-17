@@ -124,7 +124,7 @@ export function TimeBar({ month, source, children }: { month?: string; source?: 
             step={0.05}
             defaultValue={time.t}
             aria-label="時間"
-            style={{ background }}
+            style={{ ["--scrub-bg" as string]: background }}
             onChange={(e) => {
               setPlaying(false);
               seek(Number(e.target.value));

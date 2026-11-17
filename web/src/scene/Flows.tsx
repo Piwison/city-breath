@@ -1,7 +1,8 @@
 // 行政區流向（3.5，原型「流向」段移植；3.6 加選區模式）：等比例線寬的緞帶＋尾端箭頭、脈衝光點、前三大弧頂人數。
 // 只吃 views.ts 的 FlowSource／FlowFrame（AD-19）；線寬、前 12 大、去哪／誰來、光點換算、光帶分級都在 views.ts。
 // 全城模式畫前 12 大（橘）；選了區畫這區前 5 去哪（藍）與前 5 誰來（橘紅），端點跟著區抬起（lift.ts）。
-// 選了站（3.12）畫這站這一小時前 5 目的地的站對站緞帶（藍，od 分片），端點在站珠頂上；同一個線寬與光點換算。
+// 選了站（3.12）畫這站這一小時前 5 目的地的站對站緞帶（藍，od 分片），端點在站珠頂上；同一個光點換算。
+// 線寬（3.21 決定 7）：全城＝當月最大；選區、選站＝畫面上最大的那條當最粗（flowNow.ts，圖例同一份）。
 // 雙向的兩條各往前進方向的右側偏移成左右車道（Piwi 2026-11-12）。
 // draw call（AD-6）：所有緞帶本體合成一個 mesh、所有箭頭一個 mesh、所有光點一個 InstancedMesh；顏色放在頂點色
 // （RGBA，聚焦時其他條的 alpha 降低），所以去哪與誰來兩種顏色也不多畫一次。
@@ -15,17 +16,12 @@ import gsap from "gsap";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { CapsuleGeometry, Color, DoubleSide, DynamicDrawUsage, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, Vector3 } from "three";
 import { stationVolume } from "../data/traits";
-import { useOdShard } from "../data/useOdShard";
 import {
   DOT_CAP,
   flowKey,
-  PEOPLE_PER_DOT,
   pillarHeight,
-  stationDestinations,
-  stationFlows,
   stationLabel,
   type BaseView,
-  type FlowHour,
   type FlowKind,
   type FlowSource,
   type StationIndex,
@@ -35,6 +31,7 @@ import { getView, time, useView } from "../state/view";
 import type { LabelBoard } from "./DistrictLabels";
 import { anchorsOf, arcsOf, bez, bezTan, fract, ribbonGeometries, scaleTo, type Paint } from "./flowGeometry";
 import { FlowLabelProjector, type FlowLabelEls } from "./FlowLabels";
+import { useFlowNow } from "./flowNow";
 import { BAND_OPACITY, chevronTexture, DIM, OPACITY, REVEAL, revealAt, SHOWN, withReveal } from "./flowMaterial";
 import { liftTarget } from "./lift";
 import { levelHeight, project, terrainLevelAt } from "./projection";
@@ -51,8 +48,6 @@ const rush = (h: number) => (h >= 7 && h < 10) || (h >= 17 && h < 20);
 
 /** 站對站緞帶的端點在柱頂之上多高：廣場 0.08＋站珠離柱頂 0.2＋站珠半徑 0.27（Stations.tsx）。 */
 const STATION_CAP = 0.55;
-/** 選了站、分片還沒到（或載入失敗）時：不畫緞帶（不是停止營運）。 */
-const NO_FLOWS: FlowHour = { flows: [], perDot: PEOPLE_PER_DOT, counts: [] };
 
 interface FlowsProps {
   view: BaseView;
@@ -75,14 +70,11 @@ export function Flows({ view, source, stations, labels, board, scale, reduced }:
   const district = useView((s) => s.district);
   const station = useView((s) => s.station);
   const focus = useView((s) => s.focus);
-  // 選了站（3.12）：流向換成這站這一小時前 5 目的地（od 分片，和車站卡共用同一份快取）
-  const od = useOdShard(stations.month, station);
-  const origin = station === null ? undefined : stations.byId.get(station);
-  const stationNow = useMemo(() => {
-    if (origin === undefined) return null;
-    if (od.status !== "ok") return NO_FLOWS;
-    return stationFlows(stationDestinations(od.shard, origin, dayType, hour), origin, stations.stations);
-  }, [origin, od, dayType, hour, stations]);
+  // 這一小時要畫的流向與線寬比例（flowNow.ts，圖例共用）：選了站（3.12）換成這站前 5 目的地（od 分片）；
+  // 選區、選站時最粗＝畫面上最大的那條（決定 7），全城＝當月最大
+  const flowNow = useFlowNow(source, stations)!;
+  const { now, scale: flowScale } = flowNow;
+  const stationNow = flowNow.mode === "station" ? now : null;
   const neutral = useTokenColor("--flow-neutral");
   const outColor = useTokenColor("--flow-out");
   const inColor = useTokenColor("--flow-in");
@@ -122,7 +114,6 @@ export function Flows({ view, source, stations, labels, board, scale, reduced }:
       ]),
     [view, stations],
   );
-  const now = stationNow ?? (district === null ? source.at(dayType, hour) : source.district(dayType, hour, district));
   const frames = useMemo(() => {
     if (!now.flows) return null;
     const flows = [...now.flows];
@@ -139,8 +130,8 @@ export function Flows({ view, source, stations, labels, board, scale, reduced }:
     return { flows, counts };
   }, [now, focus, source, dayType, hour, district, stationNow]);
   const arcs = useMemo(
-    () => (frames ? arcsOf(frames.flows, frames.counts, source.max, anchors, source.legend) : []),
-    [frames, source, anchors],
+    () => (frames ? arcsOf(frames.flows, frames.counts, flowScale.max, anchors, flowScale.legend) : []),
+    [frames, flowScale, anchors],
   );
   const focused = focus !== null && arcs.some((a) => a.key === focus) ? focus : null;
 
@@ -203,7 +194,7 @@ export function Flows({ view, source, stations, labels, board, scale, reduced }:
   // 換情境時從起點畫出去（diorama-game-juice「流向」）；開場與整點更新不畫。layout effect：新幾何的第一格就從 0 開始。
   const calm = still || reduced;
   // 選站換成站對站（3.12）：換站、分片到了也算換情境，緞帶從這站畫出去
-  const context = `${district}|${station}|${od.status === "ok"}|${dayType}|${focus}`;
+  const context = `${district}|${station}|${flowNow.shardReady}|${dayType}|${focus}`;
   const lastContext = useRef(context);
   useLayoutEffect(() => {
     if (lastContext.current === context) return;
