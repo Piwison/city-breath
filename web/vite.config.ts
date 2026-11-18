@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { loadEnv, type Plugin } from "vite";
 import { defineConfig } from "vitest/config";
