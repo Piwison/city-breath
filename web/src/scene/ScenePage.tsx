@@ -18,10 +18,11 @@ import { getView, restoreSelection, setDayType, setMonth, setPlaying, useView } 
 import { monthLabel } from "../card/DistrictCard";
 import { whenLabel } from "../data/periods";
 import { SharePanel, ShareIcon, type ShareTarget } from "../share/SharePanel";
+import { searchModel, type SearchModel } from "../data/stationSearch";
+import { FindStation } from "../find/FindStation";
 import { Blocks } from "./Blocks";
 import { CameraRig, type CameraLink } from "./CameraRig";
 import { Clouds } from "./Clouds";
-import { CommuteEntry } from "./CommuteEntry";
 import { Daylight, type FrameLight } from "./Daylight";
 import { DistrictLabelLayer, DistrictLabelProjector, type LabelBoard, type LabelEls } from "./DistrictLabels";
 import { DistrictLift, type PressLink } from "./DistrictLift";
@@ -153,6 +154,8 @@ type Loaded = {
   headway: BasemapFile["headway"];
   /** months.json 列的所有月份（分享連結的月份檢查，3.15） */
   months: string[];
+  /** 「找你的站」的搜尋模型（4.1：依路線分組、站序照路線） */
+  search: SearchModel;
 };
 
 /** 上方「分享這一刻」（3.15，DESIGN.md 上方一排）：沒開卡時才有；按了停在這一刻、開分享面板（只有複製連結）。 */
@@ -297,28 +300,41 @@ export default function ScenePage() {
     return syncUrl();
   }, [data, reduced]);
 
-  // 流向標籤的安全區：上方 HUD 的下緣到時間軸（或小卡）的上緣；畫面、HUD 大小變了或換成小卡就重量。
+  // 流向標籤的安全區：上方 HUD 的下緣到時間軸（或小卡）的上緣；主按鈕「找你的站」出現時到它的上緣（4.1）。
+  // 畫面、HUD 大小變了或換成小卡就重量。
   // 小卡兩段高度（3.22）只動 transform（大小不變），所以換段、拖曳結束與滑動結束（transitionend）也重量：標籤讓路到卡片上方
   // 時要跟著卡片的上緣（體驗原則 5）。
   useEffect(() => {
     const bottom = () => dock.current?.querySelector<HTMLElement>(".scene-dock, .card") ?? null;
+    const findMain = () => dock.current?.querySelector<HTMLElement>(".find-main") ?? null;
     const measure = () => {
       const t = top.current?.getBoundingClientRect();
       const d = bottom()?.getBoundingClientRect();
+      const f = findMain()?.getBoundingClientRect();
+      const edge = d ? (f && f.height > 0 ? Math.min(d.top, f.top) : d.top) : innerHeight;
       overlays.board.safeTop = t ? Math.round(t.bottom) + 6 : 0;
-      overlays.board.safeBottom = d ? Math.round(d.top) - 6 : innerHeight;
-      // 停駛提示放在時間軸（或小卡）正上方（決定 8）：畫面底到它上緣的距離交給 CSS
+      overlays.board.safeBottom = Math.round(edge) - 6;
+      // 主按鈕放在時間軸正上方；停駛提示（決定 8）再往上，放在主按鈕（沒有主按鈕時是時間軸或小卡）正上方：距離交給 CSS
       if (d) main.current?.style.setProperty("--dock-top", `${Math.round(innerHeight - d.top)}px`);
+      main.current?.style.setProperty("--hint-bottom", `${Math.round(innerHeight - edge)}px`);
     };
     measure();
     const ro = new ResizeObserver(measure);
-    for (const el of [top.current, bottom()]) if (el) ro.observe(el);
+    for (const el of [top.current, bottom(), findMain()]) if (el) ro.observe(el);
+    // 主按鈕在搜尋、通勤面板打開時收起、關掉時回來：下方換了元素就重量
+    const mo = new MutationObserver(() => {
+      const f = findMain();
+      if (f) ro.observe(f);
+      measure();
+    });
+    if (dock.current) mo.observe(dock.current, { childList: true });
     addEventListener("resize", measure);
     const d = dock.current;
     d?.addEventListener("transitionend", measure);
     d?.addEventListener("pointerup", measure);
     return () => {
       ro.disconnect();
+      mo.disconnect();
       removeEventListener("resize", measure);
       d?.removeEventListener("transitionend", measure);
       d?.removeEventListener("pointerup", measure);
@@ -351,6 +367,7 @@ export default function ScenePage() {
           month: districts.month,
           headway: basemap.headway,
           months: monthsList,
+          search: searchModel(stations.stations, basemap.stationLines, basemap.lines),
         });
       })
       .catch((e: Error) => alive && setError(e.message));
@@ -423,7 +440,6 @@ export default function ScenePage() {
         </p>
       )}
       <div ref={top} className="scene-top">
-        <CommuteEntry />
         <button
           type="button"
           className="hud scene-home-btn"
@@ -450,6 +466,8 @@ export default function ScenePage() {
       </div>
       <div ref={dock}>
         <Bottom data={data} legend={overlays.legend} />
+        {/* 下方主按鈕「找你的站」與搜尋、通勤面板（4.1，決定 1） */}
+        <FindStation model={data?.search} stations={data?.stations.stations} month={data?.month} />
       </div>
     </main>
   );

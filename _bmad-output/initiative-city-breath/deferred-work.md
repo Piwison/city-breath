@@ -25,3 +25,7 @@
   summary: 預覽期 robots.txt 的 Disallow all 可能讓 LINE、Threads 的連結預覽抓不到標題與圖，6.4 用真的分享連結確認。
   evidence: 未驗證（maybe-false，若成立為 medium）；尊重 robots.txt 的預覽爬蟲不會抓頁面。在 6.4 把部署網址貼到 LINE 與 Threads 看有沒有預覽即可確認；不行就移除 robots.txt 的 Disallow、只留 X-Robots-Tag: noindex。
   resolution: 2026-11-18 Piwi 同意先移除 Disallow（robots.txt 改 `Allow: /`），只留 X-Robots-Tag: noindex；6.4 仍用真的分享連結確認預覽。
+
+- source_plan: `_bmad-output/initiative-city-breath/tickets/epic-commute-card/tickets/story-untitled-1-plan.md`
+  summary: 找你的站的站序目前由前端用同線各站座標的最小生成樹推出（`web/src/data/stationSearch.ts` lineOrder），可改由管線輸出官方站序（例如 basemap.json 加每線的站 ID 清單）。
+  evidence: 資料契約沒有站序；4.1 不改契約。推出的順序對 2026-09 的八條線都和官方一致（vitest 釘住淡水信義線、文湖線、板南線、中和新蘆線），只有中和新蘆線蘆洲支線的接點落在台北橋而不是大橋頭（清單上支線整段排在主線之後，不影響找站）；新站或路線改線時要再看一次。
