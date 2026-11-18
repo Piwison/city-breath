@@ -6,6 +6,13 @@
 let done = 0;
 let total = 0;
 let finished = false;
+/** 收起載入畫面的時刻（performance.now()，從開始導航起算）；6.4 效能面板顯示成「首次載入秒數」 */
+let doneAt: number | null = null;
+
+/** 首次載入秒數：開始導航 → 載入畫面收起（場景第一格上螢幕，或載入失敗、不支援 WebGL）。還沒收起＝null。 */
+export function bootSeconds(): number | null {
+  return doneAt === null ? null : doneAt / 1000;
+}
 
 function render() {
   const root = document.getElementById("boot");
@@ -36,6 +43,7 @@ export function bootStep<T>(p: Promise<T>): Promise<T> {
 export function bootDone(): void {
   if (finished || typeof document === "undefined") return;
   finished = true;
+  if (typeof performance !== "undefined") doneAt = performance.now();
   const root = document.getElementById("boot");
   if (!root) return;
   const remove = () => root.remove();

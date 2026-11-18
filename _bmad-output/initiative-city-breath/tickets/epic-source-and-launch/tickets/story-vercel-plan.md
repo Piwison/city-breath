@@ -3,7 +3,7 @@ title: '預覽部署：Vercel、計數骨架與品牌載入畫面'
 type: 'feature'
 ticket: '2'
 created: '2026-11-18'
-status: 'built'
+status: done
 baseline_revision: 'a492714542ef4af454d6bcc688346c937c7f0152'
 route: 'full'
 route_source: 'auto'

@@ -97,6 +97,15 @@ export function readQuery(search: string): UrlState {
   return parseQuery(search).state;
 }
 
+/**
+ * 6.4 真機實測：`?debug=perf` 時載入效能面板。只有這個值算數，其他值當作沒有。
+ * debug 不是畫面狀態：不在 UrlState、不進 toQuery，所以分享網址（shareUrl、shareLink）不會帶它；
+ * writeQuery 保留不認得的鍵，所以網址列上的 debug 在操作後還留著（重新整理仍有面板）。
+ */
+export function perfDebug(search: string = typeof location === "undefined" ? "" : location.search): boolean {
+  return new URLSearchParams(search).get("debug") === "perf";
+}
+
 /** 打開連結後要做的事（ScenePage 在資料載入後依這個還原或退回全景）。 */
 export type LinkPlan =
   | { kind: "none" }

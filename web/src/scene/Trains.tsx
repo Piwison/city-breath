@@ -125,6 +125,8 @@ function buildMesh(tier: Tier) {
   const mesh = new InstancedMesh(geo, trainMaterial(), TRAIN_CAP);
   mesh.setColorAt(0, new Color(1, 1, 1));
   mesh.count = 0;
+  // 6.4 效能面板（?debug=perf）用名字找列車數
+  mesh.name = "trains";
   mesh.frustumCulled = false;
   mesh.castShadow = false;
   mesh.receiveShadow = false;

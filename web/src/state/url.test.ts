@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { seek } from "./clock";
 import {
-  clearViewQuery, parseQuery, planLink, readQuery, shareLink, shareUrl, siteLabel, syncUrl, toQuery, URL_WRITE_MS, urlStateOf, writeQuery,
+  clearViewQuery, parseQuery, perfDebug, planLink, readQuery, shareLink, shareUrl, siteLabel, syncUrl, toQuery, URL_WRITE_MS, urlStateOf, writeQuery,
 } from "./url";
 import { getView, restoreSelection, setDayType, setMonth, setPlaying } from "./view";
 
@@ -248,5 +248,35 @@ describe("syncUrl 寫月份、行政區、站（3.15）", () => {
     stop();
     setMonth(null);
     vi.useRealTimers();
+  });
+});
+
+describe("perfDebug（6.4 效能面板）", () => {
+  it("只有 debug=perf 算數", () => {
+    expect(perfDebug("?debug=perf")).toBe(true);
+    expect(perfDebug("hour=8&debug=perf&day=weekday")).toBe(true);
+    expect(perfDebug("")).toBe(false);
+    expect(perfDebug("?debug=")).toBe(false);
+    expect(perfDebug("?debug=PERF")).toBe(false);
+    expect(perfDebug("?debug=perf2")).toBe(false);
+    expect(perfDebug("?perf=1")).toBe(false);
+  });
+  it("debug 不是畫面狀態：parseQuery 不讀它，也不算不合法", () => {
+    expect(parseQuery("?debug=perf&hour=8")).toEqual({ state: { hour: 8 }, invalid: [] });
+  });
+  it("分享網址不帶 debug", () => {
+    const state = readQuery("?debug=perf&month=2026-09&day=weekday&hour=8&station=s560caae9");
+    expect(shareUrl(state, "https://city.example/?debug=perf")).toBe(
+      "https://city.example/?month=2026-09&day=weekday&hour=8&station=s560caae9",
+    );
+    setMonth("2026-09");
+    restoreSelection("63000030", null);
+    expect(shareLink(getView(), "https://city.example/")).not.toContain("debug");
+    restoreSelection(null, null);
+    setMonth(null);
+  });
+  it("網址列上的 debug 在寫回畫面狀態後還留著（重新整理仍有面板）", () => {
+    expect(writeQuery("debug=perf", { hour: 14, dayType: "holiday" })).toBe("day=holiday&hour=14&debug=perf");
+    expect(perfDebug(writeQuery("debug=perf&hour=8", {}, ["hour"]))).toBe(true);
   });
 });

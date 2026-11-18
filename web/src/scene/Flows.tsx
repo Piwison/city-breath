@@ -220,6 +220,8 @@ export function Flows({ view, source, stations, labels, board, scale, reduced }:
     m.count = 0;
     m.frustumCulled = false;
     m.renderOrder = 6;
+    // 6.4 效能面板（?debug=perf）用名字找光點數
+    m.name = "flow-dots";
     return m;
   }, []);
   useEffect(
