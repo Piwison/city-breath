@@ -1,4 +1,4 @@
-# 預覽期（6.2）：整站不給搜尋引擎收錄；vercel.json 另對整站送 X-Robots-Tag: noindex。
-# 6.3 正式上線時改成允許收錄，並拿掉 noindex。
+# 預覽期（6.2）：不擋任何爬蟲，讓 LINE、Threads 等連結預覽抓得到標題與預覽圖（Piwi 2026-11-18）。
+# 不給搜尋引擎收錄改靠 vercel.json 對整站送的 X-Robots-Tag: noindex；6.3 正式上線時拿掉那個標頭。
 User-agent: *
-Disallow: /
+Allow: /
