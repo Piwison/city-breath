@@ -1,0 +1,168 @@
+{
+  "1-main-button": {
+    "text": "找你的站",
+    "box": {
+      "x": 126,
+      "y": 627,
+      "width": 138,
+      "height": 48
+    },
+    "lowerHalf": true,
+    "tall": true,
+    "aboveTimeBar": true,
+    "playing": true,
+    "oldEntry": 0
+  },
+  "2-search-open": {
+    "focused": true,
+    "groups": [
+      "文湖線",
+      "淡水信義線",
+      "新北投支線",
+      "松山新店線",
+      "小碧潭支線",
+      "中和新蘆線",
+      "板南線",
+      "環狀線"
+    ],
+    "stillPlaying": true,
+    "redFirst3": [
+      "象山",
+      "台北101/世貿",
+      "信義安和"
+    ]
+  },
+  "3-zhongxiao": {
+    "found": [
+      "忠孝復興",
+      "忠孝敦化",
+      "忠孝新生"
+    ],
+    "groups": [
+      "文湖線",
+      "中和新蘆線",
+      "板南線"
+    ]
+  },
+  "4-zhongshan": {
+    "groupsWithZhongshan": [
+      "淡水信義線",
+      "松山新店線"
+    ],
+    "all": [
+      {
+        "name": "文湖線",
+        "stations": [
+          "中山國中"
+        ]
+      },
+      {
+        "name": "淡水信義線",
+        "stations": [
+          "中山"
+        ]
+      },
+      {
+        "name": "松山新店線",
+        "stations": [
+          "中山"
+        ]
+      },
+      {
+        "name": "中和新蘆線",
+        "stations": [
+          "中山國小"
+        ]
+      }
+    ]
+  },
+  "5-station-card": {
+    "title": "頂溪",
+    "sheetClosed": true,
+    "mainHidden": true,
+    "url": "http://localhost:4199/?month=2026-09&day=weekday&hour=10&station=sd3f4ec1f"
+  },
+  "6-commute-origin": {
+    "origin": "頂溪",
+    "dest": "選迄站",
+    "hourOptions": [
+      {
+        "label": "2 點・停止營運",
+        "disabled": true
+      },
+      {
+        "label": "3 點・停止營運",
+        "disabled": true
+      },
+      {
+        "label": "4 點・停止營運",
+        "disabled": true
+      }
+    ]
+  },
+  "7-commute-result": {
+    "steps": 3,
+    "result": "平日 10:00，平均 123 人和你一樣從 頂溪 到 台北車站，是這站這時段第 1 熱門的目的地（共 51 個）。",
+    "sheetInView": true,
+    "pageScroll": 0
+  },
+  "8-ring-dest": {
+    "alert": "「板橋（環狀線）」是環狀線的站：環狀線的出站由新北捷運營運、不在這份資料裡，沒有出站紀錄，不能當迄站。",
+    "tag": "不能當迄站",
+    "ringHeader": "環狀線沒有出站紀錄，不能當迄站"
+  },
+  "8b-esc-keeps-card": {
+    "sheet": 0,
+    "card": 1
+  },
+  "9-recent-after-reload": {
+    "stored": "{\"recentStations\":[\"s560caae9\",\"sd3f4ec1f\"]}",
+    "recent": {
+      "name": "最近用過",
+      "stations": [
+        "台北車站",
+        "頂溪"
+      ]
+    }
+  },
+  "10-sixth-pushes-oldest": {
+    "recent": {
+      "name": "最近用過",
+      "stations": [
+        "動物園",
+        "南港",
+        "象山",
+        "淡水",
+        "台北車站"
+      ]
+    },
+    "stored": {
+      "recentStations": [
+        "sf1e99579",
+        "sf6a365a4",
+        "s56204340",
+        "se32cfbc8",
+        "s560caae9"
+      ]
+    },
+    "url": "http://localhost:4199/",
+    "urlHasRecent": false
+  },
+  "11-esc-closes": {
+    "sheet": 0,
+    "main": 1
+  },
+  "12-reduced-motion": {
+    "durations": "0s, 0s",
+    "mainDurations": "0s"
+  },
+  "13-fallback": {
+    "focused": true,
+    "found": [
+      "忠孝復興",
+      "忠孝新生",
+      "忠孝敦化"
+    ]
+  },
+  "errors": []
+}

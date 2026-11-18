@@ -1,4 +1,4 @@
-/* 6.4 效能面板（?debug=perf 才載入）：左上、「找你的通勤」下面，避開瀏海與圓角（safe area）。
+/* 6.4 效能面板（?debug=perf 才載入）：左上（上方第一排下面），避開瀏海與圓角（safe area）。
    不設 z-index：和通勤表單等介面重疊時讓介面蓋在上面。收合時只有一顆 fps 按鈕；展開不做動畫（沒有要給 reduced-motion 的版本），按壓回饋用 --dur-press（減少動態時歸零）。 */
 .perf-panel {
   position: absolute;

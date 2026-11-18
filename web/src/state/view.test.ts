@@ -4,11 +4,13 @@ import {
   clearCommute,
   closeCard,
   getView,
+  openCommute,
   selectDistrict,
   selectStation,
   setFocus,
   setPlaying,
   setRange,
+  setCommute,
   setSheet,
   startCommute,
 } from "./view";
@@ -62,11 +64,25 @@ describe("選取（3.6）", () => {
     selectStation("s1");
     startCommute("s1");
     const a = getView().commute;
-    expect(a).toEqual({ o: "s1" });
+    expect(a).toEqual({ o: "s1", d: null, h: getView().hour });
     startCommute("s1");
     expect(getView().commute).not.toBe(a);
     expect(getView().station).toBe("s1");
     clearCommute();
+    expect(getView().commute).toBeNull();
+  });
+
+  it("打開通勤（4.1）：沒選站時起訖都是空的；已選一站就帶入當起站；改迄站與時段", () => {
+    closeCard();
+    openCommute();
+    expect(getView().commute).toEqual({ o: null, d: null, h: getView().hour });
+    selectStation("s2");
+    openCommute();
+    expect(getView().commute).toMatchObject({ o: "s2", d: null });
+    setCommute({ d: "s3", h: 7 });
+    expect(getView().commute).toEqual({ o: "s2", d: "s3", h: 7 });
+    clearCommute();
+    setCommute({ d: "s4" });
     expect(getView().commute).toBeNull();
   });
 

@@ -408,11 +408,12 @@
 .period-toast b { font-weight: 700; }
 .period-toast small { font-size: var(--text-xs); color: var(--hud-muted); }
 /* 睡覺提示：比時段名安靜（不浮出又收起，整段停駛都在），一彎月亮＋字，不搶畫面。
-   位置：時間軸（或小卡）正上方 8px（決定 8）；--dock-top＝畫面底到時間軸上緣的距離，ScenePage 量好寫在 .scene-page 上；
+   位置：時間軸（或小卡）正上方 8px（決定 8），有主按鈕「找你的站」時在主按鈕正上方（4.1）；--hint-bottom＝畫面底到
+   兩者上緣的距離，ScenePage 量好寫在 .scene-page 上；
    出現時由下往上浮 8px（減少動態時 --dur-enter 歸零＝直接出現） */
 .sleep-hint {
   top: auto;
-  bottom: calc(var(--dock-top, 170px) + 8px);
+  bottom: calc(var(--hint-bottom, var(--dock-top, 170px)) + 8px);
   align-items: center;
   gap: 6px;
   transform: translate(-50%, 8px);
@@ -426,71 +427,6 @@
   border-radius: var(--radius-pill);
   box-shadow: inset -4px 2px 0 0 var(--moon-disc);
 }
-
-/* 左上：「找你的通勤」入口與表單（4.1 換成正式的搜尋入口與通勤卡） */
-.commute-pill {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  left: 12px;
-  height: var(--tap);
-  padding: 0 16px 0 12px;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
-}
-.commute-pill svg { width: 16px; height: 16px; color: var(--commute); }
-.commute-pill[aria-expanded="true"] { border-color: var(--commute); }
-.commute-pill:active { transform: scale(0.97); }
-
-.commute-panel {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 60px);
-  left: 12px;
-  width: min(380px, calc(100vw - 24px));
-  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 220px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 14px;
-}
-.commute-panel .close {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: var(--tap);
-  height: var(--tap);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  display: grid;
-  place-items: center;
-}
-.commute-panel .close svg { width: 14px; height: 14px; }
-.commute-form { display: grid; gap: 10px; }
-.commute-form h2 { font-size: var(--text-md); padding-right: 36px; }
-.commute-form .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.commute-form select {
-  min-height: var(--tap);
-  min-width: 0;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--hud-line);
-  background: var(--hud-chip);
-  font-size: 16px; /* 16px 以上 iOS 才不會放大頁面 */
-}
-.commute-submit {
-  min-height: var(--tap);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--hud-accent);
-  color: var(--hud-on);
-  font-weight: 700;
-  transition: transform var(--dur-press) var(--ease-out);
-}
-.commute-submit:active { transform: scale(0.97); }
-.commute-note, .commute-status { font-size: var(--text-xs); color: var(--hud-muted); }
 
 /* WebGL 不可用時的替代畫面（AD-11） */
 .scene-fallback {

@@ -1,8 +1,8 @@
 // WebGL 不可用（或場景建立失敗）時的替代畫面：靜態說明＋通勤同路人（AD-11）。
-// 首頁就是場景（3.5），所以通勤表單直接放在這裡，不再連回首頁。
+// 首頁就是場景（3.5），所以通勤輸入直接放在這裡，不再連回首頁；起訖站用首頁「找你的站」同一個搜尋（4.1）。
 import { Component, useEffect, type ReactNode } from "react";
 import { bootDone } from "../boot";
-import { CommuteForm } from "../commute/CommuteForm";
+import { FallbackFind } from "../find/FindStation";
 
 export function SceneFallback({ reason }: { reason?: string }) {
   // 替代畫面出現時收起品牌載入畫面（6.2）
@@ -13,7 +13,7 @@ export function SceneFallback({ reason }: { reason?: string }) {
         <h1>城市呼吸</h1>
         <p>這個瀏覽器沒辦法顯示 3D 的台北盆地模型（WebGL 無法使用）。可能是瀏覽器關掉了硬體加速，或裝置不支援。</p>
         <p>每天有多少人跟你同一站上車、同一站下車，一樣查得到。</p>
-        <CommuteForm />
+        <FallbackFind />
         {reason && <p className="scene-fallback-note">{reason}</p>}
       </div>
     </main>

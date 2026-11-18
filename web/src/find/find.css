@@ -1,0 +1,217 @@
+/* 「找你的站」主按鈕、搜尋面板與通勤面板（4.1）。只用 tokens.css 的 token；時長只用 --dur-*（減少動態時歸零＝直接出現）。
+   版面照 DESIGN.md（手機 390×844）：主按鈕在時間軸正上方置中（拇指夠得到，體驗原則 4）；面板從畫面下緣浮起，蓋住時間軸或小卡。 */
+
+/* 主按鈕：--dock-top＝畫面底到時間軸上緣（ScenePage 量）；高 48px（> 44px 的 --tap） */
+.find-main {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--dock-top, 170px) + 10px);
+  translate: -50% 0;
+  height: calc(var(--tap) + 4px);
+  padding: 0 22px 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--hud-accent);
+  color: var(--hud-on);
+  font-size: var(--text-md);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px var(--hud-shadow);
+  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-enter) var(--ease-out),
+    background-color var(--dur-phase) var(--ease-out), color var(--dur-phase) var(--ease-out);
+}
+.find-main svg { width: 18px; height: 18px; }
+.find-main:active:not(:disabled) { transform: scale(0.96); }
+.find-main:disabled { opacity: 0.6; cursor: progress; }
+@starting-style {
+  .find-main { opacity: 0; }
+}
+
+/* 下方面板（搜尋、通勤）：和小卡同寬同位置，蓋在時間軸或小卡上面 */
+.find-sheet {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  max-width: 640px;
+  height: min(72dvh, 640px);
+  margin: 0 auto;
+  padding: 6px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px var(--hud-shadow);
+  transition: translate var(--dur-enter) var(--ease-out), opacity var(--dur-enter) var(--ease-out);
+}
+@starting-style {
+  .find-sheet {
+    translate: 0 24px;
+    opacity: 0;
+  }
+}
+/* 通勤面板：內容少時不必撐滿 */
+.find-sheet[data-wide] { height: auto; max-height: min(72dvh, 640px); }
+/* 通勤面板正在挑起站或迄站：和搜尋面板一樣高，打字時面板不跳 */
+.find-sheet[data-wide]:has(.find-pick) { height: min(72dvh, 640px); }
+.find-sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.find-sheet-head h2 { font-size: var(--text-md); font-weight: 700; }
+.find-close {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  margin-right: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.find-close svg { width: 14px; height: 14px; }
+.find-close:active { transform: scale(0.94); background: var(--hud-chip); }
+
+/* 搜尋 */
+.find-search, .find-pick { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.find-input {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--tap);
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hud-line);
+  background: var(--hud-chip);
+}
+.find-input:focus-within { outline: 2px solid var(--hud-accent); outline-offset: 1px; }
+.find-input svg { flex: none; width: 16px; height: 16px; color: var(--hud-muted); }
+.find-input input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 16px; /* 16px 以上 iOS 才不會放大頁面 */
+}
+.find-input input::placeholder { color: var(--hud-muted); }
+
+.find-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+.find-list ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px; }
+.find-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--hud-muted);
+}
+.find-head small { font-size: var(--text-2xs); font-weight: 400; }
+.find-line { width: 16px; height: 4px; border-radius: var(--radius-pill); }
+.find-item {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--hud-chip);
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-size: var(--text-sm);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.find-item:active { transform: scale(0.97); }
+/* 挑迄站時出站未入檔的站：字變淡，「不能當迄站」放第二行 */
+.find-item[data-blocked] { color: var(--hud-muted); flex-wrap: wrap; row-gap: 0; padding-block: 4px; }
+.find-item small { flex-basis: 100%; font-size: var(--text-2xs); white-space: nowrap; }
+.find-name { min-width: 0; overflow-wrap: anywhere; }
+.find-dots { flex: none; display: inline-flex; gap: 2px; }
+.find-dots i { display: block; width: 8px; height: 8px; border-radius: var(--radius-pill); }
+.find-refused {
+  flex: none;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--hud-chip);
+  box-shadow: inset 3px 0 0 var(--line-y);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+.find-empty { margin: 0; font-size: var(--text-xs); line-height: 1.5; color: var(--hud-muted); }
+.find-link, .find-back {
+  justify-self: start;
+  min-height: var(--tap);
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--hud-accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: left;
+}
+.find-back { flex: none; display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; }
+.find-back svg { width: 16px; height: 16px; }
+
+/* 通勤輸入 */
+.find-sheet .commute-form { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.commute-form { display: grid; gap: 10px; align-content: start; }
+.commute-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.commute-field {
+  min-height: calc(var(--tap) + 14px);
+  min-width: 0;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hud-line);
+  background: var(--hud-chip);
+  color: inherit;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  text-align: left;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+button.commute-field:active { transform: scale(0.98); }
+.commute-field .k { font-size: var(--text-2xs); color: var(--hud-muted); }
+.commute-field .v { font-size: var(--text-md); font-weight: 700; overflow-wrap: anywhere; }
+.commute-field .v[data-empty] { font-weight: 400; color: var(--hud-muted); }
+.commute-hour { grid-column: 1 / -1; }
+.commute-hour select {
+  width: 100%;
+  min-height: var(--tap-min);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 16px; /* 16px 以上 iOS 才不會放大頁面 */
+  font-weight: 700;
+}
+.commute-hour:focus-within { outline: 2px solid var(--hud-accent); outline-offset: 1px; }
+.commute-result { display: grid; gap: 10px; }
+.commute-result p { line-height: 1.6; }
+.commute-note, .commute-status { font-size: var(--text-xs); color: var(--hud-muted); }
+
+/* 替代頁：同一個通勤輸入攤在頁面上；搜尋清單限高、自己捲 */
+.find-inline { display: grid; gap: 10px; }
+.find-inline .find-list { max-height: 60dvh; }

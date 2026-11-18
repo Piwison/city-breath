@@ -1,5 +1,5 @@
 // 畫面狀態的唯一一份（AD-16）。時刻、播放、速度、靜態模式、日型、圖層開關（2.3、3.5、3.3）；
-// 選中的行政區、站、卡片範圍與聚焦的流向（3.6）；通勤的起站（3.12 車站卡寫、4.1 接手）。
+// 選中的行政區、站、卡片範圍與聚焦的流向（3.6）；通勤的起站、迄站與時段（3.12 車站卡帶入起站，4.1 的通勤面板）。
 // month、hour、dayType、district、station 由 state/url.ts 的 syncUrl() 寫回網址（3.3、3.15），之後再加 date、commute。
 // 播放用的連續時間 t 是非 React 欄位（time.t），由 clock.ts 推進；場景在 useFrame 讀它，React 只訂閱整數 hour。
 import { useSyncExternalStore } from "react";
@@ -34,10 +34,10 @@ export interface ViewState {
   /** 聚焦的流向（views.ts flowKey「起區>迄區」，選站時是「起站 ID>迄站 ID」）：這條照常、其他變淡；null＝不聚焦 */
   focus: string | null;
   /**
-   * 通勤（AD-16 的 commute）：3.12 車站卡「從這站找通勤」先寫起站 o（站 ID，AD-2），通勤入口打開並帶入；
-   * 4.1 的「找車站／通勤」入口接手，再加迄站與時段。null＝沒有在找通勤。
+   * 通勤（AD-16 的 commute）：起站 o、迄站 d（站 ID，AD-2；還沒選是 null）與出發時段 h（進站時段，AD-15）。
+   * 非 null＝通勤面板開著（4.1）；車站卡「從這站找通勤」（3.12）帶入起站。4.2 把起訖與時段寫進網址。
    */
-  commute: { o: string } | null;
+  commute: Commute | null;
   /**
    * 小卡的高度（3.22，決定 10）：peek＝摘要（約三分之一），full＝完整（約七成）。不進網址、不保存；
    * 開卡從摘要開始，行政區卡與車站卡之間切換時維持，關卡回到摘要。
@@ -46,6 +46,12 @@ export interface ViewState {
 }
 
 export type SheetDetent = "peek" | "full";
+
+export interface Commute {
+  o: string | null;
+  d: string | null;
+  h: number;
+}
 
 /** 連續時間（0–24 時）：非 React 欄位，每格由 clock 改寫。 */
 export const time = { t: 8 };
@@ -166,12 +172,28 @@ export function setSheet(sheet: SheetDetent) {
   if (sheet !== state.sheet) set({ sheet });
 }
 
-/** 從某站找通勤（3.12 車站卡）：寫起站，通勤入口打開並帶入（4.1 接手）。每次按都是新物件，讓入口再打開一次。 */
-export function startCommute(o: string) {
-  set({ commute: { o } });
+/**
+ * 打開通勤面板（4.1）：起訖預設留空，已選了一站就帶入當起站（不放無關的預設站）；時段先用畫面上的整點。
+ * 每次都是新物件，讓面板再打開一次。
+ */
+export function openCommute(o: string | null = state.station) {
+  set({ commute: { o, d: null, h: state.hour } });
 }
 
-/** 收起通勤（入口關掉時）。 */
+/** 從某站找通勤（3.12 車站卡）：起站＝這站，打開通勤面板。 */
+export function startCommute(o: string) {
+  openCommute(o);
+}
+
+/** 改通勤的起站、迄站或時段（面板沒開時不做事）。 */
+export function setCommute(patch: Partial<Commute>) {
+  const c = state.commute;
+  if (!c) return;
+  const next = { ...c, ...patch };
+  if (next.o !== c.o || next.d !== c.d || next.h !== c.h) set({ commute: next });
+}
+
+/** 收起通勤（面板關掉時）。 */
 export function clearCommute() {
   if (state.commute !== null) set({ commute: null });
 }
