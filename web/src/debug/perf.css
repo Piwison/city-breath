@@ -1,0 +1,67 @@
+/* 6.4 效能面板（?debug=perf 才載入）：左上、「找你的通勤」下面，避開瀏海與圓角（safe area）。
+   不設 z-index：和通勤表單等介面重疊時讓介面蓋在上面。收合時只有一顆 fps 按鈕；展開不做動畫（沒有要給 reduced-motion 的版本），按壓回饋用 --dur-press（減少動態時歸零）。 */
+.perf-panel {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px + var(--tap) + 8px);
+  left: calc(env(safe-area-inset-left, 0px) + 12px);
+  max-width: min(280px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  padding: 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+.perf-panel button {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: transform var(--dur-press) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.perf-panel button:active { transform: scale(0.96); background: var(--hud-chip); }
+
+.perf-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 12px;
+}
+.perf-toggle b { font-size: var(--text-sm); font-weight: 700; }
+.perf-toggle span { color: var(--hud-muted); }
+
+.perf-body { padding: 0 12px 12px; }
+.perf-body dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+.perf-body dt { color: var(--hud-muted); }
+.perf-body dd { margin: 0; text-align: right; font-weight: 700; }
+.perf-body small { font-size: var(--text-2xs); font-weight: 400; color: var(--hud-muted); }
+
+.perf-actions { display: flex; gap: 8px; margin-top: 8px; }
+.perf-actions button {
+  flex: 1;
+  padding: 0 12px;
+  font-weight: 700;
+  background: var(--hud-chip);
+}
+.perf-actions button:first-child { color: var(--hud-on); background: var(--hud-accent); }
+
+.perf-note { margin: 8px 0 4px; color: var(--hud-muted); }
+.perf-body textarea {
+  box-sizing: border-box;
+  width: 100%;
+  /* 16px 以上：iOS 點進文字框才不會自動放大整頁 */
+  font-size: var(--text-md);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--radius-sm);
+  background: var(--hud-chip);
+  user-select: text;
+  -webkit-user-select: text;
+}

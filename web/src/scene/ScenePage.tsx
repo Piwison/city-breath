@@ -3,7 +3,7 @@
 // 點一區：區抬起、鏡頭飛過去、流向換成這區的去哪／誰來、站珠展開；下方時間軸換成行政區卡（點站換成車站小卡）。
 // 車站柱與站珠（3.1）、建築與樹（3.13）；點站開車站卡、流向換成這站前 5 目的地的站對站緞帶（3.12）。列車與雲（3.14，示意）；地標等是之後的票。
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { NeutralToneMapping } from "three";
 import { bootDone } from "../boot";
 import { DistrictCard } from "../card/DistrictCard";
@@ -13,7 +13,7 @@ import type { BasemapFile, DistrictFlowsFile, DistrictsFile, LineId } from "../d
 import { baseView, flowSource, stationIndex, type BaseView, type FlowSource, type StationIndex } from "../data/views";
 import { startClock } from "../state/clock";
 import { setService } from "../state/service";
-import { clearViewQuery, parseQuery, planLink, syncUrl, type ParsedQuery } from "../state/url";
+import { clearViewQuery, parseQuery, perfDebug, planLink, syncUrl, type ParsedQuery } from "../state/url";
 import { getView, restoreSelection, setDayType, setMonth, setPlaying, useView } from "../state/view";
 import { monthLabel } from "../card/DistrictCard";
 import { whenLabel } from "../data/periods";
@@ -120,6 +120,12 @@ function World({
     </>
   );
 }
+
+// 6.4 真機實測：`?debug=perf` 才動態載入效能面板（Canvas 內的探針＋Canvas 外的面板，同一個分包）；
+// 沒帶時不抓那個分包（scripts/check-build.mjs 檢查面板程式不在首包與這個分包裡）。
+const loadPerf = () => import("../debug/PerfPanel");
+const PerfProbe = lazy(() => loadPerf().then((m) => ({ default: m.PerfProbe })));
+const PerfPanel = lazy(() => loadPerf().then((m) => ({ default: m.PerfPanel })));
 
 /** 場景畫出第一格後收起品牌載入畫面（6.2）：再等一個 rAF，確定這一格已經上螢幕。 */
 function FirstFrame() {
@@ -231,6 +237,7 @@ export default function ScenePage() {
   const [reduced] = useState(prefersReducedMotion);
   const [data, setData] = useState<Loaded>();
   const [error, setError] = useState<string>();
+  const [perf] = useState(() => perfDebug());
   const labels: LabelEls = useRef<(HTMLDivElement | null)[]>([]);
   const flowLabels: FlowLabelEls = useRef<(HTMLDivElement | null)[]>([]);
   const overlays = useMemo<Overlays>(
@@ -392,7 +399,11 @@ export default function ScenePage() {
             {/* 選區時建築與樹跟著區一起彈起（DistrictLift 寫 lifts.ref） */}
             <Blocks view={data.view} month={data.month} reduced={reduced} lift={lifts.ref} />
             <FirstFrame />
-
+            {perf && (
+              <Suspense fallback={null}>
+                <PerfProbe />
+              </Suspense>
+            )}
           </Canvas>
         )}
       </SceneBoundary>
@@ -401,6 +412,11 @@ export default function ScenePage() {
       {data && <FlowLabelLayer els={flowLabels} />}
       {data && <PeriodToast source={data.flows} />}
       {data && <SleepHint />}
+      {data && perf && (
+        <Suspense fallback={null}>
+          <PerfPanel />
+        </Suspense>
+      )}
       {error && (
         <p className="scene-status" role="alert">
           資料載入失敗：{error}

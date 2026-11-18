@@ -3,7 +3,8 @@
 //   而且 %SITE_URL% 這類佔位字都換掉了（AD-18）；
 // - 預覽圖、網站圖示、自帶字型與授權檔都在 dist/；
 // - 建置產物沒有向外部網址載入字型（AD-1）：CSS 的 @font-face 與 url() 只指向站內路徑，也沒有常見字型 CDN 的網址；
-// - 6.2：品牌載入畫面的網站名、一句話與進度在 index.html 裡、首包不含 three、首頁資料 ≤ 300 KB、robots.txt 在。
+// - 6.2：品牌載入畫面的網站名、一句話與進度在 index.html 裡、首包不含 three、首頁資料 ≤ 300 KB、robots.txt 在；
+// - 6.4：效能面板（?debug=perf）在自己的分包，不在首包與場景分包。
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, resolve, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +32,22 @@ expect(/role="progressbar"/.test(html), "index.html 的載入畫面沒有進度"
 for (const m of html.matchAll(/<script[^>]+src="\/(assets\/[^"]+\.js)"/g)) {
   const js = await readFile(join(dist, m[1]), "utf8");
   expect(!/WebGLRenderer|THREE\.WebGLRenderer|REVISION\s*=\s*["']\d+/.test(js), `首包 ${m[1]} 含有 three`);
+}
+
+// 6.4 效能面板（?debug=perf）：面板程式（標記 data-perf-panel）在自己的分包，首包與場景分包（ScenePage-*.js）都沒有，
+// 不帶參數時不會下載也不會執行
+{
+  const entries = [...html.matchAll(/<script[^>]+src="\/assets\/([^"]+\.js)"/g)].map((m) => m[1]);
+  const assets = (await readdir(join(dist, "assets"))).filter((f) => f.endsWith(".js"));
+  const withPanel = [];
+  for (const f of assets) if ((await readFile(join(dist, "assets", f), "utf8")).includes("data-perf-panel")) withPanel.push(f);
+  expect(withPanel.length > 0, "建置產物裡找不到效能面板的分包（data-perf-panel）");
+  for (const f of withPanel) {
+    expect(!entries.includes(f), `首包 ${f} 含有效能面板的程式`);
+    expect(!/^ScenePage-/.test(f), `場景分包 ${f} 含有效能面板的程式（要動態載入）`);
+  }
+  expect(assets.some((f) => /^ScenePage-/.test(f)), "找不到場景分包 ScenePage-*.js（分包命名變了，請更新這個檢查）");
+  if (withPanel.length) console.log(`效能面板分包：${withPanel.join("、")}`);
 }
 
 // 首頁資料量上限 300 KB（決定 29、AD-6）：最新月份的 stations、districts、district-flows 合計
