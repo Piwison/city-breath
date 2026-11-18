@@ -81,7 +81,7 @@ flowchart LR
 ### AD-6 — 依需要載入，場景有預算
 - **Binds:** 首頁、通勤卡、活動日
 - **Prevents:** 首頁一次載入所有分片；手機卡頓
-- **Rule:** 首頁的資料 JSON 與 three／R3F 分包同時開始載入，不一先一後（6.2）。首頁只載 `stations.json`、`districts.json`、`district-flows.json`（合計目標 ≤ 300 KB）[ASSUMPTION]，以及 `basemap.json`（目標 ≤ 1 MB 未壓縮）[ASSUMPTION]。`od/{stationId}.json` 在選了起站才載、`inbound/{stationId}.json` 在打開車站卡的「誰來」才載；`daily/{YYYY-MM-DD}.json` 在進入某一天才載。場景預算：DPR ≤ 2、同時粒子 ≤ 3,000、中階 Android 30 fps 以上 [ASSUMPTION]；街廓、樹、列車、站柱都用 InstancedMesh。效能面板 `?debug=perf` 只在帶這個參數時動態載入，不進 AD-16 的狀態、網址與 `track()`。預算的第一次實機量測是 6.4（關卡 1：iPhone 與一支中階 Android、5 個情境各 30 秒，平均 30 fps 以上），搭乘模式在 8.6 再量（關卡 A）；不達標開新票。後加的資料一律用到才載（決定 29）。
+- **Rule:** 首頁的資料 JSON 與 three／R3F 分包同時開始載入，不一先一後（6.2）。首頁只載 `stations.json`、`districts.json`、`district-flows.json`（合計目標 ≤ 300 KB）[ASSUMPTION]，以及 `basemap.json`（目標 ≤ 1 MB 未壓縮）[ASSUMPTION]。`od/{stationId}.json` 在選了起站才載、`inbound/{stationId}.json` 在打開車站卡的「誰來」才載；`daily/{YYYY-MM-DD}.json` 在進入某一天才載。場景預算：DPR ≤ 2、同時粒子 ≤ 3,000、中階 Android 30 fps 以上 [ASSUMPTION]；街廓、樹、列車、站柱都用 InstancedMesh。效能面板 `?debug=perf` 只在帶這個參數時動態載入，不進 AD-16 的狀態、網址與 `track()`。預算的第一次實機量測是 6.4（關卡 1：iPhone 與一支中階 Android、5 個情境各 30 秒，平均 30 fps 以上），搭乘模式在 8.6 再量（關卡 A）；不達標開新票。2026-11-19：Piwi 真機實測後判定關卡 1 通過，中階 Android 30 fps 的假設仍待逐項數字確認（6.4 紀錄）。後加的資料一律用到才載（決定 29）。
 
 ### AD-7 — 平均的分母
 - **Binds:** 所有平均值

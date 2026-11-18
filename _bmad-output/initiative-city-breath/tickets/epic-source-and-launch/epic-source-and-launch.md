@@ -70,3 +70,4 @@ R5 (parent R29、R28): 上線品質：冒煙測試在 CI 必過、整頁錯誤�
 - Open question: 6.5 的程式碼授權種類（MIT，或不授權、只公開閱讀）等 Piwi 決定；決定前 6.5 的 LICENSE 不算完成。
 - Open question: 要 Piwi 出力：借一支中階 Android（6.4）、找 5 位測試者（6.6）、在 GitHub 開 main 的分支保護（所有檢查通過才合併）。
 - Decision: 2026-11-18（Piwi）：Vercel 用 Hobby 方案，自訂事件延後（4.4 延後，6.5 不再等它）；6.2 的 Web Analytics 只看瀏覽次數。robots.txt 改成不擋爬蟲（讓連結預覽抓得到），不收錄只靠 X-Robots-Tag: noindex。
+- Decision: 2026-11-19（Piwi）：6.4 真機實測後判定關卡 1 通過，進階段 2；逐項 fps 數字未提供，紀錄寫明。移除 3.16、4.1 的關卡 1 unknown。決定 9（山上樹的密度、清晨影子的顆粒）沒有提出要改，維持現狀。

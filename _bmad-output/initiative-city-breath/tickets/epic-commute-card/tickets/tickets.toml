@@ -25,7 +25,6 @@ covers = ["R1"]
 after = ["3.5", "3.12", "3.22"]
 hitl = false
 risk = "medium"
-unknown = "關卡 1 過了嗎？6.4 真機實測（兩支手機 5 個情境都 30 fps 以上、LINE 與 Threads 的分享連結點得開）由 Piwi 判定通過後才開始階段 2；沒過先開票修到過。"
 
 [[entry]]
 id = 2

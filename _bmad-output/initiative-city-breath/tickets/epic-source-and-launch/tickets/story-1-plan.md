@@ -3,7 +3,7 @@ title: '真機實測工具：?debug=perf 效能面板與測試步驟'
 type: 'feature'
 ticket: '4'
 created: '2026-11-18'
-status: 'in-progress'
+status: done
 baseline_revision: '5d3eb5a53fcf90c50bbb1adb69b524d84dbbba76'
 route: 'full'
 route_source: 'auto'
