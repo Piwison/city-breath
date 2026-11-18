@@ -48,6 +48,7 @@ covers = ["R2"]
 after = [1, 2]
 hitl = false
 risk = "low"
+unknown = "延後（Piwi 2026-11-18）：Vercel 用 Hobby 方案，Hobby 看不到自訂事件；先不驗證事件，等功能開發完（階段 4 之後）再決定要不要升級並做這張。程式裡既有的 track() 呼叫照留，不刪也不新增驗證。"
 
 [[entry]]
 id = 6
@@ -56,6 +57,6 @@ title = "Refactor sweep"
 description = "只做清理：處理本 epic 各張票與審查延後的整理項目，範圍在開始時從 plan 與審查紀錄定。"
 verify = "npm test 與 npm run build 通過，延後的整理項目都處理或記錄。"
 covers = ["R1", "R2", "R3", "R4"]
-after = [3, 4, 1, 2]
+after = [3, 1, 2]
 hitl = false
 risk = "low"

@@ -24,3 +24,4 @@
 - source_plan: `_bmad-output/initiative-city-breath/tickets/epic-source-and-launch/tickets/story-vercel-plan.md`
   summary: 預覽期 robots.txt 的 Disallow all 可能讓 LINE、Threads 的連結預覽抓不到標題與圖，6.4 用真的分享連結確認。
   evidence: 未驗證（maybe-false，若成立為 medium）；尊重 robots.txt 的預覽爬蟲不會抓頁面。在 6.4 把部署網址貼到 LINE 與 Threads 看有沒有預覽即可確認；不行就移除 robots.txt 的 Disallow、只留 X-Robots-Tag: noindex。
+  resolution: 2026-11-18 Piwi 同意先移除 Disallow（robots.txt 改 `Allow: /`），只留 X-Robots-Tag: noindex；6.4 仍用真的分享連結確認預覽。

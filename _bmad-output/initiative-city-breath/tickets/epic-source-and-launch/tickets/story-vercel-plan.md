@@ -89,6 +89,8 @@ context: []
 
 ## Plan Change Log
 
+- 2026-11-18（Piwi）：Hobby 方案、先不驗證自訂事件 → 部署後的驗證只看瀏覽次數，「Web Analytics 三個事件」改由延後的 4.4 處理。robots.txt 改成 `Allow: /`（連結預覽爬蟲要抓得到），不收錄只靠 X-Robots-Tag。
+
 ## Review Triage Log
 
 Pass 1（quick，同一工作階段讀 diff）：high 0、medium 0、low 2、false 0、maybe-false 1。
