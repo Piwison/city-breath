@@ -3,7 +3,7 @@ import { seek } from "./clock";
 import {
   clearViewQuery, parseQuery, perfDebug, planLink, readQuery, shareLink, shareUrl, siteLabel, syncUrl, toQuery, URL_WRITE_MS, urlStateOf, writeQuery,
 } from "./url";
-import { getView, restoreSelection, setDayType, setMonth, setPlaying } from "./view";
+import { clearCommute, getView, restoreCommute, restoreSelection, setDayType, setMonth, setPlaying } from "./view";
 
 describe("readQuery", () => {
   it("讀 hour 與 day", () => {
@@ -192,10 +192,11 @@ describe("3.15 月份、行政區、站", () => {
     setMonth(null);
   });
 
-  it("clearViewQuery 拿掉畫面鍵，留下其他鍵與通勤", () => {
+  it("clearViewQuery 拿掉畫面鍵（4.2 起含通勤，連格式錯的也拿掉），留下其他鍵", () => {
     const out: string[] = [];
     clearViewQuery("?hour=99&station=x&from=a&to=b&at=8&ref=1", (s) => out.push(s));
-    expect(out).toEqual(["from=a&to=b&at=8&ref=1"]);
+    clearViewQuery("?from=a&at=99&ref=2", (s) => out.push(s));
+    expect(out).toEqual(["ref=1", "ref=2"]);
   });
 });
 
@@ -209,7 +210,7 @@ describe("planLink（對照資料還原或退回全景）", () => {
   const plan = (q: string) => planLink(parseQuery(q), data);
 
   it("區與站都在：還原", () => {
-    expect(plan("?month=2026-09&day=holiday&hour=14&district=63000030")).toEqual({ kind: "restore", district: "63000030", station: null, staleMonth: null });
+    expect(plan("?month=2026-09&day=holiday&hour=14&district=63000030")).toEqual({ kind: "restore", district: "63000030", station: null, commute: null, staleMonth: null });
     expect(plan("?district=63000030&station=sd821b2ec")).toMatchObject({ kind: "restore", district: "63000030", station: "sd821b2ec" });
   });
   it("站不存在、月份不在資料裡、格式錯：退回全景", () => {
@@ -219,11 +220,82 @@ describe("planLink（對照資料還原或退回全景）", () => {
     expect(plan("?district=65000999")).toEqual({ kind: "fallback", invalid: ["district"] });
   });
   it("舊月份：照樣還原並註明", () => {
-    expect(plan("?month=2026-08&station=sd821b2ec")).toEqual({ kind: "restore", district: null, station: "sd821b2ec", staleMonth: "2026-08" });
+    expect(plan("?month=2026-08&station=sd821b2ec")).toEqual({ kind: "restore", district: null, station: "sd821b2ec", commute: null, staleMonth: "2026-08" });
   });
   it("只有時刻與日型：none（開場已經停在那一刻）", () => {
     expect(plan("?day=holiday&hour=14")).toEqual({ kind: "none" });
     expect(plan("")).toEqual({ kind: "none" });
+  });
+});
+
+describe("4.2 通勤卡的網址", () => {
+  const data = {
+    months: ["2026-09"],
+    latest: "2026-09",
+    hasDistrict: () => false,
+    hasStation: (id: string) => ["sa", "sb", "sloop"].includes(id),
+    canBeDest: (id: string) => id !== "sloop",
+  };
+  const plan = (q: string) => planLink(parseQuery(q), data);
+
+  it("三個鍵要一起出現且格式對，否則列為不合法的 commute", () => {
+    expect(parseQuery("?from=sa&to=sb&at=7")).toEqual({ state: { commute: { o: "sa", d: "sb", h: 7 } }, invalid: [] });
+    expect(parseQuery("?from=sa&to=sb").invalid).toEqual(["commute"]);
+    expect(parseQuery("?from=sa&to=sb&at=24").invalid).toEqual(["commute"]);
+    expect(parseQuery("?from=s%20a&to=sb&at=7").invalid).toEqual(["commute"]);
+    expect(parseQuery("?at=7").invalid).toEqual(["commute"]);
+  });
+
+  it("planLink：起訖都在、迄站有出站紀錄、不同站才還原；否則退回全景", () => {
+    expect(plan("?month=2026-09&day=weekday&hour=7&from=sa&to=sb&at=7")).toEqual({
+      kind: "restore",
+      district: null,
+      station: null,
+      commute: { o: "sa", d: "sb", h: 7 },
+      staleMonth: null,
+    });
+    expect(plan("?station=sa&from=sa&to=sb&at=8")).toMatchObject({ kind: "restore", station: "sa", commute: { o: "sa", d: "sb", h: 8 } });
+    expect(plan("?from=snope&to=sb&at=7")).toEqual({ kind: "fallback", invalid: ["commute"] });
+    expect(plan("?from=sa&to=sloop&at=7")).toEqual({ kind: "fallback", invalid: ["commute"] });
+    expect(plan("?from=sa&to=sa&at=7")).toEqual({ kind: "fallback", invalid: ["commute"] });
+    expect(plan("?from=sa&to=sb")).toEqual({ kind: "fallback", invalid: ["commute"] });
+  });
+
+  it("urlStateOf：通勤卡開著（起訖都選好）才寫，還在選的通勤面板不寫", () => {
+    const v = { month: "2026-09", dayType: "weekday" as const, hour: 7, district: null, station: null, playing: false };
+    expect(urlStateOf({ ...v, commute: { o: "sa", d: "sb", h: 7 } })).toEqual({
+      month: "2026-09",
+      dayType: "weekday",
+      hour: 7,
+      commute: { o: "sa", d: "sb", h: 7 },
+    });
+    expect(urlStateOf({ ...v, commute: { o: "sa", d: null, h: 7 } })).toEqual({ month: "2026-09", dayType: "weekday", hour: 7 });
+  });
+
+  it("syncUrl 與 shareLink：通勤卡的起訖與時段寫進網址；換時段跟著換；關卡拿掉", () => {
+    vi.useFakeTimers();
+    let search = "ref=x";
+    const stop = syncUrl((s) => (search = s), () => search);
+    setMonth("2026-09");
+    setDayType("weekday");
+    restoreSelection(null, null);
+    seek(8);
+    restoreCommute({ o: "sa", d: "sb", h: 8 });
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(search).toBe("month=2026-09&day=weekday&hour=8&from=sa&to=sb&at=8&ref=x");
+    expect(shareLink(getView(), "https://city.example/")).toBe("https://city.example/?month=2026-09&day=weekday&hour=8&from=sa&to=sb&at=8");
+    // 點「7 點」那格＝seek(7)：hour 與 at 一起換
+    seek(7);
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(search).toBe("month=2026-09&day=weekday&hour=7&from=sa&to=sb&at=7&ref=x");
+    // 讀回同一張通勤卡
+    expect(readQuery(search).commute).toEqual({ o: "sa", d: "sb", h: 7 });
+    clearCommute();
+    vi.advanceTimersByTime(URL_WRITE_MS);
+    expect(search).toBe("month=2026-09&day=weekday&hour=7&ref=x");
+    stop();
+    setMonth(null);
+    vi.useRealTimers();
   });
 });
 

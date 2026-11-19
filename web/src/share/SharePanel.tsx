@@ -12,7 +12,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { shareLink, siteLabel } from "../state/url";
-import { getView, setPlaying, type ViewState } from "../state/view";
+import { commuteReady, getView, setPlaying, type ViewState } from "../state/view";
 import { track } from "../track";
 import type { ShareCard } from "./card";
 import { renderShareCard, saveShareCard } from "./render";
@@ -61,11 +61,31 @@ export async function copyText(text: string, field?: HTMLInputElement | null): P
   }
 }
 
-/** 複製連結時開著的是哪一種卡（AD-20 share_link_copied 的 kind）；沒開卡＝home。通勤、大日子等之後的票加進 ViewState 後在這裡接。 */
-export function copiedKind(v: Pick<ViewState, "station" | "district">): "station" | "district" | "home" {
+/**
+ * 複製連結時開著的是哪一種卡（AD-20 share_link_copied 的 kind）；沒開卡＝home。
+ * 通勤卡（4.2）蓋在車站卡上面，所以先看通勤。大日子等之後的票加進 ViewState 後在這裡接。
+ */
+export function copiedKind(
+  v: Pick<ViewState, "station" | "district"> & Partial<Pick<ViewState, "commute">>,
+): "commute" | "station" | "district" | "home" {
+  if (commuteReady(v.commute ?? null)) return "commute";
   if (v.station !== null) return "station";
   if (v.district !== null) return "district";
   return "home";
+}
+
+/**
+ * 存成圖片並計數（AD-20，北極星的一半）：存檔或系統分享成功才送 share_card_downloaded（kind＝卡的種類），
+ * 使用者在系統分享面板取消、或產生失敗（丟錯）不送。save 可替換（測試用）。
+ */
+export async function saveAndCount(
+  card: ShareCard,
+  blob: Blob,
+  save: (card: ShareCard, blob: Blob) => Promise<"shared" | "downloaded" | "cancelled"> = saveShareCard,
+): Promise<"shared" | "downloaded" | "cancelled"> {
+  const result = await save(card, blob);
+  if (result !== "cancelled") track("share_card_downloaded", { kind: card.kind });
+  return result;
 }
 
 /** 「已複製」維持多久再回到「複製連結」（按鈕狀態，不是提示）。 */
@@ -132,7 +152,9 @@ export function SharePanel({ open, target, onClose }: { open: boolean; target: S
     if (image.status !== "ready") return;
     setSaving(true);
     try {
-      await saveShareCard(image.card, image.blob);
+      await saveAndCount(image.card, image.blob);
+    } catch {
+      // 存檔失敗：按鈕回到可按，預覽還在，可以再試或改複製連結
     } finally {
       setSaving(false);
     }

@@ -3,7 +3,7 @@ title: '找你的站：搜尋車站與起訖站輸入'
 type: 'feature'
 ticket: '1'
 created: '2026-11-19'
-status: 'built'
+status: done
 baseline_revision: '5dd31183acd9d42df04bbdf71f86aaa8981ce548'
 route: 'full'
 route_source: 'auto'

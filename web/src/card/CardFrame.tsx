@@ -7,7 +7,7 @@
 //     kicker="行政區"                  標題上方的小字（卡的種類）
 //     title="大安區"                   h2
 //     when="平日 8 點"                 正在看的時段與日型（periods.ts whenLabel），標題列右側的膠囊
-//     actions={<ShareButton />}        標題列、關閉鈕左邊的按鈕槽（3.15 分享鈕）
+//     actions={<ShareAction />}        標題列、關閉鈕左邊的按鈕槽（3.15 分享鈕）
 //     back={{ label: "大安區", onClick }} 標題上方的「‹ 回到上一層」
 //     timeRow                          true＝卡內時間列；或 { days: [...] } 換日子選項（7.4 加「大日子」）、{ day: false } 只留時間
 //     footer={<SourceLine />}          卡底：一行來源（3.17「資料：2026 年 9 月・來源 ›」）、圖例等

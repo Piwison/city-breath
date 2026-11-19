@@ -1,11 +1,12 @@
 // 網址是畫面狀態的序列化，只在這裡讀寫（AD-16）。
 // 4.3 放了分享卡用的寫出函式；3.5 開場讀回 hour 與 day；3.3 把 hour、dayType 寫回網址（syncUrl）。
 // 3.15 加月份、行政區、站（打開連結回到同一張卡），以及 parseQuery（哪些鍵不合法，ScenePage 退回全景並說明）。
-// 擴充（4.2 的通勤，7.4 的日期）：在 UrlState、KEYS、parseQuery、toQuery 加鍵，
+// 4.2 加通勤（from、to、at：起站、迄站的站 ID 與出發時段；通勤卡開著時才寫，打開連結回到同一張通勤卡）。
+// 擴充（7.4 的日期）：在 UrlState、KEYS、parseQuery、toQuery 加鍵，
 // 再在 urlStateOf() 從畫面狀態取值；writeQuery 會保留這裡不認得的鍵，所以先後上線的票不會互相洗掉網址。
 // 車站在網址裡用站 ID（AD-2），不用陣列索引；索引跨月份不通用。
 import type { DayType } from "../data/types";
-import { getView, subscribeView, type ViewState } from "./view";
+import { commuteReady, getView, subscribeView, type ViewState } from "./view";
 
 export interface UrlState {
   month?: string;
@@ -57,7 +58,7 @@ const hourOf = (v: string | null): number | undefined =>
   v !== null && /^\d{1,2}$/.test(v) && Number(v) <= 23 ? Number(v) : undefined;
 
 /** 這張票還原畫面用的鍵（網址裡的名字）；值不合法時列進 ParsedQuery.invalid。 */
-export type ViewKey = "month" | "day" | "hour" | "district" | "station";
+export type ViewKey = "month" | "day" | "hour" | "district" | "station" | "commute";
 
 export interface ParsedQuery {
   state: UrlState;
@@ -85,10 +86,15 @@ export function parseQuery(search: string): ParsedQuery {
   check("hour", q.get("hour"), hourOf, (v) => (state.hour = v));
   check("district", q.get("district"), (v) => (DISTRICT.test(v) ? v : undefined), (v) => (state.district = v));
   check("station", q.get("station"), (v) => (STATION.test(v) ? v : undefined), (v) => (state.station = v));
+  // 通勤（4.2）：三個鍵要一起出現且格式對；只出現一部分或格式錯都算不合法
   const o = q.get("from");
   const d = q.get("to");
-  const at = hourOf(q.get("at"));
-  if (o && d && at !== undefined) state.commute = { o, d, h: at };
+  const atRaw = q.get("at");
+  if (o !== null || d !== null || atRaw !== null) {
+    const at = hourOf(atRaw);
+    if (o !== null && d !== null && STATION.test(o) && STATION.test(d) && at !== undefined) state.commute = { o, d, h: at };
+    else invalid.push("commute");
+  }
   return { state, invalid };
 }
 
@@ -114,27 +120,39 @@ export type LinkPlan =
       kind: "restore";
       district: string | null;
       station: string | null;
+      /** 通勤卡（4.2）：起訖與時段 */
+      commute: { o: string; d: string; h: number } | null;
       /** 連結的月份不是網站顯示的最新月份（這一版不做月份切換，決定 28）：照樣還原，另外說明 */
       staleMonth: string | null;
     };
 
 /**
  * 對照資料檢查連結（3.15）：格式不合法、月份不在 months.json、區或站不存在 → 退回全景；
- * 月份合法但不是最新 → 照樣還原並註明。沒有區與站的連結（只有時刻、日型）＝none（開場已經停在那一刻）。
+ * 月份合法但不是最新 → 照樣還原並註明。沒有區、站與通勤的連結（只有時刻、日型）＝none（開場已經停在那一刻）。
+ * 通勤（4.2）：起訖都要在資料裡、迄站要有出站紀錄（canBeDest；環狀線不能當迄站）、起訖不同站，否則退回全景。
  */
 export function planLink(
   parsed: ParsedQuery,
-  data: { months: readonly string[]; latest: string; hasDistrict: (id: string) => boolean; hasStation: (id: string) => boolean },
+  data: {
+    months: readonly string[];
+    latest: string;
+    hasDistrict: (id: string) => boolean;
+    hasStation: (id: string) => boolean;
+    canBeDest?: (id: string) => boolean;
+  },
 ): LinkPlan {
   const invalid = [...parsed.invalid];
-  const { month, district, station } = parsed.state;
+  const { month, district, station, commute } = parsed.state;
+  const canBeDest = data.canBeDest ?? data.hasStation;
   if (month !== undefined && !data.months.includes(month)) invalid.push("month");
   if (district !== undefined && !data.hasDistrict(district)) invalid.push("district");
   if (station !== undefined && !data.hasStation(station)) invalid.push("station");
+  if (commute !== undefined && (commute.o === commute.d || !data.hasStation(commute.o) || !data.hasStation(commute.d) || !canBeDest(commute.d)))
+    invalid.push("commute");
   if (invalid.length) return { kind: "fallback", invalid };
   const staleMonth = month !== undefined && month !== data.latest ? month : null;
-  if (district === undefined && station === undefined && staleMonth === null) return { kind: "none" };
-  return { kind: "restore", district: district ?? null, station: station ?? null, staleMonth };
+  if (district === undefined && station === undefined && commute === undefined && staleMonth === null) return { kind: "none" };
+  return { kind: "restore", district: district ?? null, station: station ?? null, commute: commute ?? null, staleMonth };
 }
 
 /**
@@ -155,12 +173,12 @@ export function writeQuery(search: string, patch: UrlState, drop: readonly (keyo
 }
 
 /**
- * 畫面狀態中要進網址的部分：月份、日型、時刻、行政區、站（3.3、3.15）。播放中不記 hour 與 month
+ * 畫面狀態中要進網址的部分：月份、日型、時刻、行政區、站（3.3、3.15）與通勤卡的起訖、時段（4.2）。播放中不記 hour 與 month
  * （Piwi 2026-11-12：網址不要一直變；播放中重新整理照原本從清晨自動播放），停下來才記。
  * 分享連結（shareLink）用同一個函式，所以網址列與複製出去的連結一致。
  */
 export function urlStateOf(
-  v: Pick<ViewState, "hour" | "dayType"> & Partial<Pick<ViewState, "month" | "district" | "station">> & { playing?: boolean },
+  v: Pick<ViewState, "hour" | "dayType"> & Partial<Pick<ViewState, "month" | "district" | "station" | "commute">> & { playing?: boolean },
 ): UrlState {
   const out: UrlState = { dayType: v.dayType };
   if (!v.playing) {
@@ -169,15 +187,19 @@ export function urlStateOf(
   }
   if (v.district) out.district = v.district;
   if (v.station) out.station = v.station;
+  // 通勤卡開著（起訖都選好）才寫；還在選的通勤面板不進網址
+  const c = v.commute ?? null;
+  if (commuteReady(c)) out.commute = { o: c.o, d: c.d, h: c.h };
   return out;
 }
 
-/** 畫面狀態 → 要從網址拿掉的鍵（沒選區、沒選站、播放中的時刻）。 */
-function dropsOf(v: Pick<ViewState, "playing" | "district" | "station">): (keyof UrlState)[] {
+/** 畫面狀態 → 要從網址拿掉的鍵（沒選區、沒選站、沒開通勤卡、播放中的時刻）。 */
+function dropsOf(v: Pick<ViewState, "playing" | "district" | "station" | "commute">): (keyof UrlState)[] {
   const drop: (keyof UrlState)[] = [];
   if (v.playing) drop.push("hour");
   if (!v.district) drop.push("district");
   if (!v.station) drop.push("station");
+  if (!commuteReady(v.commute)) drop.push("commute");
   return drop;
 }
 
@@ -187,14 +209,17 @@ export function shareLink(v: ViewState = getView(), base: string = siteBase()): 
 }
 
 /**
- * 打開的連結不合法時（ScenePage 退回全景）：把這裡管的畫面鍵從網址拿掉，不認得的鍵與通勤留著。
+ * 打開的連結不合法時（ScenePage 退回全景）：把這裡管的畫面鍵（含通勤）從網址拿掉，不認得的鍵留著。
  * write 可替換（測試用）。
  */
 export function clearViewQuery(
   search: string = typeof location === "undefined" ? "" : location.search,
   write: (search: string) => void = replaceSearch,
 ): void {
-  const next = writeQuery(search.replace(/^\?/, ""), {}, ["month", "dayType", "hour", "district", "station"]);
+  // 通勤的三個鍵一起拿掉（含格式錯、只出現一部分的）
+  const kept = new URLSearchParams(search.replace(/^\?/, ""));
+  for (const k of ["from", "to", "at"]) kept.delete(k);
+  const next = writeQuery(kept.toString(), {}, ["month", "dayType", "hour", "district", "station", "commute"]);
   if (next !== search.replace(/^\?/, "")) write(next);
 }
 
@@ -212,7 +237,7 @@ export const URL_WRITE_MS = 300;
 
 /**
  * 畫面狀態 → 網址（Piwi 2026-11-12）：只在使用者操作後寫——暫停（含拖時間軸、打開小卡）寫 month＋day＋hour、
- * 選區／選站寫 district、station（3.15），
+ * 選區／選站寫 district、station（3.15），通勤卡寫 from、to、at（4.2），
  * 切日型寫 day、按播放把 hour 拿掉；播放中整點變了不寫。都等 URL_WRITE_MS 再用 replaceState 寫一次
  * （不進瀏覽紀錄）。開場自動播放時不寫。回傳取消訂閱的函式。write 可替換（測試用）。
  */
@@ -231,7 +256,8 @@ export function syncUrl(
   // 播放中 hour 不算進鍵：整點變了不觸發寫入
   const keyOf = () => {
     const v = getView();
-    return `${v.dayType}:${v.playing ? "play" : `${v.hour}:${v.month}`}:${v.district}:${v.station}`;
+    const c = commuteReady(v.commute) ? `${v.commute.o}>${v.commute.d}@${v.commute.h}` : "";
+    return `${v.dayType}:${v.playing ? "play" : `${v.hour}:${v.month}`}:${v.district}:${v.station}:${c}`;
   };
   let key = keyOf();
   // 開場停著（網址有 hour、減少動態）先對一次（例如網址只有 hour，補上 day）；自動播放時不寫

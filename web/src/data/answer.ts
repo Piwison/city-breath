@@ -2,7 +2,7 @@
 // 純函式，只用卡上已有的名次與數字（行政區卡的去哪排名、車站卡的前 5 目的地與這小時進出）組句子；
 // 寫明時段與日型（periods.ts whenLabel，與卡上的膠囊同一種寫法），不用表示即時的字眼（體驗原則 3）。
 // 第一名少於 10 人、停止營運、環狀線站出站未入檔各有對應的句子，不留空白、不寫 0。
-// 之後的通勤卡（4.2）、假日卡（3.18）、活動卡（7.4）、地標卡（8.1）在這裡加自己的句子。
+// 通勤卡（4.2）的句子在最後；之後的假日卡（3.18）、活動卡（7.4）、地標卡（8.1）在這裡加自己的句子。
 import { formatCount, SUPPRESS_BELOW } from "./format";
 import { whenLabel } from "./periods";
 import type { DayType } from "./types";
@@ -61,4 +61,26 @@ export function stationAnswer({ name, dayType, hour, operating, entriesOnly, vol
   const first = top[0];
   if (!first || first.value < SUPPRESS_BELOW) return `${when}，從${name}出發的每個方向都少於 ${SUPPRESS_BELOW} 人`;
   return `${when}，從${name}出發的人最常去${first.name}${entriesOnly ? LOOP_NOTE : ""}`;
+}
+
+export interface CommuteAnswerInput {
+  /** 起站、迄站名（stations.json display） */
+  origin: string;
+  dest: string;
+  dayType: DayType;
+  /** 出發（進站）時段（AD-15） */
+  hour: number;
+  /** 這小時從起站有列車（od 分片該小時不是整列 null，AD-5） */
+  operating: boolean;
+  /** 平均同路人數；null＝少於 10 人（AD-3） */
+  companions: number | null;
+}
+
+/** 通勤卡（4.2）：「平日 8 點，約 1,234 人和你一樣從頂溪到台北車站」；少於 10 人不寫數字。 */
+export function commuteAnswer({ origin, dest, dayType, hour, operating, companions }: CommuteAnswerInput): string {
+  const when = whenLabel(dayType, hour);
+  if (!operating) return `${when}捷運停止營運，${origin}沒有列車`;
+  if (companions === null || !Number.isFinite(companions) || companions < SUPPRESS_BELOW)
+    return `${when}，和你一樣從${origin}到${dest}的人少於 ${SUPPRESS_BELOW} 人`;
+  return `${when}，約 ${formatCount(companions)}和你一樣從${origin}到${dest}`;
 }

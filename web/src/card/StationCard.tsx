@@ -21,8 +21,8 @@ import {
   type FlowSource,
   type StationIndex,
 } from "../data/views";
-import { seek } from "../state/clock";
-import { closeCard, selectStation, setFocus, setPlaying, startCommute, useView } from "../state/view";
+import { pickHour } from "../state/clock";
+import { closeCard, selectStation, setFocus, startCommute, useView } from "../state/view";
 import { FlowLegend, type LegendLink } from "../scene/FlowLegend";
 import { CardFrame } from "./CardFrame";
 import { ShareAction } from "../share/SharePanel";
@@ -31,11 +31,8 @@ import { monthLabel } from "./DistrictCard";
 // 人數一律經 data/format.ts：少於 10 人不寫數字（3.22）；數字欄的單位寫在標籤上
 const fmt = (v: number | null) => formatNumber(v, "—");
 
-/** 點整天長條的某一格：停止播放、跳到那個時段（卡、緞帶、柱高跟著換）。 */
-export function pickHour(h: number) {
-  setPlaying(false);
-  seek(h);
-}
+/** 點整天長條的某一格：停止播放、跳到那個時段（卡、緞帶、柱高跟著換）。在 clock.ts，通勤卡的早晚一小時也用。 */
+export { pickHour };
 
 /** 長條的高度比例：當天最大值為 1；有人但很少時留一點看得到的高度；停止營運為 null。 */
 export function barRatios(series: readonly (number | null)[]): (number | null)[] {

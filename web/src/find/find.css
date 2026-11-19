@@ -208,8 +208,6 @@ button.commute-field:active { transform: scale(0.98); }
   font-weight: 700;
 }
 .commute-hour:focus-within { outline: 2px solid var(--hud-accent); outline-offset: 1px; }
-.commute-result { display: grid; gap: 10px; }
-.commute-result p { line-height: 1.6; }
 .commute-note, .commute-status { font-size: var(--text-xs); color: var(--hud-muted); }
 
 /* 替代頁：同一個通勤輸入攤在頁面上；搜尋清單限高、自己捲 */

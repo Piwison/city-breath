@@ -1,0 +1,160 @@
+{
+  "1-card-peek": {
+    "sheet": "peek",
+    "visibleRatio": 0.35,
+    "title": "頂溪 → 到台北車站",
+    "when": "平日 8 點",
+    "answer": "平日 8 點，約 296 人和你一樣從頂溪到台北車站",
+    "timeRow": "08:00",
+    "cells": [
+      {
+        "label": "早一小時，7 點出發：260 人",
+        "current": false,
+        "disabled": false
+      },
+      {
+        "label": "這個時段，8 點出發：296 人",
+        "current": true,
+        "disabled": false
+      },
+      {
+        "label": "晚一小時，9 點出發：194 人",
+        "current": false,
+        "disabled": false
+      }
+    ],
+    "stats": [
+      "296平均同路（人）",
+      "第 4熱門目的地（共 82 站）",
+      "7,363這小時從頂溪出發（人）"
+    ],
+    "sheetGone": true,
+    "stationCardHidden": true,
+    "peekAboutThird": true,
+    "url": "http://localhost:4199/?month=2026-09&day=weekday&hour=8&station=sd3f4ec1f&from=sd3f4ec1f&to=s560caae9&at=8"
+  },
+  "2-card-full": {
+    "sheet": "full",
+    "visibleRatio": 0.71,
+    "fullAboutSeventy": true
+  },
+  "3-seven-oclock": {
+    "when": "平日 7 點",
+    "timeRow": "07:00",
+    "answer": "平日 7 點，約 260 人和你一樣從頂溪到台北車站",
+    "cells": [
+      {
+        "label": "早一小時，6 點出發：109 人",
+        "current": false,
+        "disabled": false
+      },
+      {
+        "label": "這個時段，7 點出發：260 人",
+        "current": true,
+        "disabled": false
+      },
+      {
+        "label": "晚一小時，8 點出發：296 人",
+        "current": false,
+        "disabled": false
+      }
+    ],
+    "numbersChanged": true,
+    "url": "http://localhost:4199/?month=2026-09&day=weekday&hour=7&station=sd3f4ec1f&from=sd3f4ec1f&to=s560caae9&at=7",
+    "urlAt7": true
+  },
+  "4-share": {
+    "link": "http://localhost:4199/?month=2026-09&day=weekday&hour=7&station=sd3f4ec1f&from=sd3f4ec1f&to=s560caae9&at=7",
+    "linkHasCommute": true,
+    "file": "city-breath-commute-2026-09-weekday-07.png",
+    "bytes": 483342,
+    "copied": "已複製",
+    "clipboard": "http://localhost:4199/?month=2026-09&day=weekday&hour=7&station=sd3f4ec1f&from=sd3f4ec1f&to=s560caae9&at=7"
+  },
+  "4b-esc-closes-panel-only": {
+    "panel": 0,
+    "card": 1
+  },
+  "5-link-roundtrip": {
+    "title": "頂溪 → 到台北車站",
+    "when": "平日 7 點",
+    "answer": "平日 7 點，約 260 人和你一樣從頂溪到台北車站",
+    "sameCard": true,
+    "notice": 0
+  },
+  "5b-close-shows-station-card": {
+    "stationCard": "頂溪",
+    "url": "http://localhost:4199/?month=2026-09&day=weekday&hour=7&station=sd3f4ec1f",
+    "urlDroppedCommute": true
+  },
+  "6-under-10": {
+    "answer": "平日 8 點，和你一樣從台北101/世貿到南港軟體園區的人少於 10 人",
+    "stats": [
+      "少於 10平均同路（人）",
+      "不排名少於 10 人不排名",
+      "1,348這小時從台北101/世貿出發（人）"
+    ],
+    "cells": [
+      {
+        "label": "早一小時，7 點出發：少於 10 人",
+        "current": false,
+        "disabled": false
+      },
+      {
+        "label": "這個時段，8 點出發：少於 10 人",
+        "current": true,
+        "disabled": false
+      },
+      {
+        "label": "晚一小時，9 點出發：少於 10 人",
+        "current": false,
+        "disabled": false
+      }
+    ],
+    "noSmallNumber": true
+  },
+  "6b-under-10-saved": {
+    "file": "city-breath-commute-2026-09-weekday-08.png",
+    "bytes": 501896
+  },
+  "7-bad-link": {
+    "notice": "這個連結裡的站、行政區或時段在資料裡找不到，先帶你看全城。",
+    "card": 0,
+    "url": "http://localhost:4199/"
+  },
+  "8-reduced-motion": {
+    "transition": "0s, 0s, 0s, 0s, 0s",
+    "cellTransition": "0s, 0s"
+  },
+  "9-fallback": {
+    "sheet": "peek",
+    "visibleRatio": 0.35,
+    "title": "頂溪 → 到台北車站",
+    "when": "平日 7 點",
+    "answer": "平日 7 點，約 260 人和你一樣從頂溪到台北車站",
+    "timeRow": "07:00",
+    "cells": [
+      {
+        "label": "早一小時，6 點出發：109 人",
+        "current": false,
+        "disabled": false
+      },
+      {
+        "label": "這個時段，7 點出發：260 人",
+        "current": true,
+        "disabled": false
+      },
+      {
+        "label": "晚一小時，8 點出發：296 人",
+        "current": false,
+        "disabled": false
+      }
+    ],
+    "stats": [
+      "260平均同路（人）",
+      "第 1熱門目的地（共 79 站）",
+      "4,037這小時從頂溪出發（人）"
+    ]
+  },
+  "errors": []
+}

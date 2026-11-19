@@ -439,3 +439,5 @@
 .scene-fallback-card { max-width: 420px; padding: 20px; display: grid; gap: 12px; }
 .scene-fallback-card h1 { font-size: var(--text-md); }
 .scene-fallback-note { font-size: var(--text-xs); color: var(--hud-muted); }
+/* 替代頁的通勤卡（4.2，掛在 body）：頁面會捲動，卡片固定在畫面下緣（首頁的 .card 是 absolute） */
+.fallback-card-layer .card { position: fixed; }
