@@ -12,7 +12,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { Raycaster, Vector2, type Intersection, type Mesh, type Object3D } from "three";
 import type { BaseView, StationIndex } from "../data/views";
-import { closeCard, getView, selectDistrict, selectStation, useView } from "../state/view";
+import { clearCommute, closeCard, getView, selectDistrict, selectStation, useView } from "../state/view";
 import type { PressLink } from "./DistrictLift";
 import type { StationLink } from "./Stations";
 import { project } from "./projection";
@@ -100,6 +100,8 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
       const sid = nearestSpot(stations.spots, e.clientX - r.left, e.clientY - r.top);
       if (sid) {
         navigator.vibrate?.(6);
+        // 通勤卡（4.2）蓋在車站卡上：點地圖就收起通勤，露出點到的那張卡
+        clearCommute();
         selectStation(sid);
         return;
       }
@@ -107,9 +109,10 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
       const id = districtAt(e);
       if (id) {
         navigator.vibrate?.(6);
+        clearCommute();
         if (id !== v.district) selectDistrict(id);
         else if (v.station) selectStation(null);
-      } else if (v.district || v.station) closeCard();
+      } else if (v.district || v.station || v.commute) closeCard();
     };
     const onCancel = (e: PointerEvent) => {
       active.delete(e.pointerId);

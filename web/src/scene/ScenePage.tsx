@@ -6,15 +6,17 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { NeutralToneMapping } from "three";
 import { bootDone } from "../boot";
+import { CommuteCard } from "../card/CommuteCard";
 import { DistrictCard } from "../card/DistrictCard";
 import { StationCard } from "../card/StationCard";
 import { loadBasemap, loadDistrictFlows, loadDistricts, loadMonths, loadStations } from "../data/load";
 import type { BasemapFile, DistrictFlowsFile, DistrictsFile, LineId } from "../data/types";
 import { baseView, flowSource, stationIndex, type BaseView, type FlowSource, type StationIndex } from "../data/views";
-import { startClock } from "../state/clock";
+import { pickHour, startClock } from "../state/clock";
 import { setService } from "../state/service";
 import { clearViewQuery, parseQuery, perfDebug, planLink, syncUrl, type ParsedQuery } from "../state/url";
-import { getView, restoreSelection, setDayType, setMonth, setPlaying, useView } from "../state/view";
+import { commuteReady, getView, restoreCommute, restoreSelection, setDayType, setMonth, setPlaying, useView, type ViewState } from "../state/view";
+import { useMeta } from "../data/useMeta";
 import { monthLabel } from "../card/DistrictCard";
 import { whenLabel } from "../data/periods";
 import { SharePanel, ShareIcon, type ShareTarget } from "../share/SharePanel";
@@ -158,10 +160,13 @@ type Loaded = {
   search: SearchModel;
 };
 
+/** 有小卡開著（行政區卡、車站卡，或蓋在最上面的通勤卡 4.2）。 */
+const anyCard = (s: ViewState) => s.district !== null || s.station !== null || commuteReady(s.commute);
+
 /** 上方「分享這一刻」（3.15，DESIGN.md 上方一排）：沒開卡時才有；按了停在這一刻、開分享面板（只有複製連結）。 */
 function ShareMoment({ month }: { month?: string }) {
   const [target, setTarget] = useState<ShareTarget | null>(null);
-  const cardOpen = useView((s) => s.district !== null || s.station !== null);
+  const cardOpen = useView(anyCard);
   if (cardOpen && !target) return null;
   const open = () => {
     // 停在這一刻再讀時刻（播放中按也分享畫面上的那一小時）
@@ -200,10 +205,30 @@ function LinkNotice({ text, onClose }: { text: string; onClose: () => void }) {
   );
 }
 
-/** 下方：沒選東西時是時間軸；選了區是行政區卡、選了站是車站小卡（卡框與卡內時間列共用，打開就暫停）。 */
+/** 首頁的通勤卡（4.2）：meta.json 用到才載（分享卡頁尾）；換了起訖就重開一張。 */
+function SceneCommuteCard({ data, commute }: { data: Loaded; commute: { o: string; d: string; h: number } }) {
+  const meta = useMeta(data.month);
+  return (
+    <CommuteCard
+      key={`${commute.o}>${commute.d}`}
+      commute={commute}
+      month={data.month}
+      stations={data.stations.stations}
+      byId={data.stations.byId}
+      meta={meta.status === "ok" ? meta.meta : undefined}
+    />
+  );
+}
+
+/**
+ * 下方：沒選東西時是時間軸；選了區是行政區卡、選了站是車站小卡（卡框與卡內時間列共用，打開就暫停）。
+ * 通勤的起訖選齊了，通勤卡蓋在最上面（4.2）；關掉回到底下原本的車站卡、行政區卡或時間軸。
+ */
 function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
   const district = useView((s) => s.district);
   const station = useView((s) => s.station);
+  const commute = useView((s) => s.commute);
+  if (data && commuteReady(commute)) return <SceneCommuteCard data={data} commute={commute} />;
   if (data && station)
     return (
       <StationCard
@@ -256,7 +281,7 @@ export default function ScenePage() {
     [labels, flowLabels],
   );
   const showLabels = useView((s) => s.layers.label);
-  const cardOpen = useView((s) => s.district !== null || s.station !== null);
+  const cardOpen = useView(anyCard);
   const sheet = useView((s) => s.sheet);
   const top = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
@@ -271,7 +296,8 @@ export default function ScenePage() {
     link.current = q;
     const bad = q.invalid.length > 0;
     if (q.state.dayType && !bad) setDayType(q.state.dayType);
-    startClock({ hour: bad ? undefined : q.state.hour, reducedMotion: reduced });
+    // 通勤卡的連結（4.2）：停在通勤的時段（hour 與 at 由同一份狀態寫出，通常相同；手改過時以 at 為準）
+    startClock({ hour: bad ? undefined : (q.state.commute?.h ?? q.state.hour), reducedMotion: reduced });
   }, [reduced]);
 
   // 資料到了：還原連結裡的區與站（開好那張卡、暫停在那一刻），或退回全景並說明（3.15）
@@ -284,6 +310,11 @@ export default function ScenePage() {
       latest: data.month,
       hasDistrict: (id) => data.districtNames.has(id),
       hasStation: (id) => data.stations.byId.has(id),
+      // 環狀線站出站未入檔，不能當迄站（4.1）
+      canBeDest: (id) => {
+        const i = data.stations.byId.get(id);
+        return i !== undefined && data.stations.stations[i].exitsRecorded;
+      },
     });
     if (plan.kind === "fallback") {
       // 退回首頁全景：不選區站、照常從清晨播放，網址拿掉看不懂的部分
@@ -294,6 +325,11 @@ export default function ScenePage() {
       setNotice("這個連結裡的站、行政區或時段在資料裡找不到，先帶你看全城。");
     } else if (plan.kind === "restore") {
       restoreSelection(plan.district, plan.station);
+      // 通勤卡（4.2）：起訖與時段一起還原，蓋在車站卡（若有）上面
+      if (plan.commute) {
+        pickHour(plan.commute.h);
+        restoreCommute(plan.commute);
+      }
       if (plan.staleMonth)
         setNotice(`這個連結是 ${monthLabel(plan.staleMonth)}的，網站顯示的是最新的 ${monthLabel(data.month)}資料。`);
     }

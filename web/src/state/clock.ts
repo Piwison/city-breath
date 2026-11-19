@@ -23,6 +23,12 @@ export function seek(t: number) {
   writePhase(x);
 }
 
+/** 選一個時段看（車站卡的整天長條、通勤卡的早晚一小時與時段選單）：停止播放、跳到那個整點。 */
+export function pickHour(h: number) {
+  setPlaying(false);
+  seek(h);
+}
+
 /** 播放中把時間往前推 dt 秒（乘播放速度）；暫停或靜態模式時不動。 */
 export function advance(dt: number) {
   const v = getView();

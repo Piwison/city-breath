@@ -321,3 +321,60 @@
 
 /* 卡裡的圖例（選區模式）：沿用 .legend 的樣式 */
 .card .legend { gap: 4px; }
+
+/* 只給螢幕閱讀器讀的字（通勤卡標題的箭頭讀成「到」） */
+.card-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 通勤卡（4.2）：早一點、晚一點出門呢？三格（點了換時段；這個時段用 --hud-accent 框，停駛的格不能點） */
+.commute-near-wrap { display: grid; gap: 6px; }
+.commute-near { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.commute-near button {
+  min-height: var(--tap);
+  display: grid;
+  gap: 1px;
+  justify-items: start;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--hud-chip);
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
+}
+.commute-near button:active:not(:disabled) { transform: scale(0.97); }
+.commute-near button[aria-current="true"] { border-color: var(--hud-accent); }
+.commute-near button:disabled { cursor: default; }
+.commute-near button:disabled b,
+.commute-near button:disabled .v { color: var(--hud-muted); }
+.commute-near .k { font-size: var(--text-2xs); color: var(--hud-muted); }
+.commute-near b { font-size: var(--text-sm); line-height: 1.2; }
+.commute-near .v { font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
+
+/* 起站前 5 目的地：不能點（通勤卡不改聚焦），版面同車站卡的排名；你的迄站用通勤色標出 */
+.commute-top li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 6px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--hud-chip);
+}
+.commute-top li[data-you] { border-color: var(--commute); }
+.commute-top .n { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.commute-top .k { font-size: var(--text-2xs); color: var(--hud-muted); min-width: 1ch; }
+.commute-you {
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  border: 1px solid var(--commute);
+}

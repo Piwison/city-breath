@@ -1,6 +1,6 @@
 // 畫面狀態的唯一一份（AD-16）。時刻、播放、速度、靜態模式、日型、圖層開關（2.3、3.5、3.3）；
 // 選中的行政區、站、卡片範圍與聚焦的流向（3.6）；通勤的起站、迄站與時段（3.12 車站卡帶入起站，4.1 的通勤面板）。
-// month、hour、dayType、district、station 由 state/url.ts 的 syncUrl() 寫回網址（3.3、3.15），之後再加 date、commute。
+// month、hour、dayType、district、station 與起訖都選好的 commute 由 state/url.ts 的 syncUrl() 寫回網址（3.3、3.15、4.2），之後再加 date。
 // 播放用的連續時間 t 是非 React 欄位（time.t），由 clock.ts 推進；場景在 useFrame 讀它，React 只訂閱整數 hour。
 import { useSyncExternalStore } from "react";
 import type { DayType } from "../data/types";
@@ -35,7 +35,8 @@ export interface ViewState {
   focus: string | null;
   /**
    * 通勤（AD-16 的 commute）：起站 o、迄站 d（站 ID，AD-2；還沒選是 null）與出發時段 h（進站時段，AD-15）。
-   * 非 null＝通勤面板開著（4.1）；車站卡「從這站找通勤」（3.12）帶入起站。4.2 把起訖與時段寫進網址。
+   * 非 null＝通勤面板開著（4.1）；車站卡「從這站找通勤」（3.12）帶入起站。起訖都選好且不同站（commuteReady）＝通勤卡（4.2），
+   * 起訖與時段寫進網址。時段只有一份：通勤開著時 h 跟著 hour（writeTime），卡內時間列與「早晚一小時」都經 clock 換時段。
    */
   commute: Commute | null;
   /**
@@ -72,6 +73,8 @@ let state: ViewState = {
   sheet: "peek",
 };
 const listeners = new Set<() => void>();
+/** 已送過 commute_result_shown 的起訖組（「起站>迄站」）；換起訖、收起通勤時重設。 */
+let shownCommute: string | null = null;
 
 export function getView(): ViewState {
   return state;
@@ -96,7 +99,10 @@ export function useView<T>(select: (s: ViewState) => T): T {
 export function writeTime(t: number) {
   time.t = t;
   const hour = Math.floor(t) % 24;
-  if (hour !== state.hour) set({ hour });
+  if (hour === state.hour) return;
+  // 通勤的時段跟著畫面的時刻（4.2）：卡內時間列、早晚一小時、網址的 hour 與 at 一致
+  const c = state.commute;
+  set(c && c.h !== hour ? { hour, commute: { ...c, h: hour } } : { hour });
 }
 
 export function setMonth(month: string | null) {
@@ -130,7 +136,8 @@ export function setLayer(key: LayerKey, on: boolean) {
 export function selectDistrict(district: string | null) {
   if (district === state.district && state.station === null && state.focus === null) return;
   const opened = district !== null && district !== state.district;
-  set({ district, station: null, focus: null });
+  // 在地圖上點了別的區：通勤卡（蓋在最上面）收起，露出那張行政區卡
+  set(opened ? { district, station: null, focus: null, ...noCommute() } : { district, station: null, focus: null });
   // 計數（AD-20）：打開一張行政區卡；不帶是哪一區
   if (opened) track("district_opened");
 }
@@ -139,7 +146,7 @@ export function selectDistrict(district: string | null) {
 export function selectStation(station: string | null) {
   if (station === state.station && state.focus === null) return;
   const opened = station !== null && station !== state.station;
-  set({ station, focus: null });
+  set(opened ? { station, focus: null, ...noCommute() } : { station, focus: null });
   // 計數（AD-20）：打開一張車站卡；不帶是哪一站
   if (opened) track("station_opened");
 }
@@ -161,10 +168,10 @@ export function setFocus(focus: string | null) {
   if (focus !== state.focus) set({ focus });
 }
 
-/** 關掉小卡：回到全城、不選站不聚焦；播放維持暫停（走查 F1）。 */
+/** 關掉小卡：回到全城、不選站不聚焦、收起通勤；播放維持暫停（走查 F1）。 */
 export function closeCard() {
-  if (state.district !== null || state.station !== null || state.focus !== null || state.sheet !== "peek")
-    set({ district: null, station: null, focus: null, sheet: "peek" });
+  if (state.district !== null || state.station !== null || state.focus !== null || state.sheet !== "peek" || state.commute !== null)
+    set({ district: null, station: null, focus: null, sheet: "peek", ...noCommute() });
 }
 
 /** 小卡切到摘要或完整（把手、上下滑、鍵盤；3.22）。 */
@@ -174,10 +181,22 @@ export function setSheet(sheet: SheetDetent) {
 
 /**
  * 打開通勤面板（4.1）：起訖預設留空，已選了一站就帶入當起站（不放無關的預設站）；時段先用畫面上的整點。
- * 每次都是新物件，讓面板再打開一次。
+ * 每次都是新物件，讓面板再打開一次。打開就暫停（和開卡一樣，4.2）：通勤的時段跟著時刻，不能跟著播放跑。
  */
 export function openCommute(o: string | null = state.station) {
-  set({ commute: { o, d: null, h: state.hour } });
+  shownCommute = null;
+  set({ commute: { o, d: null, h: state.hour }, playing: false });
+}
+
+/** 打開分享連結時還原通勤卡（4.2）：起訖與時段一起寫；時刻由呼叫端 seek 到 h（url.ts planLink 已檢查站）。 */
+export function restoreCommute(c: { o: string; d: string; h: number }) {
+  shownCommute = null;
+  set({ commute: { ...c }, playing: false });
+}
+
+/** 起訖都選好、不同站＝通勤卡（4.2）；否則是通勤面板（還在選）或沒開。 */
+export function commuteReady(c: Commute | null): c is { o: string; d: string; h: number } {
+  return c !== null && c.o !== null && c.d !== null && c.o !== c.d;
 }
 
 /** 從某站找通勤（3.12 車站卡）：起站＝這站，打開通勤面板。 */
@@ -190,12 +209,32 @@ export function setCommute(patch: Partial<Commute>) {
   const c = state.commute;
   if (!c) return;
   const next = { ...c, ...patch };
-  if (next.o !== c.o || next.d !== c.d || next.h !== c.h) set({ commute: next });
+  if (next.o === c.o && next.d === c.d && next.h === c.h) return;
+  // 換了起訖：下一次看到結果再算一次
+  if (next.o !== c.o || next.d !== c.d) shownCommute = null;
+  set({ commute: next });
 }
 
-/** 收起通勤（面板關掉時）。 */
+/** 收起通勤（面板或通勤卡關掉時）。 */
 export function clearCommute() {
-  if (state.commute !== null) set({ commute: null });
+  if (state.commute !== null) set(noCommute());
+}
+
+/** 收起通勤的 patch（並重設「看過結果」）。 */
+function noCommute(): Pick<ViewState, "commute"> {
+  shownCommute = null;
+  return { commute: null };
+}
+
+/**
+ * 通勤卡上出現結果（od 分片載好）時呼叫（AD-20）：同一組起訖只送一次 commute_result_shown，
+ * 換時段、換平日假日不重送；換了起訖或收起後再開再送。不帶 props（不送站名）。
+ */
+export function commuteResultShown(o: string, d: string) {
+  const key = `${o}>${d}`;
+  if (key === shownCommute) return;
+  shownCommute = key;
+  track("commute_result_shown");
 }
 
 /** 任何小卡打開就暫停播放（共用卡框掛上時呼叫；走查 2026-11-11 F1）。關卡不恢復播放。 */

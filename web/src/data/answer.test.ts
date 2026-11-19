@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import basemapJson from "../../public/data/basemap.json";
 import answerSource from "./answer.ts?raw";
-import { districtAnswer, districtShort, LOOP_NOTE, stationAnswer } from "./answer";
+import { commuteAnswer, districtAnswer, districtShort, LOOP_NOTE, stationAnswer } from "./answer";
 import { districtRanks } from "./views";
 import type { BasemapFile, DistrictFlowsFile, DistrictsFile, StationsFile } from "./types";
 
@@ -91,6 +91,30 @@ describe("車站卡的一句答案", () => {
   });
 });
 
+describe("通勤卡的一句答案（4.2）", () => {
+  const base = { origin: "甲站", dest: "乙站", dayType: "weekday" as const, hour: 8, operating: true };
+
+  it("有數字：寫明日型、時段、約幾人與起訖", () => {
+    expect(commuteAnswer({ ...base, companions: 1234.4 })).toBe("平日 8 點，約 1,234 人和你一樣從甲站到乙站");
+    expect(commuteAnswer({ ...base, dayType: "holiday", hour: 0, companions: 10 })).toBe("假日 0 點，約 10 人和你一樣從甲站到乙站");
+  });
+
+  it("少於 10 人（null 或 0–9）：寫「少於 10 人」，不寫數字", () => {
+    for (const companions of [null, 0, 3, 9.4]) {
+      const s = commuteAnswer({ ...base, companions });
+      expect(s).toBe("平日 8 點，和你一樣從甲站到乙站的人少於 10 人");
+      expect(s).not.toMatch(SMALL);
+      expect(s).not.toContain("約");
+    }
+  });
+
+  it("停止營運：寫明沒有列車，不寫 0", () => {
+    const s = commuteAnswer({ ...base, hour: 3, operating: false, companions: null });
+    expect(s).toBe("平日 3 點捷運停止營運，甲站沒有列車");
+    expect(s).not.toMatch(/\b0\b/);
+  });
+});
+
 describe("句子的寫法", () => {
   it("原始碼沒有「此刻」「現在」，也沒有寫死的站名、區名或人數", () => {
     const code = answerSource.replace(/\/\/.*$/gm, "").replace(/\/\*\*[\s\S]*?\*\//g, "");
@@ -105,6 +129,7 @@ describe("句子的寫法", () => {
     const all = [
       districtAnswer({ name: "甲甲區", dayType: "weekday", hour: 8, operating: true, out: [{ name: "乙區", value: 20 }] }),
       stationAnswer({ name: "甲站", dayType: "holiday", hour: 8, operating: true, entriesOnly: false, volume: 20, top: null }),
+      commuteAnswer({ origin: "甲站", dest: "乙站", dayType: "weekday", hour: 8, operating: true, companions: 20 }),
     ];
     for (const s of all) expect(s).not.toMatch(/此刻|現在/);
   });

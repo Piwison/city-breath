@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   cardOpened,
   clearCommute,
+  commuteReady,
+  restoreCommute,
+  writeTime,
   closeCard,
   getView,
   openCommute,
@@ -92,5 +95,56 @@ describe("選取（3.6）", () => {
     selectDistrict("63000030");
     setFocus(null);
     expect(getView()).toBe(before);
+  });
+});
+
+describe("通勤卡（4.2）", () => {
+  beforeEach(() => {
+    closeCard();
+    writeTime(8);
+  });
+
+  it("起訖都選好、不同站才是通勤卡", () => {
+    expect(commuteReady(null)).toBe(false);
+    expect(commuteReady({ o: "a", d: null, h: 8 })).toBe(false);
+    expect(commuteReady({ o: null, d: "b", h: 8 })).toBe(false);
+    expect(commuteReady({ o: "a", d: "a", h: 8 })).toBe(false);
+    expect(commuteReady({ o: "a", d: "b", h: 8 })).toBe(true);
+  });
+
+  it("時段只有一份：通勤開著時 commute.h 跟著畫面的時刻；沒開時不建通勤", () => {
+    writeTime(7.5);
+    expect(getView().commute).toBeNull();
+    openCommute("a");
+    setCommute({ d: "b" });
+    writeTime(9.2);
+    expect(getView().hour).toBe(9);
+    expect(getView().commute).toEqual({ o: "a", d: "b", h: 9 });
+  });
+
+  it("打開通勤面板與還原通勤卡都暫停播放", () => {
+    setPlaying(true);
+    openCommute("a");
+    expect(getView().playing).toBe(false);
+    setPlaying(true);
+    restoreCommute({ o: "a", d: "b", h: 7 });
+    expect(getView().playing).toBe(false);
+    expect(getView().commute).toEqual({ o: "a", d: "b", h: 7 });
+  });
+
+  it("關卡（點空白處、×）與在地圖上選別的區或站都收起通勤卡；回上一層不收", () => {
+    restoreCommute({ o: "a", d: "b", h: 8 });
+    closeCard();
+    expect(getView().commute).toBeNull();
+    selectStation("a");
+    startCommute("a");
+    setCommute({ d: "b" });
+    selectStation("a"); // 同一站：不算選了別站
+    expect(getView().commute).not.toBeNull();
+    selectStation("c");
+    expect(getView().commute).toBeNull();
+    startCommute("c");
+    selectDistrict("63000030");
+    expect(getView().commute).toBeNull();
   });
 });
