@@ -242,7 +242,7 @@ web/public/data/
 | 欄位 | 說明 |
 | --- | --- |
 | `v` | 契約版本（同 `CONTRACT_VERSION`）。改形狀照 AD-18 升版 |
-| `basemapRevision` | 只換內容（新的 DEM、河道）就加一（`basemap.py` 的 `BASEMAP_REVISION`） |
+| `basemapRevision` | 只換內容（新的 DEM、河道）就加一（`basemap.py` 的 `BASEMAP_REVISION`）。2：板南線頂埔段改用 OpenStreetMap 的軌道（8.6） |
 | `stationsMonth` | 站與路線依這個月份（最新月份）的車站產生 |
 | `bbox` | 底座範圍 `[西, 南, 東, 北]`：21 區外框四周各加最大邊長的 8% |
 | `levels` | 台地高度（公尺）`[40, 120, 250, 400, 600, 850]`。存真實高程，場景高度只經 `projection.ts` 的 `elevation()` |
@@ -255,7 +255,7 @@ web/public/data/
 | `sea` | 海：高程 ≤ 0.5 公尺且連成 1 km² 以上、在 21 區以外 |
 | `outsideWater` | 底座上、21 區以外的河 |
 | `grid` | 高程等級格網 `{ lon0, lat0, step, nx, ny, rows }`：`rows[j][i]` 是 `(lon0 + i·step, lat0 − j·step)` 的等級字元 `0`–`6`（高程 ≥ 幾層）；`projection.ts` 的 `terrainLevelAt()` 讀它 |
-| `tracks[]` | 捷運軌道 `{ line, coords, di, approx }`，整條線不切區；`di[k]` 是第 k 個頂點所在的 `districts[]` 索引（−1＝不在有車站的區）；`approx: true`＝路網圖缺段，從同線最近的軌道端點以直線補到車站 |
+| `tracks[]` | 捷運軌道 `{ line, coords, di, approx }`，整條線不切區；`di[k]` 是第 k 個頂點所在的 `districts[]` 索引（−1＝不在有車站的區）；`approx: true`＝路網圖缺段，從同線最近的軌道端點以直線補到車站（搭乘模式不走這種段，8.6） |
 | `stationLines` | 站 ID → 路線（依上面的 ID 順序）。用站 ID 而非索引（AD-2 的例外）：前端用目前月份的 `stations.json` 換成索引，當月沒有的站略過。環狀線站（`exitsRecorded: false`）一律 `["Y"]` |
 | `headway` | 路線 → `{ weekday, holiday }`，各 24 格；每格是該小時內公告的發車間隔 `[最短, 最長]`（分鐘），一小時跨兩個時段就取兩段的最短與最長。不在營運時段（來源 06:00–24:00）或來源寫 0 的小時為 `null`。環狀線不在資料裡，沒有這個鍵（不畫列車，AD-23） |
 | `landmarks[]` | `{ id, name, kind, lon, lat, station, district, venue }`（AD-25）：`station` 是站 ID、`district` 是 8 碼代碼、`venue` 是 `venues.csv` 的 `venue_id` 或 `null`。前端只把 `kind` 對到示意造型 |
@@ -265,14 +265,14 @@ web/public/data/
 處理細節：
 
 - **地形**：Copernicus DEM GLO-30（數值地表模型，含建物與植被）兩塊圖塊合併、重取樣成 1/1800 度（約 60 公尺）、高斯平滑後依六層門檻向量化。切區用 `districts.json` 的簡化界線（和網站畫的行政區薄片同形狀）。
-- **軌道**：臺北市捷運局路網圖的 `RouteName` 是興建時期的路段名，對到營運路線寫在 `pipeline/config/mrt_routes.csv`；新北投支線含在淡水線的長線段裡，由 `cut_from`／`cut_to`（北投、新北投）切出。信義線東延段興建中，不畫。
+- **軌道**：臺北市捷運局路網圖的 `RouteName` 是興建時期的路段名，對到營運路線寫在 `pipeline/config/mrt_routes.csv`；新北投支線含在淡水線的長線段裡，由 `cut_from`／`cut_to`（北投、新北投）切出。信義線東延段興建中，不畫。路網圖缺的段先找 OpenStreetMap 的真實軌道（`basemap.py` 的 `OSM_TRACKS`：`basemap_sources.csv` 的 key → 路線；目前只有板南線永寧—頂埔段，way 806164088，ODbL），接到同線軌道最近的端點（150 公尺內，兩份圖的接縫直接相連），不標 `approx`；補了之後還缺的才以直線補。
 - **每站路線**：環狀線站固定 `Y`；`pipeline/config/station_lines.csv` 的人工修正（附理由）優先；其餘取 150 公尺內有軌道的線，都沒有就取最近一條（3 公里內）。站離自己某條線的軌道超過 150 公尺就以直線補（`approx`）。
 - **班距**：臺北捷運路線發車班距頻率資料，各線取 RouteID 為「線-1」的路線，另有 `R-3`（新北投支線）、`G-3`（小碧潭支線）；同線其他 RouteID（例如 `O-2`）未列。
 - **地標**：見下方 landmarks.csv。
 
 ### pipeline/config/basemap_sources.csv
 
-`key,file,name,publisher,url,dataset,license,retrieved,sha256,optional,note`。`file` 是 `data/raw/` 下的路徑。`fetch-basemap` 下載每個來源：csv 還沒有 sha256 就登記；sha256 不同時原檔不動、新檔留成 `.new`，要加 `--update` 才換上並寫回（之後 `BASEMAP_REVISION` 加一）。下載失敗時若本機已有手動放入的檔就登記那個檔；`optional: true` 的來源都沒有就印手動下載說明、不中斷。`build` 只吃 csv 記錄的那一版：必要來源缺檔或 sha256 不符就失敗；選用來源缺檔時警告並在 `sources[]` 記 `missing`。
+`key,file,name,publisher,url,dataset,license,retrieved,sha256,optional,note`。`file` 是 `data/raw/` 下的路徑。`fetch-basemap` 下載每個來源：csv 還沒有 sha256 就登記；sha256 不同時原檔不動、新檔留成 `.new`，要加 `--update` 才換上並寫回（之後 `BASEMAP_REVISION` 加一）。下載失敗時若本機已有手動放入的檔就登記那個檔；`optional: true` 的來源都沒有就印手動下載說明、不中斷。`build` 只吃 csv 記錄的那一版：必要來源缺檔或 sha256 不符就失敗；選用來源缺檔時警告並在 `sources[]` 記 `missing`。OpenStreetMap 的 `.osm`（API 0.6 的 `way/{id}/full`）每次回應的 generator 不同，sha256 是內容指紋（節點座標、way 的節點順序與標籤，`basemap.osm_fingerprint`），內容沒變就相同。
 
 水利署河川河道（data.gov.tw 25781）的 SHP 在 `gic.wra.gov.tw`，部分網路連不到：手動下載後原樣存成 `data/raw/basemap/RIVERPOLY.zip`（或解壓成 `data/raw/basemap/RIVERPOLY/` 資料夾，裡面一個 `.shp`），再跑 `fetch-basemap` 登記。座標系統讀 `.prj`（TWD97 TM2，EPSG:3826），轉成經緯度後只取底座範圍內的面。新北市水利局的地圖服務沒有標示授權，不進輸出。
 

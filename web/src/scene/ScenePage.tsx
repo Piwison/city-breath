@@ -2,6 +2,9 @@
 // 底層：底座、地形台地、海、行政區薄片、河川、綠地、捷運路線、天空與光；上面是全市前 12 大流向。
 // 點一區：區抬起、鏡頭飛過去、流向換成這區的去哪／誰來、站珠展開；下方時間軸換成行政區卡（點站換成車站小卡）。
 // 車站柱與站珠（3.1）、建築與樹（3.13）；點站開車站卡、流向換成這站前 5 目的地的站對站緞帶（3.12）。列車與雲（3.14，示意）；地標等是之後的票。
+// 搭乘模式第 0 期（8.6）：首頁暫時的「搭板南線」或板南線車站卡的「搭這條線」上車；鏡頭沿真實軌道走（RideCamera），
+// 行進中畫面上只有暫停、下一站、下車三顆（先玩，再給資訊），停靠才開那站的車站卡；首頁其他控制、標籤與流向收起。
+// 碰到場景或卡片就暫停搭乘。3.24 會把「搭板南線」換成首頁最大的主按鈕。
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { NeutralToneMapping } from "three";
@@ -13,6 +16,7 @@ import { loadBasemap, loadDistrictFlows, loadDistricts, loadMonths, loadStations
 import type { BasemapFile, DistrictFlowsFile, DistrictsFile, LineId } from "../data/types";
 import { baseView, flowSource, stationIndex, type BaseView, type FlowSource, type StationIndex } from "../data/views";
 import { pickHour, startClock } from "../state/clock";
+import { canRide, leaveRide, nextStop, pauseRide, restoreRide, setRideRoute, startRide, toggleRide } from "../state/ride";
 import { setService } from "../state/service";
 import { clearViewQuery, parseQuery, perfDebug, planLink, syncUrl, type ParsedQuery } from "../state/url";
 import { commuteReady, getView, restoreCommute, restoreSelection, setDayType, setMonth, setPlaying, useView, type ViewState } from "../state/view";
@@ -35,6 +39,8 @@ import { LayerPanel } from "./LayerPanel";
 import { PeriodToast } from "./PeriodToast";
 import { Plinth, plinthBox, type PlinthBox } from "./Plinth";
 import { Rails } from "./Rails";
+import { RideCamera } from "./RideCamera";
+import { buildRidePath, type RidePath } from "./ridePath";
 import { SceneBoundary, SceneFallback } from "./SceneFallback";
 import { SelectionCamera, SelectionInput } from "./Selection";
 import { Sky } from "./Sky";
@@ -69,6 +75,7 @@ function World({
   box,
   reduced,
   overlays,
+  ride,
 }: {
   view: BaseView;
   flows: FlowSource;
@@ -77,9 +84,11 @@ function World({
   box: PlinthBox;
   reduced: boolean;
   overlays: Overlays;
+  ride: RidePath | null;
 }) {
   const frame = useRef<FrameLight>({ t: -1, lighting: null });
-  const showLabels = useView((s) => s.layers.label);
+  // 搭乘中不標區名（行進中不給資訊，8.6）
+  const showLabels = useView((s) => s.layers.label && s.ride === null);
   // 手機上 2048 的陰影圖太吃記憶體與填充率（AD-6）；短邊 < 600px 用 1024
   const shadowMapSize = useThree((s) => (Math.min(s.size.width, s.size.height) < 600 ? 1024 : 2048));
   const farEdge = useMemo<[number, number, number]>(() => [box.cx, 0, box.cz - box.d / 2], [box]);
@@ -120,6 +129,7 @@ function World({
       <CameraRig reduced={reduced} box={box} link={overlays.camera} />
       <SelectionInput view={view} stations={overlays.stations} press={overlays.press} />
       <SelectionCamera view={view} index={stations} reduced={reduced} />
+      <RideCamera path={ride} view={view} reduced={reduced} />
     </>
   );
 }
@@ -158,7 +168,12 @@ type Loaded = {
   months: string[];
   /** 「找你的站」的搜尋模型（4.1：依路線分組、站序照路線） */
   search: SearchModel;
+  /** 搭乘模式（8.6）：板南線的真實軌道路徑與停靠站；建不出來是 null（不出搭乘入口） */
+  ride: RidePath | null;
 };
+
+/** 搭乘模式第 0 期只開板南線（8.6）。 */
+const RIDE_LINE: LineId = "BL";
 
 /** 有小卡開著（行政區卡、車站卡，或蓋在最上面的通勤卡 4.2）。 */
 const anyCard = (s: ViewState) => s.district !== null || s.station !== null || commuteReady(s.commute);
@@ -224,10 +239,11 @@ function SceneCommuteCard({ data, commute }: { data: Loaded; commute: { o: strin
  * 下方：沒選東西時是時間軸；選了區是行政區卡、選了站是車站小卡（卡框與卡內時間列共用，打開就暫停）。
  * 通勤的起訖選齊了，通勤卡蓋在最上面（4.2）；關掉回到底下原本的車站卡、行政區卡或時間軸。
  */
-function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
+function Bottom({ data, legend, calm }: { data?: Loaded; legend: LegendLink; calm: boolean }) {
   const district = useView((s) => s.district);
   const station = useView((s) => s.station);
   const commute = useView((s) => s.commute);
+  const riding = useView((s) => s.ride !== null);
   if (data && commuteReady(commute)) return <SceneCommuteCard data={data} commute={commute} />;
   if (data && station)
     return (
@@ -239,9 +255,15 @@ function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
         lineNames={data.lineNames}
         districtNames={data.districtNames}
         backTo={district ? data.districtNames.get(district) : undefined}
-        legend={legend}
+        // 搭乘中流向不畫（8.6），卡底的緞帶圖例也不放
+        legend={riding ? undefined : legend}
+        // 板南線車站卡的「搭這條線」（8.6）：這站在搭乘路線上、還沒在搭
+        rideLine={!riding && canRide(RIDE_LINE, station) ? RIDE_LINE : undefined}
+        onRide={() => startRide(station, calm)}
       />
     );
+  // 搭乘行進中：沒有卡片、沒有時間軸（先玩，再給資訊）
+  if (riding) return null;
   if (data && district)
     return (
       <DistrictCard
@@ -257,6 +279,70 @@ function Bottom({ data, legend }: { data?: Loaded; legend: LegendLink }) {
     <TimeBar month={data?.month} source={data?.flows}>
       <FlowLegend source={data?.flows} stations={data?.stations} link={legend} />
     </TimeBar>
+  );
+}
+
+/** 首頁暫時的「搭板南線」（8.6；3.24 換成最大的主按鈕）：沒開卡、沒開通勤時在「找你的站」正上方。 */
+function RideStart({ data, calm }: { data?: Loaded; calm: boolean }) {
+  const hidden = useView((s) => s.ride !== null || anyCard(s) || s.commute !== null);
+  if (hidden) return null;
+  return (
+    <button type="button" className="hud ride-start" disabled={!data?.ride} onClick={() => startRide(undefined, calm)}>
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <rect x="3.5" y="1.8" width="9" height="10" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M3.8 7.2h8.4M5.6 14.2l1-2.2M10.4 14.2l-1-2.2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <circle cx="6" cy="9.6" r=".9" fill="currentColor" />
+        <circle cx="10" cy="9.6" r=".9" fill="currentColor" />
+      </svg>
+      搭板南線
+    </button>
+  );
+}
+
+/**
+ * 搭乘中的三顆控制（8.6）：暫停／繼續、下一站、下車，點擊目標 --tap；停靠開卡時在卡片上方，行進中在畫面下方。
+ * 畫面上不出現站名與數字；到站時給螢幕閱讀器一句「停靠 X」（看不到的 live region）。
+ */
+function RideControls({ data, calm, onLeave }: { data: Loaded; calm: boolean; onLeave: () => void }) {
+  const ride = useView((s) => s.ride);
+  const card = useView((s) => s.station !== null || commuteReady(s.commute));
+  // 停靠時從車站卡打開的通勤面板（還在選起訖）蓋住下方：先收起控制，關掉面板就回來
+  const picking = useView((s) => s.commute !== null && !commuteReady(s.commute));
+  if (!ride || picking) return null;
+  const i = data.stations.byId.get(ride.station);
+  const name = i === undefined ? "" : data.stations.stations[i].display;
+  return (
+    <div className="ride-controls" role="group" aria-label="搭乘板南線" data-card={card || undefined}>
+      <button type="button" className="hud ride-btn" onClick={() => toggleRide(calm)}>
+        {ride.playing ? (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M5 3v10M11 3v10" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4.5 2.8v10.4L13 8z" fill="currentColor" />
+          </svg>
+        )}
+        {ride.playing ? "暫停" : "繼續"}
+      </button>
+      <button type="button" className="hud ride-btn" onClick={() => nextStop(calm)}>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M3 3v10l7-5z" fill="currentColor" />
+          <path d="M12.5 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+        下一站
+      </button>
+      <button type="button" className="hud ride-btn" onClick={onLeave}>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M9.5 2.5H4a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M7.5 8h6M11 5.2L13.8 8 11 10.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        下車
+      </button>
+      <p className="ride-sr" aria-live="polite">
+        {ride.docked && name ? `停靠${name}` : ""}
+      </p>
+    </div>
   );
 }
 
@@ -283,6 +369,9 @@ export default function ScenePage() {
   const showLabels = useView((s) => s.layers.label);
   const cardOpen = useView(anyCard);
   const sheet = useView((s) => s.sheet);
+  const riding = useView((s) => s.ride !== null);
+  const still = useView((s) => s.still);
+  const calm = reduced || still;
   const top = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
   const main = useRef<HTMLElement>(null);
@@ -304,6 +393,8 @@ export default function ScenePage() {
   useEffect(() => {
     if (!data) return;
     setMonth(data.month);
+    // 搭乘路線（8.6）先登記，連結裡的 ride 才查得到
+    setRideRoute(data.ride ? { line: data.ride.line, len: data.ride.len, stops: data.ride.stops } : null);
     const q = link.current ?? parseQuery(location.search);
     const plan = planLink(q, {
       months: data.months,
@@ -315,6 +406,7 @@ export default function ScenePage() {
         const i = data.stations.byId.get(id);
         return i !== undefined && data.stations.stations[i].exitsRecorded;
       },
+      canRide,
     });
     if (plan.kind === "fallback") {
       // 退回首頁全景：不選區站、照常從清晨播放，網址拿掉看不懂的部分
@@ -323,6 +415,11 @@ export default function ScenePage() {
       if (!getView().playing) startClock({ reducedMotion: reduced });
       clearViewQuery();
       setNotice("這個連結裡的站、行政區或時段在資料裡找不到，先帶你看全城。");
+    } else if (plan.kind === "restore" && plan.ride) {
+      // 搭乘的連結（8.6）：回到同一站、暫停中、車站卡開著
+      restoreRide(plan.ride.line, plan.ride.station);
+      if (plan.staleMonth)
+        setNotice(`這個連結是 ${monthLabel(plan.staleMonth)}的，網站顯示的是最新的 ${monthLabel(data.month)}資料。`);
     } else if (plan.kind === "restore") {
       restoreSelection(plan.district, plan.station);
       // 通勤卡（4.2）：起訖與時段一起還原，蓋在車站卡（若有）上面
@@ -343,11 +440,16 @@ export default function ScenePage() {
   useEffect(() => {
     const bottom = () => dock.current?.querySelector<HTMLElement>(".scene-dock, .card") ?? null;
     const findMain = () => dock.current?.querySelector<HTMLElement>(".find-main") ?? null;
+    // 首頁暫時的「搭板南線」（8.6）在「找你的站」上方：停駛提示再往上讓
+    const rideMain = () => dock.current?.querySelector<HTMLElement>(".ride-start") ?? null;
     const measure = () => {
       const t = top.current?.getBoundingClientRect();
       const d = bottom()?.getBoundingClientRect();
-      const f = findMain()?.getBoundingClientRect();
-      const edge = d ? (f && f.height > 0 ? Math.min(d.top, f.top) : d.top) : innerHeight;
+      const tops = [findMain(), rideMain()]
+        .map((el) => el?.getBoundingClientRect())
+        .filter((r): r is DOMRect => !!r && r.height > 0)
+        .map((r) => r.top);
+      const edge = d ? Math.min(d.top, ...tops) : innerHeight;
       overlays.board.safeTop = t ? Math.round(t.bottom) + 6 : 0;
       overlays.board.safeBottom = Math.round(edge) - 6;
       // 主按鈕放在時間軸正上方；停駛提示（決定 8）再往上，放在主按鈕（沒有主按鈕時是時間軸或小卡）正上方：距離交給 CSS
@@ -356,11 +458,10 @@ export default function ScenePage() {
     };
     measure();
     const ro = new ResizeObserver(measure);
-    for (const el of [top.current, bottom(), findMain()]) if (el) ro.observe(el);
+    for (const el of [top.current, bottom(), findMain(), rideMain()]) if (el) ro.observe(el);
     // 主按鈕在搜尋、通勤面板打開時收起、關掉時回來：下方換了元素就重量
     const mo = new MutationObserver(() => {
-      const f = findMain();
-      if (f) ro.observe(f);
+      for (const el of [findMain(), rideMain(), bottom()]) if (el) ro.observe(el);
       measure();
     });
     if (dock.current) mo.observe(dock.current, { childList: true });
@@ -375,7 +476,7 @@ export default function ScenePage() {
       d?.removeEventListener("transitionend", measure);
       d?.removeEventListener("pointerup", measure);
     };
-  }, [overlays, cardOpen, sheet, data]);
+  }, [overlays, cardOpen, sheet, data, riding]);
 
   useEffect(() => {
     if (!webgl) return;
@@ -391,6 +492,8 @@ export default function ScenePage() {
         if (flows.month !== districts.month || stations.month !== districts.month)
           throw new Error(`district-flows.json、stations.json 與 districts.json 的月份不同`);
         const view = baseView(basemap, districts);
+        // 搭乘路徑（8.6）：板南線的真實軌道（不含 approx 直線補段）與這條線的站
+        const rideStations = stations.stations.filter((s) => basemap.stationLines[s.id]?.includes(RIDE_LINE));
         setData({
           view,
           flows: flowSource(flows),
@@ -404,6 +507,7 @@ export default function ScenePage() {
           headway: basemap.headway,
           months: monthsList,
           search: searchModel(stations.stations, basemap.stationLines, basemap.lines),
+          ride: buildRidePath(view.tracks, RIDE_LINE, rideStations),
         });
       })
       .catch((e: Error) => alive && setError(e.message));
@@ -438,7 +542,11 @@ export default function ScenePage() {
             camera={CAMERA}
             aria-label={`臺北盆地的微縮模型：地形、海、河川、綠地、捷運路線、示意的建築與樹、示意的列車（間隔依官方班距）與飄過的雲、依這小時進出人數升降的車站柱（放大或點一區才出現），以及 ${data.month} 各行政區之間人數最多的流向；點一個行政區看這區的人去哪、誰來這裡，放大後可點車站`}
             role="img"
-            onPointerDown={() => setPlaying(false)}
+            onPointerDown={() => {
+              setPlaying(false);
+              // 搭乘中碰到場景＝暫停搭乘（和首頁碰到就暫停播放一樣），可以自己看看四周
+              pauseRide();
+            }}
           >
             <World
               view={data.view}
@@ -448,9 +556,10 @@ export default function ScenePage() {
               box={data.box}
               reduced={reduced}
               overlays={overlays}
+              ride={data.ride}
             />
-            {/* 選區時建築與樹跟著區一起彈起（DistrictLift 寫 lifts.ref） */}
-            <Blocks view={data.view} month={data.month} reduced={reduced} lift={lifts.ref} />
+            {/* 選區時建築與樹跟著區一起彈起（DistrictLift 寫 lifts.ref）；搭乘時軌道兩側走廊裡的沉下去（8.6） */}
+            <Blocks view={data.view} month={data.month} reduced={reduced} lift={lifts.ref} corridor={data.ride} />
             <FirstFrame />
             {perf && (
               <Suspense fallback={null}>
@@ -460,11 +569,12 @@ export default function ScenePage() {
           </Canvas>
         )}
       </SceneBoundary>
-      {data && <DistrictLabelLayer view={data.view} els={labels} visible={showLabels} />}
+      {data && <DistrictLabelLayer view={data.view} els={labels} visible={showLabels && !riding} />}
       {data && <StationLabelLayer index={data.stations} link={overlays.stations} />}
       {data && <FlowLabelLayer els={flowLabels} />}
-      {data && <PeriodToast source={data.flows} />}
-      {data && <SleepHint />}
+      {/* 搭乘中不出時段名與停駛提示（行進中不給說明，8.6） */}
+      {data && !riding && <PeriodToast source={data.flows} />}
+      {data && !riding && <SleepHint />}
       {data && perf && (
         <Suspense fallback={null}>
           <PerfPanel />
@@ -476,35 +586,54 @@ export default function ScenePage() {
         </p>
       )}
       <div ref={top} className="scene-top">
-        <button
-          type="button"
-          className="hud scene-home-btn"
-          aria-label="回到全景"
-          title="回到全景"
-          disabled={!data}
-          onClick={() => overlays.camera.home?.()}
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              d="M2 5.5V2h3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="8" cy="8" r="1.8" fill="currentColor" />
-          </svg>
-        </button>
-        <ShareMoment month={data?.month} />
-        <LayerPanel />
+        {/* 搭乘中上方不放按鈕：畫面上只有三顆搭乘控制（8.6） */}
+        {!riding && (
+          <>
+            <button
+              type="button"
+              className="hud scene-home-btn"
+              aria-label="回到全景"
+              title="回到全景"
+              disabled={!data}
+              onClick={() => overlays.camera.home?.()}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M2 5.5V2h3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="8" cy="8" r="1.8" fill="currentColor" />
+              </svg>
+            </button>
+            <ShareMoment month={data?.month} />
+            <LayerPanel />
+          </>
+        )}
         {notice && <LinkNotice text={notice} onClose={() => setNotice(null)} />}
       </div>
-      <div ref={dock}>
-        <Bottom data={data} legend={overlays.legend} />
-        {/* 下方主按鈕「找你的站」與搜尋、通勤面板（4.1，決定 1） */}
-        <FindStation model={data?.search} stations={data?.stations.stations} month={data?.month} />
+      {/* 搭乘中碰到卡片（停靠時的車站卡）＝暫停搭乘：讀卡時卡片不會因為出發而收起 */}
+      <div ref={dock} onPointerDownCapture={riding ? pauseRide : undefined}>
+        <Bottom data={data} legend={overlays.legend} calm={calm} />
+        {/* 首頁暫時的「搭板南線」（8.6）：放在「找你的站」之前，搜尋面板打開時蓋在它上面 */}
+        <RideStart data={data} calm={calm} />
+        {/* 下方主按鈕「找你的站」與搜尋、通勤面板（4.1，決定 1）；搭乘中不放主按鈕（停靠時的通勤面板照常） */}
+        <FindStation model={data?.search} stations={data?.stations.stations} month={data?.month} hideMain={riding} />
       </div>
+      {data && riding && (
+        <RideControls
+          data={data}
+          calm={calm}
+          onLeave={() => {
+            // 下車：回到全景（減少動態時直接切換），一天的播放維持暫停
+            leaveRide();
+            overlays.camera.home?.();
+          }}
+        />
+      )}
     </main>
   );
 }

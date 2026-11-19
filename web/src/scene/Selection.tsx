@@ -7,6 +7,7 @@
 // 鏡頭：選區飛到那區、選站飛到那站、聚焦一條流向（含車站卡的站對站，3.12）飛到它的中點；減少動態或靜態模式時直接切換。
 // 關卡（點空白處或 ×）只關卡片、鏡頭留在原地（產品計畫 v2 決定 6：誤觸不該讓人丟掉正在看的位置）；回全景只靠「回到全景」。
 // 手機上目標往南偏，讓主體落在小卡之上（原型 lookAt）。
+// 搭乘模式（8.6）：點畫面只暫停搭乘（ScenePage），不選區站、不壓扁區；停靠開卡時鏡頭歸 RideCamera，這裡不飛。
 import type { CameraControls } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
@@ -77,6 +78,7 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
     };
     const onDown = (e: PointerEvent) => {
       active.add(e.pointerId);
+      if (getView().ride) return;
       if (active.size > 1) {
         release();
         return;
@@ -92,6 +94,7 @@ export function SelectionInput({ view, stations, press }: { view: BaseView; stat
       active.delete(e.pointerId);
       const d = down;
       release();
+      if (getView().ride) return;
       // 只算在畫布上放開、幾乎沒移動的點
       if (!d || e.target !== el || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return;
       const v = getView();
@@ -170,7 +173,7 @@ export function SelectionCamera({ view, index, reduced }: { view: BaseView; inde
     [view],
   );
   useEffect(() => {
-    if (!controls) return;
+    if (!controls || getView().ride) return;
     const narrow = aspect < 0.8;
     const fly = (x: number, z: number, d: number) => void controls.setLookAt(...lookAtArgs(x, z, d, narrow), !calm);
     const at = (id: string) => {

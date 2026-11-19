@@ -210,7 +210,7 @@ describe("planLink（對照資料還原或退回全景）", () => {
   const plan = (q: string) => planLink(parseQuery(q), data);
 
   it("區與站都在：還原", () => {
-    expect(plan("?month=2026-09&day=holiday&hour=14&district=63000030")).toEqual({ kind: "restore", district: "63000030", station: null, commute: null, staleMonth: null });
+    expect(plan("?month=2026-09&day=holiday&hour=14&district=63000030")).toEqual({ kind: "restore", district: "63000030", station: null, commute: null, ride: null, staleMonth: null });
     expect(plan("?district=63000030&station=sd821b2ec")).toMatchObject({ kind: "restore", district: "63000030", station: "sd821b2ec" });
   });
   it("站不存在、月份不在資料裡、格式錯：退回全景", () => {
@@ -220,7 +220,7 @@ describe("planLink（對照資料還原或退回全景）", () => {
     expect(plan("?district=65000999")).toEqual({ kind: "fallback", invalid: ["district"] });
   });
   it("舊月份：照樣還原並註明", () => {
-    expect(plan("?month=2026-08&station=sd821b2ec")).toEqual({ kind: "restore", district: null, station: "sd821b2ec", commute: null, staleMonth: "2026-08" });
+    expect(plan("?month=2026-08&station=sd821b2ec")).toEqual({ kind: "restore", district: null, station: "sd821b2ec", commute: null, ride: null, staleMonth: "2026-08" });
   });
   it("只有時刻與日型：none（開場已經停在那一刻）", () => {
     expect(plan("?day=holiday&hour=14")).toEqual({ kind: "none" });
@@ -252,6 +252,7 @@ describe("4.2 通勤卡的網址", () => {
       district: null,
       station: null,
       commute: { o: "sa", d: "sb", h: 7 },
+      ride: null,
       staleMonth: null,
     });
     expect(plan("?station=sa&from=sa&to=sb&at=8")).toMatchObject({ kind: "restore", station: "sa", commute: { o: "sa", d: "sb", h: 8 } });

@@ -8,6 +8,7 @@
 // 全景時波紋加大（3.21 預設）。
 // 產品計畫 v2（3.21）：全城視角不畫站柱（決定 3），放大到門檻、選了區（那區的站）或選中的站才長出來，約 0.4 秒，
 // 減少動態時直接出現；站珠與廣場一直都在。選了區時這區的站名先放、流向標籤讓路（決定 5），名牌依全日人數挑。
+// 搭乘模式（8.6）：鏡頭貼著軌道走，站柱一律收起（不擋鏡頭、行進中不給資訊）、不標站名、點不到站；站珠與廣場照常。
 import { useFrame, useThree } from "@react-three/fiber";
 import gsap from "gsap";
 import { useEffect, useMemo, useRef } from "react";
@@ -31,6 +32,10 @@ const BEAD_R = 0.27;
 const BEAD_GAP = 0.2;
 /** 選中的站珠放大幾倍（原型 1.6）。 */
 const BEAD_ON = 1.6;
+/** 搭乘中（8.6）站珠縮成幾倍：鏡頭貼著軌道，原大小的站珠會像一顆大球擋在前面；停靠的站也不放大。 */
+const BEAD_RIDE = 0.45;
+/** 搭乘中離鏡頭多近的站珠開始縮小、多近時不見（場景單位）：經過時不從腳下掃過一顆大球。 */
+const BEAD_RIDE_NEAR: [number, number] = [1.3, 0.6];
 /** 點站時站珠從幾成彈回（原型 stPop 0.4 → 1，elastic.out(1.3, 0.35) 0.7 秒）。 */
 const POP_FROM = 0.4;
 /** 停止營運時站珠往 --station 褪多少（熄燈）。 */
@@ -158,6 +163,7 @@ export function Stations({
   const district = useView((s) => s.district);
   const station = useView((s) => s.station);
   const still = useView((s) => s.still);
+  const riding = useView((s) => s.ride !== null);
   const calm = reduced || still;
 
   // 只畫在底圖 21 區裡的站（stations.json 的 district，AD-9；目前全部都在）
@@ -275,7 +281,7 @@ export function Stations({
     const kg = calm || reset ? 1 : 1 - Math.exp(-dt * PILLAR_GROW_RATE);
     for (let i = 0; i < n; i++) {
       const f = frames[i];
-      const g = pillarShown({ zoomed, district: v.district, station: v.station, id: f.id, stationDistrict: f.district }) ? 1 : 0;
+      const g = !riding && pillarShown({ zoomed, district: v.district, station: v.station, id: f.id, stationDistrict: f.district }) ? 1 : 0;
       let dg = (g - S.grow[i]) * kg;
       if (Math.abs(g - S.grow[i] - dg) < 1e-3) dg = g - S.grow[i];
       if (dg !== 0) moved = true;
@@ -300,8 +306,10 @@ export function Stations({
       for (let i = 0; i < n; i++) wave.pulse[i] = waving ? wavePulseAt(waveAt(clock.elapsedTime, wave.dist[i] ?? 0), zoomed) : 1;
 
     // 矩陣：廣場貼地、細柱依高度、站珠在柱頂上；整區抬起時跟著抬、按壓時跟著壓扁（地塊的 group 以 y=0 縮放）
-    const matKey = `${liftKey}|${station}|${pop.v.toFixed(3)}`;
-    if (moved || popping || waveDirty || matKey !== last.current.matKey) {
+    const matKey = `${liftKey}|${station}|${pop.v.toFixed(3)}|${riding}`;
+    // 搭乘中鏡頭每格在動：站珠依離鏡頭的距離縮放，每格重寫（陰影圖只在柱高、抬起、選取這些變了才重畫，省 GPU）
+    const structural = moved || popping || waveDirty || matKey !== last.current.matKey;
+    if (riding || structural) {
       last.current.matKey = matKey;
       for (let i = 0; i < n; i++) {
         const f = frames[i];
@@ -317,7 +325,10 @@ export function Stations({
         o.updateMatrix();
         meshes.column.setMatrixAt(i, o.matrix);
         o.position.y = base + 0.08 + h + BEAD_GAP;
-        o.scale.setScalar((f.id === station ? BEAD_ON * (pop.id === f.id ? pop.v : 1) : 1) * wave.pulse[i]);
+        if (riding) {
+          const d = Math.min(1, Math.max(0, (o.position.distanceTo(camera.position) - BEAD_RIDE_NEAR[1]) / (BEAD_RIDE_NEAR[0] - BEAD_RIDE_NEAR[1])));
+          o.scale.setScalar(Math.max(1e-3, BEAD_RIDE * d * d * (3 - 2 * d)));
+        } else o.scale.setScalar((f.id === station ? BEAD_ON * (pop.id === f.id ? pop.v : 1) : 1) * wave.pulse[i]);
         o.updateMatrix();
         meshes.bead.setMatrixAt(i, o.matrix);
       }
@@ -325,7 +336,7 @@ export function Stations({
         m.count = n;
         m.instanceMatrix.needsUpdate = true;
       }
-      gl.shadowMap.needsUpdate = true;
+      if (structural) gl.shadowMap.needsUpdate = true;
     }
 
     // 站珠顏色：路線色；停止營運往 --station 褪（熄燈），選中的站往站燈色推。變了才上傳
@@ -347,7 +358,7 @@ export function Stations({
 
     // 名牌與可點的站：鏡頭、畫面、柱高、抬起、選取或流向標籤變了才重算
     const L = last.current;
-    const key = `${station}|${district}|${board.safeTop}|${board.safeBottom}`;
+    const key = `${station}|${district}|${board.safeTop}|${board.safeBottom}|${riding}`;
     // 選了區：站名先放，不看流向標籤（決定 5），所以流向標籤變了也不必重算（否則兩邊會每格互相觸發）
     const first = district !== null;
     const bv = first ? -2 : board.version;
@@ -371,6 +382,7 @@ export function Stations({
       const sx = (P.x * 0.5 + 0.5) * size.width;
       const sy = (-P.y * 0.5 + 0.5) * size.height;
       const front = P.z <= 1;
+      if (riding) continue;
       if (front && stationPickable({ layer: true, zoomed, district, station, stationDistrict: f.district })) pick.push({ id: f.id, x: sx, y: sy });
       const tier = labelTier({ id: f.id, stationDistrict: f.district, zoomed, district, station });
       if (tier === null) continue;

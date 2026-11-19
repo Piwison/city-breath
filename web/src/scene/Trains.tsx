@@ -6,6 +6,7 @@
 // 高度照 Rails：薄片頂面＋路線浮起，選區時跟著所在的區一起彈起（lift.ts）。
 // 不投影：陰影圖只在光移動時重畫（Daylight），暫停時車還在跑，影子會留在原地。
 // 播放中走過第一班車的整點時觸發站珠波紋（firstTrain.ts，3.4 的 service.ts 同一份班距）。
+// 搭乘模式（8.6）：鏡頭貼著軌道，離鏡頭很近的車縮小淡出（RIDE_NEAR），不會整片擋住畫面。
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CapsuleGeometry, Color, InstancedMesh, MeshStandardMaterial, Object3D } from "three";
@@ -38,6 +39,8 @@ const RADIUS = 0.13;
 const RIDE = 0.11;
 /** 段頭段尾多長的距離內縮放進出（場景單位）。 */
 const END_FADE = 0.4;
+/** 搭乘中離鏡頭多近的車開始縮小、多近時完全不見（場景單位）。 */
+const RIDE_NEAR: [number, number] = [4.0, 2.0];
 
 const DETAIL: Record<Tier, [number, number]> = { full: [3, 8], lite: [2, 5] };
 
@@ -195,7 +198,7 @@ export function Trains({
   const P = useMemo(() => ({ x: 0, y: 0, z: 0, dx: 1, dz: 0 }), []);
   const slots = useMemo<number[]>(() => [], []);
 
-  useFrame(({ clock }, dt) => {
+  useFrame(({ clock, camera }, dt) => {
     const v = getView();
     // 第一班車：播放中走過第一班車的整點才觸發（拖時間軸、暫停、減少動態都不觸發）；不論列車圖層開不開
     const t = time.t;
@@ -207,6 +210,7 @@ export function Trains({
       return;
     }
     const smoothT = v.playing && !calm;
+    const riding = v.ride !== null;
     const speed = calm ? 0 : SPEED * (v.playing ? v.speed : PAUSED);
     const step = Math.min(dt, 0.1) * speed;
     let n = 0;
@@ -227,8 +231,10 @@ export function Trains({
           trackAt(tk, s, P);
           const side = dir ? -SIDE : SIDE;
           o.position.set(P.x - P.dz * side, P.y + RIDE, P.z + P.dx * side);
+          const near = riding ? smooth(RIDE_NEAR[1], RIDE_NEAR[0], o.position.distanceTo(camera.position)) : 1;
+          if (scale * near < 0.02) continue;
           o.rotation.set(0, Math.atan2(-P.dz, P.dx), 0);
-          o.scale.setScalar(scale);
+          o.scale.setScalar(scale * near);
           o.updateMatrix();
           mesh.setMatrixAt(n, o.matrix);
           mesh.setColorAt(n, colors[i]);

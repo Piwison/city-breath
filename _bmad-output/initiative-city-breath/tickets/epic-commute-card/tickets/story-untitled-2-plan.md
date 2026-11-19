@@ -3,7 +3,7 @@ title: '同路人數、名次與早晚一小時'
 type: 'feature'
 ticket: '2'
 created: '2026-11-19'
-status: 'built'
+status: done
 baseline_revision: 'f4d8bd4a912c75e14b5ea639b581335a3b585837'
 route: 'full'
 route_source: 'auto'

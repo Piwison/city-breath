@@ -66,7 +66,8 @@ export function Flows({ view, source, stations, labels, board, scale, reduced }:
   const hour = useView((s) => s.hour);
   const still = useView((s) => s.still);
   const dayType = useView((s) => s.dayType);
-  const visible = useView((s) => s.layers.flow);
+  // 搭乘模式（8.6）不畫流向與它的人數標籤：行進中不給資訊，停靠時的資訊在車站卡（先玩，再給資訊）
+  const visible = useView((s) => s.layers.flow && s.ride === null);
   const district = useView((s) => s.district);
   const station = useView((s) => s.station);
   const focus = useView((s) => s.focus);

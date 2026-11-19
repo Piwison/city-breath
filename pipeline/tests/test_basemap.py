@@ -112,6 +112,61 @@ def test_station_lines_ring_override_nearest_and_gaps():
     assert all(t.geom.coords[-1] in [(s.lon, s.lat) for s in stations] for t in approx)
 
 
+def _osm(gen="cgimap 1 (123 spike)", lat2="24.9660344"):
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="{gen}" copyright="OpenStreetMap and contributors">
+ <node id="1" lat="24.9598672" lon="121.4193590" version="1" timestamp="2020-01-01T00:00:00Z"/>
+ <node id="2" lat="24.9630000" lon="121.4270000" version="1" timestamp="2020-01-01T00:00:00Z"/>
+ <node id="3" lat="{lat2}" lon="121.4349913" version="1" timestamp="2020-01-01T00:00:00Z"/>
+ <way id="806164088" version="7"><nd ref="1"/><nd ref="2"/><nd ref="3"/>
+  <tag k="railway" v="subway"/><tag k="ref" v="BL"/></way>
+</osm>""".encode()
+
+
+def test_osm_way_is_read_in_node_order_and_fingerprint_ignores_generator(tmp_path):
+    p = tmp_path / "osm_bl_dingpu.osm"
+    p.write_bytes(_osm())
+    g = bm.read_osm_way(p)
+    assert list(g.coords) == [(121.419359, 24.9598672), (121.427, 24.963), (121.4349913, 24.9660344)]
+    # API 每次回應的 generator 不同：內容一樣，指紋就一樣；節點一動，指紋就變
+    assert bm.osm_fingerprint(_osm(gen="cgimap 2 (999 spike)")) == bm.fingerprint(p)
+    assert bm.osm_fingerprint(_osm(lat2="24.9660345")) != bm.fingerprint(p)
+    new = tmp_path / "osm_bl_dingpu.osm.new"
+    new.write_bytes(_osm(gen="other"))
+    assert bm.fingerprint(new) == bm.fingerprint(p)
+    bad = tmp_path / "bad.osm"
+    bad.write_bytes(b'<osm><way id="1"><nd ref="9"/><nd ref="8"/></way></osm>')
+    with pytest.raises(bm.BasemapError, match="缺節點"):
+        bm.read_osm_way(bad)
+
+
+def test_osm_track_joins_nearest_line_end_and_removes_the_gap():
+    # 路網圖的板南線停在永寧附近；OSM 的頂埔段從約 70 m 外接續到頂埔
+    network = [bm.Track("BL", LineString([(121.44889, 24.98686), (121.43564, 24.9664)])),
+               bm.Track("G", LineString([(121.43, 24.96), (121.43, 24.95)]))]
+    osm = LineString([(121.419359, 24.9598672), (121.427, 24.963), (121.4349913, 24.9660344)])
+    out = bm.add_osm_tracks(network, [("BL", osm, "OSM 頂埔段")])
+    patch = out[-1]
+    assert patch.line == "BL" and not patch.approx and patch.note == "OSM 頂埔段"
+    # 從路網圖的端點接出去，照 OSM 的節點往頂埔走（反轉了 way 的方向）
+    assert patch.geom.coords[0] == (121.43564, 24.9664)
+    assert patch.geom.coords[1] == (121.4349913, 24.9660344) and patch.geom.coords[-1] == (121.419359, 24.9598672)
+    sl = bm.assign_station_lines([_st("頂埔", 121.418986, 24.959508)], out)
+    assert sl.lines["頂埔"] == ["BL"] and sl.gaps == []
+    with pytest.raises(bm.BasemapError, match="可能接錯段"):
+        bm.add_osm_tracks(network, [("BL", LineString([(121.30, 24.90), (121.31, 24.90)]), "遠的")])
+
+
+def test_published_bl_track_reaches_dingpu_without_approx(published):
+    """8.6：頂埔段是 OpenStreetMap 的真實軌道，不是以直線補的 approx。"""
+    month, stations = _latest()
+    dingpu = next(s for s in stations if s["name"] == "頂埔")
+    bl = [t for t in published["tracks"] if t["line"] == "BL"]
+    near = [t for t in bl if any(abs(x - dingpu["lon"]) < 0.002 and abs(y - dingpu["lat"]) < 0.002 for x, y in t["coords"])]
+    assert near and all(not t["approx"] for t in near)
+    assert any("OpenStreetMap" in s["name"] and "ODbL" in s["license"] for s in published["sources"])
+
+
 def test_station_too_far_from_any_track_fails():
     tracks = [bm.Track("BL", LineString([(121.40, 25.0), (121.45, 25.0)]))]
     with pytest.raises(bm.BasemapError, match="超過"):

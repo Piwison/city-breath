@@ -40,7 +40,8 @@ STATION_LINES = CONFIG / "station_lines.csv"
 LANDMARKS_RETRIEVED = "2026-11-10"
 
 # 只換內容（新的 DEM、補上水利署河道）就加一；改形狀照 AD-18 升 CONTRACT_VERSION
-BASEMAP_REVISION = 1
+# 2：板南線永寧—頂埔段改用 OpenStreetMap 的軌道（8.6），不再以直線補
+BASEMAP_REVISION = 2
 
 LEVELS = (40, 120, 250, 400, 600, 850)  # 公尺（AD-21）
 LINE_IDS = ("BR", "R", "R-3", "G", "G-3", "O", "BL", "Y")
@@ -54,6 +55,9 @@ COORD_DECIMALS = 5
 NEAR_TRACK_M = 150  # 站與軌道距離在這以內就算這站有這條線
 MAX_GAP_M = 3000  # 軌道缺段以直線補的上限；更遠代表對錯線或資料有問題
 BRANCH_CUT_M = 300  # 支線切段：兩端車站離線段在這以內才切
+# 路網圖缺段的真實軌道（OpenStreetMap，basemap_sources.csv 的 key → 路線）：接在同線軌道最近的端點上，不標 approx（8.6）
+OSM_TRACKS = {"osm_bl_dingpu": "BL"}
+OSM_JOIN_M = 150  # OSM 軌道端點與路網圖軌道端點的距離上限（兩份圖的位置誤差）；更遠代表接錯段
 M2_PER_DEG2 = 111_000 * 100_700  # 北緯 25 度附近 1 平方度約多少平方公尺（只用來丟掉碎片）
 DEM_RES = 1 / 1800  # 約 60 公尺（GLO-30 的一半解析度）
 GRID_STEP = 0.003  # 高程等級格網約 300 公尺一格
@@ -97,7 +101,10 @@ def local_path(raw: Path, row: dict[str, str]) -> Path | None:
 
 
 def fingerprint(path: Path) -> str:
-    """檔案的 sha256；資料夾（解壓的 SHP）則是 .shp＋.dbf 內容依序串接的 sha256。"""
+    """檔案的 sha256；資料夾（解壓的 SHP）則是 .shp＋.dbf 內容依序串接的 sha256；
+    OpenStreetMap 的 .osm（含下載中的 .osm.new）是內容指紋（osm_fingerprint）。"""
+    if path.is_file() and (path.name.endswith(".osm") or path.name.endswith(".osm.new")):
+        return osm_fingerprint(path.read_bytes())
     if path.is_file():
         return sha256_file(path)
     import hashlib
@@ -108,6 +115,20 @@ def fingerprint(path: Path) -> str:
         if part.exists():
             h.update(part.read_bytes())
     return h.hexdigest()
+
+
+def osm_fingerprint(data: bytes) -> str:
+    """OSM API 回應的內容指紋：節點（id、經緯度）與 way（id、節點順序、標籤）排序後的 sha256。
+    API 每次回應的 generator（伺服器行程編號）與時間戳都不同，原始位元組的 sha256 每抓一次就變，所以只看內容。"""
+    import hashlib
+
+    root = ET.fromstring(data)
+    parts = sorted(f"n{n.get('id')}:{n.get('lat')},{n.get('lon')}" for n in root.iter("node"))
+    for w in root.iter("way"):
+        nds = ",".join(nd.get("ref") or "" for nd in w.iter("nd"))
+        tags = ";".join(sorted(f"{t.get('k')}={t.get('v')}" for t in w.iter("tag")))
+        parts.append(f"w{w.get('id')}:{nds}|{tags}")
+    return hashlib.sha256("\n".join(sorted(parts)).encode("utf-8")).hexdigest()
 
 
 def _single_shp(folder: Path) -> Path:
@@ -467,6 +488,44 @@ def add_gap_tracks(tracks: list[Track], stations: list[Station], gaps: list[tupl
     return out
 
 
+def read_osm_way(path: Path) -> LineString:
+    """OSM API 0.6 的 way/{id}/full 回應 → 那條 way 的折線（照 way 的節點順序，經緯度）。"""
+    root = ET.parse(path).getroot()
+    nodes = {n.get("id"): (float(n.get("lon")), float(n.get("lat"))) for n in root.iter("node")}
+    ways = list(root.iter("way"))
+    if len(ways) != 1:
+        raise BasemapError(f"{path.name} 要剛好一條 way，找到 {len(ways)} 條")
+    refs = [nd.get("ref") for nd in ways[0].iter("nd")]
+    missing = [r for r in refs if r not in nodes]
+    if missing or len(refs) < 2:
+        raise BasemapError(f"{path.name} 的 way 缺節點 {missing[:3]}（要用 way/{{id}}/full 下載）")
+    return LineString([nodes[r] for r in refs])
+
+
+def add_osm_tracks(tracks: list[Track], patches: list[tuple[str, LineString, str]]) -> list[Track]:
+    """路網圖缺段的真實軌道（OpenStreetMap）：每段接到同線軌道最近的端點（兩份圖的接縫，OSM_JOIN_M 以內），不標 approx。
+    接上後那一站離軌道在 NEAR_TRACK_M 以內，assign_station_lines 就不會再把它列為缺段、也不會補直線。"""
+    out = list(tracks)
+    for line, geom, note in patches:
+        coords = list(geom.coords)
+        ends = [c for t in tracks if t.line == line and not t.approx for c in (t.geom.coords[0], t.geom.coords[-1])]
+        if not ends:
+            raise BasemapError(f"路網圖沒有 {line} 的軌道，接不上 {note}")
+        best = min(
+            ((to_meters(Point(e)).distance(to_meters(Point(c))), e, k) for e in ends for k, c in ((0, coords[0]), (1, coords[-1]))),
+            key=lambda x: x[0],
+        )
+        dist, end, k = best
+        if dist > OSM_JOIN_M:
+            raise BasemapError(f"{note} 離 {line} 軌道端點 {dist:.0f} m，超過 {OSM_JOIN_M} m，可能接錯段")
+        if k == 1:
+            coords.reverse()
+        if dist > 0:
+            coords.insert(0, end)
+        out.append(Track(line, LineString(coords), note=note))
+    return out
+
+
 # ── 幾何輸出 ─────────────────────────────────────────────
 
 
@@ -683,6 +742,9 @@ def build_basemap(inp: BasemapInputs) -> tuple[dict, dict]:
     # 軌道與每站路線
     points = {s.name: Point(s.lon, s.lat) for s in inp.stations}
     rail = build_rail(read_geojson(P["mrt_network"]), load_routes(), points)
+    # 路網圖缺段先用 OpenStreetMap 的真實軌道補（8.6：板南線頂埔段），補不到的才以直線補（approx）
+    osm = [(line, read_osm_way(P[key]), inp.sources[key]["name"]) for key, line in OSM_TRACKS.items() if key in P]
+    rail = add_osm_tracks(rail, osm)
     sl = assign_station_lines(inp.stations, rail, load_station_line_overrides())
     rail = add_gap_tracks(rail, inp.stations, sl.gaps)
     names = parse_line_names(P["mrt_lines"].read_text("utf-8-sig"))
@@ -730,6 +792,9 @@ def build_basemap(inp: BasemapInputs) -> tuple[dict, dict]:
         "小碧潭（G-3）支線；同線其他 RouteID 未列。環狀線不在這份資料裡，沒有班距。",
         "地標位置取自 Wikidata（CC0），造型是示意；所屬行政區由管線依國土測繪中心界線判定。",
     ]
+    if osm:
+        notes.append("路網圖缺的軌道改用 OpenStreetMap 的軌道線（© OpenStreetMap contributors，ODbL 1.0）："
+                     + "、".join(n for _, _, n in osm) + "；接縫是兩份圖的端點直接相連。")
     if inp.check.missing:
         notes.append("缺檔、這一版沒有用到的來源：" + "、".join(r["name"] for r in inp.check.missing)
                      + "（見 sources 中 missing 為 true 者）；缺水利署河川河道時只有臺北市河川。")
@@ -757,6 +822,7 @@ def build_basemap(inp: BasemapInputs) -> tuple[dict, dict]:
         "stations": len(inp.stations),
         "lineMethods": {m: sum(1 for v in sl.method.values() if v == m) for m in sorted(set(sl.method.values()))},
         "approx": [t.note for t in rail if t.approx],
+        "osm": [n for _, _, n in osm],
         "missing": [r["name"] for r in inp.check.missing],
         "tracks": len(tracks),
         "landmarks": len(landmarks),

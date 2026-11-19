@@ -158,7 +158,8 @@ def cmd_fetch_basemap(args) -> None:
             else:
                 print(f"  注意：sha256 {sha} 與設定的 {row['sha256']} 不同；確認後用 `fetch-basemap --update` 寫回")
             continue
-        sha = geo.sha256_file(new)
+        # 內容指紋（OSM 的 API 回應每次位元組不同，只比內容，bm.fingerprint）
+        sha = bm.fingerprint(new)
         if sha == row["sha256"]:
             new.replace(dest)
             print(f"完成 {dest}（sha256 與設定相符）")
@@ -318,6 +319,7 @@ def _build_basemap(args, stations, districts, boundaries, extra_sources) -> None
     size = export_basemap(body, out)
     print(f"basemap.json {size / 1e3:.0f} KB（revision {body['basemapRevision']}）：{summary['stations']} 站的路線"
           f"（{summary['lineMethods']}），軌道 {summary['tracks']} 段，直線補段：{'、'.join(summary['approx']) or '無'}，"
+          f"OpenStreetMap 補段：{'、'.join(summary['osm']) or '無'}，"
           f"地標 {summary['landmarks']} 個")
     if size > bm.MAX_BYTES:
         raise SystemExit(f"basemap.json {size:,} bytes 超過 {bm.MAX_BYTES:,}（AD-6），請加大簡化容差")
