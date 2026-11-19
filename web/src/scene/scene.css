@@ -441,3 +441,70 @@
 .scene-fallback-note { font-size: var(--text-xs); color: var(--hud-muted); }
 /* 替代頁的通勤卡（4.2，掛在 body）：頁面會捲動，卡片固定在畫面下緣（首頁的 .card 是 absolute） */
 .fallback-card-layer .card { position: fixed; }
+
+/* ── 搭乘模式（8.6） ───────────────────────────────────────── */
+
+/* 首頁暫時的「搭板南線」：在「找你的站」正上方（3.24 換成最大的主按鈕，版面到時再定） */
+.ride-start {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--dock-top, 170px) + 10px + var(--tap) + 4px + 10px);
+  translate: -50% 0;
+  min-height: var(--tap);
+  padding: 0 18px 0 14px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px var(--hud-shadow);
+  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-enter) var(--ease-out),
+    background-color var(--dur-phase) var(--ease-out), color var(--dur-phase) var(--ease-out);
+}
+.ride-start svg { width: 18px; height: 18px; color: var(--line-bl); }
+.ride-start:active:not(:disabled) { transform: scale(0.96); }
+.ride-start:disabled { opacity: 0.6; cursor: progress; }
+@starting-style {
+  .ride-start { opacity: 0; }
+}
+
+/* 搭乘中的三顆控制：行進中在畫面下方；停靠開卡時在卡片上緣之上（--dock-top 由 ScenePage 量） */
+.ride-controls {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  translate: -50% 0;
+  display: flex;
+  gap: 8px;
+  transition: bottom var(--dur-sheet) var(--ease-drawer);
+}
+.ride-controls[data-card] { bottom: calc(var(--dock-top, 34dvh) + 10px); }
+.ride-btn {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 16px 0 12px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px var(--hud-shadow);
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-phase) var(--ease-out),
+    color var(--dur-phase) var(--ease-out);
+}
+.ride-btn svg { width: 16px; height: 16px; }
+.ride-btn:active { transform: scale(0.96); }
+/* 到站時給螢幕閱讀器的一句話：畫面上看不到（行進中不出說明） */
+.ride-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

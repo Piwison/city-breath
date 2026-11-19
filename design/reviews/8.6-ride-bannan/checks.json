@@ -1,0 +1,145 @@
+{
+  "1-home": {
+    "rideStart": {
+      "h": 44,
+      "above": true
+    },
+    "buttons": [
+      "",
+      "分享這一刻",
+      "",
+      "",
+      "平日",
+      "假日",
+      "1x",
+      "靜態關",
+      "搭板南線",
+      "找你的站"
+    ]
+  },
+  "2-home-ride-moving": {
+    "samples": 2,
+    "distinctFrames": 2,
+    "anyText": false,
+    "texts": [],
+    "buttons": [
+      "暫停 80×44",
+      "下一站 94×44",
+      "下車 80×44"
+    ],
+    "allButtonsAtLeast44": true
+  },
+  "3-home-ride-arrival": {
+    "url": "?month=2026-09&day=weekday&hour=10&station=se10ba269&ride=BL",
+    "card": "永寧",
+    "sheet": "peek",
+    "cardVisible": 0.35,
+    "ride": true,
+    "pause": "暫停",
+    "station": "永寧"
+  },
+  "4-paused": {
+    "url": "?month=2026-09&day=weekday&hour=10&station=se10ba269&ride=BL",
+    "card": "永寧",
+    "sheet": "peek",
+    "cardVisible": 0.35,
+    "ride": true,
+    "pause": "繼續"
+  },
+  "5-link-reopened": {
+    "reopened": {
+      "url": "?month=2026-09&day=weekday&hour=10&station=se10ba269&ride=BL",
+      "card": "永寧",
+      "sheet": "peek",
+      "cardVisible": 0.35,
+      "ride": true,
+      "pause": "繼續"
+    },
+    "stillSameStationAfter8s": true,
+    "pausedLabel": "繼續"
+  },
+  "6-leave": {
+    "url": "?month=2026-09&day=weekday&hour=10",
+    "card": null,
+    "sheet": null,
+    "cardVisible": null,
+    "ride": false,
+    "pause": null,
+    "findMain": 1,
+    "rideStart": 1,
+    "hourInUrl": true
+  },
+  "7-station-card-button": {
+    "text": "搭這條線 ›",
+    "label": "搭這條線（板南線），從西門出發",
+    "h": 44
+  },
+  "8-card-ride": {
+    "samples": 2,
+    "distinctFrames": 2,
+    "texts": [],
+    "buttons": [
+      "暫停 80×44",
+      "下一站 94×44",
+      "下車 80×44"
+    ],
+    "arrival": {
+      "url": "?month=2026-09&day=weekday&hour=17&station=s560caae9&ride=BL",
+      "card": "台北車站",
+      "sheet": "peek",
+      "cardVisible": 0.35,
+      "ride": true,
+      "pause": "暫停",
+      "station": "台北車站"
+    }
+  },
+  "9-auto-depart": {
+    "url": "?month=2026-09&day=weekday&hour=17&station=s560caae9&ride=BL",
+    "card": null,
+    "sheet": null,
+    "cardVisible": null,
+    "ride": true,
+    "pause": "暫停",
+    "texts": []
+  },
+  "10-river": {
+    "url": "?month=2026-09&day=weekday&hour=7&station=s71e92afe&ride=BL",
+    "card": null,
+    "sheet": null,
+    "cardVisible": null,
+    "ride": true,
+    "pause": "暫停"
+  },
+  "11-reduced-motion": {
+    "runs": [
+      {
+        "station": "s2c4613ca",
+        "card": "土城",
+        "still": true,
+        "hash": "22c145cc98"
+      },
+      {
+        "station": "s3c41e15b",
+        "card": "亞東醫院",
+        "still": true,
+        "hash": "0bc627ee10"
+      },
+      {
+        "station": "sd821b2ec",
+        "card": "板橋（板南線）",
+        "still": true,
+        "hash": "f519c4fd93"
+      }
+    ],
+    "allStill": true,
+    "allDockedWithCard": true,
+    "jumps": 3
+  },
+  "12-perf-panel": {
+    "text": "3fps30 秒平均2.7最低0取樣10 秒DPR1.50（",
+    "h": 46,
+    "riding": true,
+    "hasFps": true
+  },
+  "errors": []
+}

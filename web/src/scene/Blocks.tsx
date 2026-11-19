@@ -2,6 +2,8 @@
 // 佈局是純函式（blockLayout.ts）；這裡把它變成 4 個 InstancedMesh（建築、屋頂小塔、樹冠、樹幹），全城 4 個 draw call（AD-6、AD-11）。
 // 每個 instance 帶所在行政區的索引 aDistrict：區的呼吸倍數與抬起高度是 uniform 陣列，CPU 每格只寫兩排 22 個數字。
 // 窗戶照原型用世界座標畫（樓層大小一致），入夜由 daylight.ts 的 windowsAt() 亮起、深夜漸少；材質顏色只走 token（AD-8）。
+// 搭乘模式（8.6）：路徑兩側走廊裡的建築與樹（corridorMask，aRide＝1）在搭乘時沉進薄片（uRide 0→1，約半秒；減少動態直接切換），
+// 鏡頭沿軌道走時不穿過積木；下車後長回來。佈局本身不變。
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import {
@@ -24,7 +26,7 @@ import { activityAt, blockSource, breathScale, type BlockSource } from "../data/
 import { loadBasemap, loadStations } from "../data/load";
 import type { BaseView } from "../data/views";
 import { getView, time, useView } from "../state/view";
-import { layoutBlocks, type BlockLayout } from "./blockLayout";
+import { corridorMask, FLOOR_H, layoutBlocks, type BlockLayout } from "./blockLayout";
 import { windowsAt } from "./daylight";
 import { plinthBox } from "./Plinth";
 import { QualityGovernor, useTier, type Tier } from "./quality";
@@ -42,6 +44,10 @@ const IDLE_AMP = 0.02;
 const IDLE_FREQ = 1.6;
 /** 第一次出現時長出來的秒數（減少動態時沒有）。 */
 const RISE_SECONDS = 0.9;
+/** 搭乘走廊的半寬（場景單位）：物件外接圓離路徑不到這個距離就沉下去。 */
+const RIDE_CORRIDOR = 0.34;
+/** 沉下去／長回來的速度（每秒，指數趨近，約半秒）。 */
+const RIDE_SINK_RATE = 7;
 
 const TOKENS = [
   "--building",
@@ -65,6 +71,8 @@ interface Uniforms {
   uBase: { value: number };
   uLit: { value: number };
   uRoof: { value: Color };
+  /** 0–1：搭乘走廊裡的物件沉下去的程度（8.6） */
+  uRide: { value: number };
 }
 
 /**
@@ -75,11 +83,14 @@ function patchVertex(shader: WebGLProgramParametersWithUniforms, U: Uniforms, n:
   shader.uniforms.uBreath = U.uBreath;
   shader.uniforms.uLift = U.uLift;
   shader.uniforms.uBase = U.uBase;
+  shader.uniforms.uRide = U.uRide;
   shader.vertexShader = shader.vertexShader
     .replace(
       "#include <common>",
       `#include <common>
 attribute float aDistrict;
+attribute float aRide;
+uniform float uRide;
 uniform float uBreath[${n}];
 uniform float uLift[${n}];
 uniform float uBase;
@@ -95,7 +106,8 @@ ${windows ? "varying vec3 vCbW;\nvarying vec3 vCbN;" : ""}`,
   float cbY0 = instanceMatrix[3][1];
   float cbY = cbY0 + cbS * transformed.y;
   float cbB = ${breathe ? "uBreath[cbD]" : "1.0"};
-  transformed.y = (uBase + (cbY - uBase) * cbB + uLift[cbD] - cbY0) / cbS;
+  float cbK = uRide * aRide;
+  transformed.y = (uBase + (cbY - uBase) * cbB * (1.0 - cbK) - 0.05 * cbK + uLift[cbD] - cbY0) / cbS;
 }
 #endif`,
     );
@@ -132,7 +144,7 @@ float cbRoof = step(0.55, vCbN.y);
 float cbSide = 1.0 - step(0.55, abs(vCbN.y));
 vec2 cbT = normalize(vec2(-vCbN.z, vCbN.x) + vec2(1e-4));
 float cbU = dot(vCbW.xz, cbT) / 0.17;
-float cbV = vCbW.y / 0.22;
+float cbV = vCbW.y / ${FLOOR_H};
 float cbWin = cbSide * step(0.3, fract(cbU)) * step(fract(cbU), 0.72) * step(0.32, fract(cbV)) * step(fract(cbV), 0.8);
 float cbLit = step(fract(sin(dot(vec3(floor(cbU), floor(cbV), floor(dot(vCbW.xz, vec2(0.37, 0.71)))), vec3(12.9898, 78.233, 37.719))) * 43758.5453), uLit);
 diffuseColor.rgb *= 1.0 - 0.16 * cbWin;`,
@@ -188,6 +200,8 @@ function build(layout: BlockLayout, tier: Tier, n: number, U: Uniforms): Built {
   const mesh = (geo: BufferGeometry, mat: Material, depth: Material, count: number, place: (k: number) => number) => {
     const districts = new Float32Array(Math.max(1, count));
     geo.setAttribute("aDistrict", new InstancedBufferAttribute(districts, 1));
+    // 搭乘走廊（8.6）：先全 0，Blocks 依路徑寫入
+    geo.setAttribute("aRide", new InstancedBufferAttribute(new Float32Array(Math.max(1, count)), 1));
     const m = new InstancedMesh(geo, mat, Math.max(1, count));
     // 先建 instanceColor，第一次編譯就帶 USE_INSTANCING_COLOR（真正的 token 色由 Blocks 的 effect 寫入）
     if (count) m.setColorAt(0, WHITE);
@@ -303,6 +317,7 @@ export function Blocks({
   month,
   reduced,
   lift,
+  corridor,
 }: {
   view: BaseView;
   month: string;
@@ -313,10 +328,13 @@ export function Blocks({
    * 3.6 接上選取狀態後由它的動畫寫入；沒給就是 0。
    */
   lift?: MutableRefObject<Record<string, number>>;
+  /** 搭乘路徑（8.6，場景座標折線）：搭乘時兩側走廊裡的建築與樹沉下去 */
+  corridor?: { x: ArrayLike<number>; z: ArrayLike<number> } | null;
 }) {
   const tier = useTier();
   const visible = useView((s) => s.layers.building);
   const still = useView((s) => s.still);
+  const riding = useView((s) => s.ride !== null);
   const gl = useThree((s) => s.gl);
   const src = useBlockSource(month, view);
   const colors = useTokenColors(TOKENS);
@@ -328,6 +346,7 @@ export function Blocks({
       uBase: { value: TILE_TOP },
       uLit: { value: 0.62 },
       uRoof: { value: new Color() },
+      uRide: { value: 0 },
     }),
     [n],
   );
@@ -375,6 +394,25 @@ export function Blocks({
     for (const m of [built.buildings, built.crowns, built.crownsT]) if (m.instanceColor) m.instanceColor.needsUpdate = true;
   }, [built, layout, colors, U]);
 
+  // 搭乘走廊（8.6）：路徑兩側的建築、小塔、樹標成 1（樹以樹冠大小估）
+  useEffect(() => {
+    if (!built || !layout) return;
+    const trees = layout.trees.map((t) => ({ x: t.x, z: t.z, w: t.s * 0.7, d: t.s * 0.7 }));
+    const masks: [InstancedMesh | null, Float32Array][] = [
+      [built.buildings, corridorMask(layout.buildings, corridor, RIDE_CORRIDOR)],
+      // 小塔跟著它的建築（同一個中心，寬深是建築的 0.6 倍）：建築沉下去時小塔不會浮在半空
+      [built.crowns, corridorMask(layout.crowns.map((c) => ({ x: c.x, z: c.z, w: c.w / 0.6, d: c.d / 0.6 })), corridor, RIDE_CORRIDOR)],
+      [built.crownsT, corridorMask(trees, corridor, RIDE_CORRIDOR)],
+      [built.trunks, corridorMask(trees, corridor, RIDE_CORRIDOR)],
+    ];
+    for (const [m, mask] of masks) {
+      if (!m) continue;
+      const attr = m.geometry.getAttribute("aRide") as InstancedBufferAttribute;
+      (attr.array as Float32Array).set(mask.subarray(0, attr.count));
+      attr.needsUpdate = true;
+    }
+  }, [built, layout, corridor]);
+
   // 圖層開關：陰影圖不會自己重畫（Daylight 只在光移動時重畫），開關時補一次
   useEffect(() => {
     gl.shadowMap.needsUpdate = true;
@@ -410,6 +448,12 @@ export function Blocks({
     }
     B[n - 1] = 1;
     L[n - 1] = 0;
+    // 搭乘走廊沉下去／長回來（減少動態或靜態模式時直接切換）
+    const want = riding ? 1 : 0;
+    const was = U.uRide.value;
+    U.uRide.value = calm ? want : was + (want - was) * (1 - Math.exp(-dt * RIDE_SINK_RATE));
+    if (Math.abs(U.uRide.value - want) < 1e-3) U.uRide.value = want;
+    if (U.uRide.value !== was) moving = true;
     const w = windowsAt(time.t);
     built.walls.emissiveIntensity = w.glow;
     U.uLit.value = w.lit;

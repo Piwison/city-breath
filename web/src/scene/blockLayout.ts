@@ -8,6 +8,8 @@ import { levelHeight, project, terrainLevelAt, unproject, type LevelGrid } from 
 
 /** 方格邊長（場景單位，約 445 公尺）。 */
 export const CELL = 1.05;
+/** 一層樓高（場景單位）：牆面窗戶用世界座標畫，每 FLOOR_H 一排窗（Blocks.tsx）；搭乘鏡頭「約三層樓高」也用它（8.6）。 */
+export const FLOOR_H = 0.22;
 /** 車站影響範圍的 gaussian σ（場景單位）。 */
 export const SIG = 1.5;
 /** 每幾格留一條大街。 */
@@ -333,5 +335,46 @@ export function layoutBlocks(input: LayoutInput): BlockLayout {
       } else if (c.kind === "tree") out.trees.push(c.tree);
     }
   }
+  return out;
+}
+
+/**
+ * 搭乘走廊（8.6）：哪些示意物件的底面離路徑不到 half（場景單位），搭乘時要沉下去讓鏡頭通過（1＝在走廊裡）。
+ * 物件以中心與寬深估外接圓；路徑是場景座標的折線（ridePath.ts）。只影響搭乘時的畫面，不改佈局本身。
+ */
+export function corridorMask(
+  items: readonly { x: number; z: number; w: number; d: number }[],
+  path: { x: ArrayLike<number>; z: ArrayLike<number> } | null | undefined,
+  half: number,
+): Float32Array {
+  const out = new Float32Array(items.length);
+  if (!path || path.x.length < 2) return out;
+  const n = path.x.length;
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let z0 = Infinity;
+  let z1 = -Infinity;
+  for (let k = 0; k < n; k++) {
+    x0 = Math.min(x0, path.x[k]);
+    x1 = Math.max(x1, path.x[k]);
+    z0 = Math.min(z0, path.z[k]);
+    z1 = Math.max(z1, path.z[k]);
+  }
+  items.forEach((it, i) => {
+    const r = Math.hypot(it.w, it.d) / 2 + half;
+    if (it.x < x0 - r || it.x > x1 + r || it.z < z0 - r || it.z > z1 + r) return;
+    for (let k = 1; k < n; k++) {
+      const ax = path.x[k - 1];
+      const az = path.z[k - 1];
+      const dx = path.x[k] - ax;
+      const dz = path.z[k] - az;
+      const l2 = dx * dx + dz * dz;
+      const t = l2 ? Math.min(1, Math.max(0, ((it.x - ax) * dx + (it.z - az) * dz) / l2)) : 0;
+      if (Math.hypot(it.x - ax - dx * t, it.z - az - dz * t) < r) {
+        out[i] = 1;
+        return;
+      }
+    }
+  });
   return out;
 }

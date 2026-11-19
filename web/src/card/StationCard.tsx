@@ -51,6 +51,10 @@ export interface StationCardProps {
   backTo?: string;
   /** 卡底的流向圖例（3.21：站對站緞帶以這站最大的目的地當最粗，圖例寫「最粗 N 人」） */
   legend?: LegendLink;
+  /** 搭乘模式（8.6）：這站可以搭的路線；有值時在那條線的名稱旁放「搭這條線」 */
+  rideLine?: LineId;
+  /** 按「搭這條線」 */
+  onRide?: () => void;
 }
 
 export function StationCard(props: StationCardProps) {
@@ -68,6 +72,8 @@ export function StationCardView({
   districtNames,
   backTo,
   legend,
+  rideLine,
+  onRide,
   od,
   yearly = { status: "loading" },
 }: StationCardProps & { od: OdState; yearly?: StationTypesState }) {
@@ -118,6 +124,12 @@ export function StationCardView({
           <span key={l}>
             <i style={{ background: `var(${lineToken(l)})` }} aria-hidden="true" />
             {lineNames.get(l) ?? l}
+            {/* 搭乘模式（8.6）：摘要高度就看得到，緊跟在那條線的名稱後面 */}
+            {l === rideLine && onRide && (
+              <button type="button" className="card-ride" aria-label={`搭這條線（${lineNames.get(l) ?? l}），從${s.display}出發`} onClick={onRide}>
+                搭這條線 ›
+              </button>
+            )}
           </span>
         ))}
       </div>

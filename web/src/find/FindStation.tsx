@@ -80,8 +80,21 @@ function Sheet({ title, onClose, children, wide }: { title: string; onClose: () 
   );
 }
 
-/** 首頁的主按鈕與搜尋面板、通勤面板。model：首頁已載入的車站與路線；stations：同月 stations.json 的站。 */
-export function FindStation({ model, stations, month }: { model?: SearchModel; stations?: readonly Station[]; month?: string }) {
+/**
+ * 首頁的主按鈕與搜尋面板、通勤面板。model：首頁已載入的車站與路線；stations：同月 stations.json 的站。
+ * hideMain：不放主按鈕（搭乘模式 8.6：停靠時從車站卡「從這站找通勤」照樣打開通勤面板）。
+ */
+export function FindStation({
+  model,
+  stations,
+  month,
+  hideMain = false,
+}: {
+  model?: SearchModel;
+  stations?: readonly Station[];
+  month?: string;
+  hideMain?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const cardOpen = useView((s) => s.district !== null || s.station !== null);
   const commuteOpen = useView((s) => s.commute !== null);
@@ -95,7 +108,7 @@ export function FindStation({ model, stations, month }: { model?: SearchModel; s
   }, [commuteOpen]);
   return (
     <>
-      {!cardOpen && !open && !commuteOpen && (
+      {!hideMain && !cardOpen && !open && !commuteOpen && (
         <button type="button" className="find-main" aria-haspopup="dialog" disabled={!model} onClick={start}>
           <PinIcon />
           找你的站

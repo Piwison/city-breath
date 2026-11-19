@@ -2,8 +2,10 @@
 // 選中的行政區、站、卡片範圍與聚焦的流向（3.6）；通勤的起站、迄站與時段（3.12 車站卡帶入起站，4.1 的通勤面板）。
 // month、hour、dayType、district、station 與起訖都選好的 commute 由 state/url.ts 的 syncUrl() 寫回網址（3.3、3.15、4.2），之後再加 date。
 // 播放用的連續時間 t 是非 React 欄位（time.t），由 clock.ts 推進；場景在 useFrame 讀它，React 只訂閱整數 hour。
+// 搭乘模式（8.6，AD-16 的 ride{line, station}）：搭哪條線、停在或剛離開哪一站、停靠中與否、暫停與否；
+// 兩站之間的連續位置是非 React 欄位（rideMotion），由 state/ride.ts 的 advanceRide() 推進，場景（RideCamera）每格讀。
 import { useSyncExternalStore } from "react";
-import type { DayType } from "../data/types";
+import type { DayType, LineId } from "../data/types";
 import type { DistrictRange } from "../data/views";
 import { track } from "../track";
 
@@ -44,9 +46,32 @@ export interface ViewState {
    * 開卡從摘要開始，行政區卡與車站卡之間切換時維持，關卡回到摘要。
    */
   sheet: SheetDetent;
+  /**
+   * 搭乘模式（8.6，AD-16）：null＝沒在搭。搭乘中鏡頭沿軌道走、首頁其他控制收起，只剩暫停、下一站、下車；
+   * 停靠時 station 也寫成這一站（開現有的車站卡），行進中 station 是 null（不出卡片）。網址由 url.ts 在暫停或到站時寫。
+   */
+  ride: Ride | null;
 }
 
 export type SheetDetent = "peek" | "full";
+
+export interface Ride {
+  line: LineId;
+  /** 停在、或剛離開的那一站（站 ID，AD-2） */
+  station: string;
+  /** true＝停靠中（到站）；false＝兩站之間行進中 */
+  docked: boolean;
+  /** 搭乘在前進（停靠時會自動再出發）；false＝暫停 */
+  playing: boolean;
+}
+
+/**
+ * 搭乘中的連續位置與時鐘（非 React 欄位，AD-16）：只由 state/ride.ts 改寫，RideCamera 每格讀。
+ * s＝沿路徑的距離（場景單位）；i＝停在或剛離開的停靠站索引；dir＝前進方向（+1 往路徑終點、−1 往起點）；
+ * from／to、s0、L、t＝這一段的起訖站、起點位置、長度與已走秒數；dwell＝停靠還剩幾秒；hold＝鏡頭接回軌道的等待秒數；
+ * step＝暫停中按「下一站」：走完這一段、到站後維持暫停；rejoin＝鏡頭要接回軌道（1 平滑飛回、2 直接切換），RideCamera 處理後歸零。
+ */
+export const rideMotion = { s: 0, i: 0, dir: 1 as 1 | -1, from: 0, to: 0, s0: 0, L: 0, t: 0, dwell: 0, hold: 0, step: false, rejoin: 0 as 0 | 1 | 2 };
 
 export interface Commute {
   o: string | null;
@@ -71,6 +96,7 @@ let state: ViewState = {
   focus: null,
   commute: null,
   sheet: "peek",
+  ride: null,
 };
 const listeners = new Set<() => void>();
 /** 已送過 commute_result_shown 的起訖組（「起站>迄站」）；換起訖、收起通勤時重設。 */
@@ -235,6 +261,15 @@ export function commuteResultShown(o: string, d: string) {
   if (key === shownCommute) return;
   shownCommute = key;
   track("commute_result_shown");
+}
+
+/**
+ * 搭乘模式寫畫面狀態（只給 state/ride.ts 用）：搭乘、停靠時的站、收起其他選取與卡片、播放。
+ * 停靠開的車站卡不經 selectStation()：不是使用者點的，不送 station_opened（AD-20，避免灌水「每位訪客開幾站」）。
+ */
+export function writeRide(patch: Partial<Pick<ViewState, "ride" | "station" | "district" | "focus" | "commute" | "sheet" | "playing">>) {
+  if (patch.commute === null) shownCommute = null;
+  set(patch);
 }
 
 /** 任何小卡打開就暫停播放（共用卡框掛上時呼叫；走查 2026-11-11 F1）。關卡不恢復播放。 */
