@@ -3,7 +3,7 @@ title: '首頁減法：三條路'
 type: 'feature'
 ticket: '24'
 created: '2026-11-21'
-status: 'built'
+status: done
 baseline_revision: 'dbb820b5116f0caaf94bce31e63333e02bdc4ca0'
 route: 'full'
 route_source: 'auto'
