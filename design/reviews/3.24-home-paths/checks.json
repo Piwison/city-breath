@@ -1,0 +1,135 @@
+{
+  "A-home": {
+    "hudPct": 27.7,
+    "frameH": 788,
+    "hScroll": false,
+    "text": [
+      "場景（點一下＝手指碰到沙盤：暫停）",
+      "搭板南線",
+      "找你的站",
+      "暫停",
+      "07:00",
+      "9 月平日平均・早晨通勤尖峰",
+      "平日",
+      "假日",
+      "更多"
+    ]
+  },
+  "A-tap44": true,
+  "A-hidden-on-home": true,
+  "A-more-items": [
+    "分享這一刻",
+    "圖層",
+    "播放速度1x",
+    "靜態模式關",
+    "怎麼看這張圖待你確認",
+    "關於待你確認"
+  ],
+  "A-moved": {
+    "hudPct": 27.7,
+    "home": true
+  },
+  "A-recenter-hides": true,
+  "A-ride": [
+    "暫停",
+    "下一站",
+    "下車"
+  ],
+  "A-ride-share": [
+    "關閉分享",
+    "已複製"
+  ],
+  "B-home": {
+    "hudPct": 21.3,
+    "frameH": 788,
+    "hScroll": false,
+    "text": [
+      "場景（點一下＝手指碰到沙盤：暫停）",
+      "更多",
+      "搭板南線",
+      "找你的站",
+      "暫停",
+      "展開時間軸",
+      "07:00",
+      "9 月平日平均",
+      "平日",
+      "假日"
+    ]
+  },
+  "B-tap44": true,
+  "B-hidden-on-home": true,
+  "B-more-items": [
+    "分享這一刻",
+    "圖層",
+    "播放速度1x",
+    "靜態模式關",
+    "怎麼看這張圖待你確認",
+    "關於待你確認"
+  ],
+  "B-moved": {
+    "hudPct": 26.6,
+    "home": true
+  },
+  "B-recenter-hides": true,
+  "B-ride": [
+    "暫停",
+    "下一站",
+    "下車"
+  ],
+  "B-ride-share": [
+    "關閉分享",
+    "已複製"
+  ],
+  "C-home": {
+    "hudPct": 20.9,
+    "frameH": 788,
+    "hScroll": false,
+    "text": [
+      "場景（點一下＝手指碰到沙盤：暫停）",
+      "暫停",
+      "07:00",
+      "9 月平日平均・早晨通勤尖峰",
+      "平日",
+      "假日",
+      "找你的站",
+      "搭板南線",
+      "更多"
+    ]
+  },
+  "C-tap44": true,
+  "C-hidden-on-home": true,
+  "C-more-items": [
+    "分享這一刻",
+    "圖層",
+    "播放速度1x",
+    "靜態模式關",
+    "怎麼看這張圖待你確認",
+    "關於待你確認"
+  ],
+  "C-moved": {
+    "hudPct": 26.5,
+    "home": true
+  },
+  "C-recenter-hides": true,
+  "C-ride": [
+    "暫停",
+    "下一站",
+    "下車"
+  ],
+  "C-ride-share": [
+    "關閉分享",
+    "已複製"
+  ],
+  "B-expanded": 27.7,
+  "reduced-motion": {
+    "playing": false,
+    "clock": "08:00",
+    "anim": "0ms"
+  },
+  "wide-frame": {
+    "w": 390,
+    "h": 844,
+    "hScroll": false
+  },
+  "console-errors": []
+}
