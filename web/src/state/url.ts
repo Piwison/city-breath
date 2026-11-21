@@ -119,6 +119,18 @@ export function perfDebug(search: string = typeof location === "undefined" ? "" 
   return new URLSearchParams(search).get("debug") === "perf";
 }
 
+/** 搭乘中的造型（8.7 第一階段）：base＝8.6 原樣，a＝細軌，b＝月台。 */
+export type RideStyle = "base" | "a" | "b";
+
+/**
+ * 8.7 第一階段（暫時，Piwi 選定後拿掉）：`?ridestyle=a|b|base` 切換搭乘中的造型給 Piwi 對照，預設 a。
+ * 和 debug 一樣不是畫面狀態：不在 UrlState、不進 toQuery 與分享網址；writeQuery 保留不認得的鍵，所以操作後還留著。
+ */
+export function rideStyleDebug(search: string = typeof location === "undefined" ? "" : location.search): RideStyle {
+  const v = new URLSearchParams(search).get("ridestyle");
+  return v === "b" || v === "base" ? v : "a";
+}
+
 /** 打開連結後要做的事（ScenePage 在資料載入後依這個還原或退回全景）。 */
 export type LinkPlan =
   | { kind: "none" }

@@ -14,6 +14,7 @@ import { sleepAt } from "../state/service";
 import { getView, time, useView } from "../state/view";
 import { lifts } from "./lift";
 import { project } from "./projection";
+import { RIDE_LOOK } from "./rideStyle";
 import { TILE_TOP } from "./Terrain";
 import { useTokenColors } from "./useTokenColor";
 
@@ -23,8 +24,6 @@ const WIDTH = 0.3;
 export const LIFT = 0.09;
 
 const NO_IDS: string[] = [];
-/** 搭乘中線寬的倍數（8.6）。 */
-const RIDE_WIDTH = 0.5;
 /** 停駛時路線亮度少多少（1 − 這個值＝停駛時的亮度倍數） */
 export const RAIL_SLEEP = 0.55;
 
@@ -77,8 +76,8 @@ export function Rails({ tracks, ids = NO_IDS, reduced = false }: { tracks: Track
     const v = getView();
     const k = 1 - RAIL_SLEEP * sleepAt(time.t, v.dayType, reduced);
     if (line.material.color.r !== k) line.material.color.setScalar(k);
-    // 搭乘中（8.6）鏡頭貼著軌道：線收細成軌道的寬度，不像一條藍色大路（世界單位線寬，下車後回原寬）
-    const lw = v.ride ? WIDTH * RIDE_WIDTH : WIDTH;
+    // 搭乘中（8.6）鏡頭貼著軌道：線收細成軌道的寬度，不像一條藍色大路（世界單位線寬，下車後回原寬；8.7 依造型 rideStyle.ts）
+    const lw = v.ride ? WIDTH * RIDE_LOOK.railWidth : WIDTH;
     if (line.material.linewidth !== lw) line.material.linewidth = lw;
     if (seen.current === lifts.frame) return;
     seen.current = lifts.frame;

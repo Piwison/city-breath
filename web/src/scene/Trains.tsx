@@ -23,6 +23,7 @@ import { triggerWave } from "./firstTrain";
 import { lifts } from "./lift";
 import { project } from "./projection";
 import { useTier, type Tier } from "./quality";
+import { RIDE_LOOK } from "./rideStyle";
 import { LIFT as RAIL_LIFT } from "./Rails";
 import { TILE_TOP } from "./Terrain";
 import { useTokenColor, useTokenColors } from "./useTokenColor";
@@ -39,8 +40,8 @@ const RADIUS = 0.13;
 const RIDE = 0.11;
 /** 段頭段尾多長的距離內縮放進出（場景單位）。 */
 const END_FADE = 0.4;
-/** 搭乘中離鏡頭多近的車開始縮小、多近時完全不見（場景單位）。 */
-const RIDE_NEAR: [number, number] = [4.0, 2.0];
+/** 搭乘中離鏡頭多近的車開始縮小、多近時完全不見（場景單位；8.7 依造型，rideStyle.ts）。 */
+const RIDE_NEAR: [number, number] = RIDE_LOOK.trainNear;
 
 const DETAIL: Record<Tier, [number, number]> = { full: [3, 8], lite: [2, 5] };
 

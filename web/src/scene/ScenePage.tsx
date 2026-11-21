@@ -42,6 +42,7 @@ import { Plinth, plinthBox, type PlinthBox } from "./Plinth";
 import { Rails } from "./Rails";
 import { RideCamera } from "./RideCamera";
 import { buildRidePath, type RidePath } from "./ridePath";
+import { RideTrack } from "./RideTrack";
 import { SceneBoundary, SceneFallback } from "./SceneFallback";
 import { SelectionCamera, SelectionInput } from "./Selection";
 import { Sky } from "./Sky";
@@ -102,6 +103,7 @@ function World({
       {/* 選區的抬起與按壓（改 Terrain 的 district-<id> group），軌道、區名、站珠讀同一份高度 */}
       <DistrictLift view={view} reduced={reduced} link={overlays.press} />
       <Rails tracks={view.tracks} ids={ids} reduced={reduced} />
+      <RideTrack path={ride} />
       {/* 列車（3.14，示意）：在車站之前掛，第一班車的波紋在同一格交給站珠 */}
       <Trains tracks={view.tracks} headway={headway} ids={ids} reduced={reduced} />
       {/* 先量縮放倍數（緞帶、光點、圖例同一格用），再畫流向；流向標籤先放，區名再避開它們 */}

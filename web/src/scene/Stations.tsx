@@ -9,11 +9,13 @@
 // 產品計畫 v2（3.21）：全城視角不畫站柱（決定 3），放大到門檻、選了區（那區的站）或選中的站才長出來，約 0.4 秒，
 // 減少動態時直接出現；站珠與廣場一直都在。選了區時這區的站名先放、流向標籤讓路（決定 5），名牌依全日人數挑。
 // 搭乘模式（8.6）：鏡頭貼著軌道走，站柱一律收起（不擋鏡頭、行進中不給資訊）、不標站名、點不到站；站珠與廣場照常。
+// 8.7：搭乘中廣場縮成貼地的薄板（b 的板南線各站換成 RideTrack 的月台）、站珠依造型縮小、抬到視線上方或只留停靠的那站（rideStyle.ts）。
 import { useFrame, useThree } from "@react-three/fiber";
 import gsap from "gsap";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, CylinderGeometry, InstancedMesh, Matrix4, MeshStandardMaterial, Object3D, SphereGeometry, Vector3 } from "three";
 import { pillarAt, stationFrames, type BaseView, type PillarState, type StationFrame, type StationIndex } from "../data/views";
+import { rideRoute, type RideRoute } from "../state/ride";
 import { sleepAt } from "../state/service";
 import { getView, time, useView } from "../state/view";
 import { sunAt } from "./daylight";
@@ -23,6 +25,7 @@ import type { LegendLink } from "./FlowLegend";
 import { lifts, liftOf } from "./lift";
 import { levelHeight, project, terrainLevelAt } from "./projection";
 import { useTier, type Tier } from "./quality";
+import { RIDE_LOOK } from "./rideStyle";
 import { chooseStationLabels, isZoomed, labelTier, pillarShown, PILLAR_GROW_RATE, stationPickable, type LabelCandidate } from "./stationRules";
 import { TILE_TOP } from "./Terrain";
 import { useTokenColor, useTokenColors } from "./useTokenColor";
@@ -32,10 +35,10 @@ const BEAD_R = 0.27;
 const BEAD_GAP = 0.2;
 /** 選中的站珠放大幾倍（原型 1.6）。 */
 const BEAD_ON = 1.6;
-/** 搭乘中（8.6）站珠縮成幾倍：鏡頭貼著軌道，原大小的站珠會像一顆大球擋在前面；停靠的站也不放大。 */
-const BEAD_RIDE = 0.45;
+/** 搭乘中（8.6）站珠縮成幾倍：鏡頭貼著軌道，原大小的站珠會像一顆大球擋在前面；停靠的站也不放大（8.7 依造型）。 */
+const BEAD_RIDE = RIDE_LOOK.bead;
 /** 搭乘中離鏡頭多近的站珠開始縮小、多近時不見（場景單位）：經過時不從腳下掃過一顆大球。 */
-const BEAD_RIDE_NEAR: [number, number] = [1.3, 0.6];
+const BEAD_RIDE_NEAR: [number, number] = RIDE_LOOK.beadNear;
 /** 點站時站珠從幾成彈回（原型 stPop 0.4 → 1，elastic.out(1.3, 0.35) 0.7 秒）。 */
 const POP_FROM = 0.4;
 /** 停止營運時站珠往 --station 褪多少（熄燈）。 */
@@ -245,6 +248,8 @@ export function Stations({
   const want = useMemo<PillarState>(() => ({ height: 0, open: 0 }), []);
   const c = useMemo(() => new Color(), []);
   const last = useRef({ m: new Matrix4(), w: 0, h: 0, key: "", bv: -1, els: -1, matKey: "" });
+  // 搭乘路線上的站（8.7 b：這些站的底座換成月台）；路線在資料載入後才登記，變了才重算
+  const onRoute = useRef<{ route: RideRoute | null; ids: Set<string> }>({ route: null, ids: new Set() });
 
   useFrame(({ camera, size, clock }, dt) => {
     const S = st.current;
@@ -311,6 +316,9 @@ export function Stations({
     const structural = moved || popping || waveDirty || matKey !== last.current.matKey;
     if (riding || structural) {
       last.current.matKey = matKey;
+      const route = rideRoute();
+      if (onRoute.current.route !== route) onRoute.current = { route, ids: new Set(route?.stops.map((p) => p.id) ?? []) };
+      const routeIds = onRoute.current.ids;
       for (let i = 0; i < n; i++) {
         const f = frames[i];
         const g = spots[i];
@@ -319,6 +327,11 @@ export function Stations({
         const h = S.shown[i] * S.grow[i];
         o.position.set(g.x, base, g.z);
         o.scale.set(1, 1, 1);
+        // 搭乘中（8.7）：廣場縮成貼地的薄板；b 的板南線站整個藏起來（換成 RideTrack 的月台）
+        if (riding && RIDE_LOOK.plaza) {
+          if (RIDE_LOOK.hideRoutePlaza && routeIds.has(f.id)) o.scale.setScalar(1e-3);
+          else o.scale.set(RIDE_LOOK.plaza[0], RIDE_LOOK.plaza[1], RIDE_LOOK.plaza[0]);
+        }
         o.updateMatrix();
         meshes.plaza.setMatrixAt(i, o.matrix);
         o.scale.set(1, Math.max(h, 1e-3), 1);
@@ -326,8 +339,12 @@ export function Stations({
         meshes.column.setMatrixAt(i, o.matrix);
         o.position.y = base + 0.08 + h + BEAD_GAP;
         if (riding) {
-          const d = Math.min(1, Math.max(0, (o.position.distanceTo(camera.position) - BEAD_RIDE_NEAR[1]) / (BEAD_RIDE_NEAR[0] - BEAD_RIDE_NEAR[1])));
-          o.scale.setScalar(Math.max(1e-3, BEAD_RIDE * d * d * (3 - 2 * d)));
+          // 8.7：站珠可抬到視線上方（a、b）；b 只畫停靠的那站，而且不因為近而淡出
+          if (RIDE_LOOK.beadY !== null) o.position.y = base + RIDE_LOOK.beadY;
+          const dockedHere = RIDE_LOOK.beadDocked !== null && !!v.ride?.docked && v.ride.station === f.id;
+          const near = Math.min(1, Math.max(0, (o.position.distanceTo(camera.position) - BEAD_RIDE_NEAR[1]) / (BEAD_RIDE_NEAR[0] - BEAD_RIDE_NEAR[1])));
+          const d = dockedHere ? 1 : near;
+          o.scale.setScalar(Math.max(1e-3, (dockedHere ? RIDE_LOOK.beadDocked! : BEAD_RIDE) * d * d * (3 - 2 * d)));
         } else o.scale.setScalar((f.id === station ? BEAD_ON * (pop.id === f.id ? pop.v : 1) : 1) * wave.pulse[i]);
         o.updateMatrix();
         meshes.bead.setMatrixAt(i, o.matrix);

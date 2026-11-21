@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { seek } from "./clock";
 import {
-  clearViewQuery, parseQuery, perfDebug, planLink, readQuery, shareLink, shareUrl, siteLabel, syncUrl, toQuery, URL_WRITE_MS, urlStateOf, writeQuery,
+  clearViewQuery, parseQuery, perfDebug, planLink, rideStyleDebug, readQuery, shareLink, shareUrl, siteLabel, syncUrl, toQuery, URL_WRITE_MS, urlStateOf, writeQuery,
 } from "./url";
 import { clearCommute, getView, restoreCommute, restoreSelection, setDayType, setMonth, setPlaying } from "./view";
 
@@ -321,6 +321,19 @@ describe("syncUrl 寫月份、行政區、站（3.15）", () => {
     stop();
     setMonth(null);
     vi.useRealTimers();
+  });
+});
+
+describe("rideStyleDebug（8.7 第一階段，暫時）", () => {
+  it("a、b、base，其他值與沒有都是 a", () => {
+    expect(rideStyleDebug("?ridestyle=b")).toBe("b");
+    expect(rideStyleDebug("hour=8&ridestyle=base")).toBe("base");
+    expect(rideStyleDebug("?ridestyle=a")).toBe("a");
+    expect(rideStyleDebug("?ridestyle=c")).toBe("a");
+    expect(rideStyleDebug("")).toBe("a");
+  });
+  it("不是畫面狀態：parseQuery 不讀它，也不算不合法", () => {
+    expect(parseQuery("?ridestyle=b&hour=8")).toEqual({ state: { hour: 8 }, invalid: [] });
   });
 });
 
