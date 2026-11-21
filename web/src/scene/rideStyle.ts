@@ -2,7 +2,7 @@
 // 全景（沒搭乘）一律不看這裡，畫面和改之前相同；只有 v.ride 不是 null 時各圖層才套用。
 // base＝8.6 原樣；a「細軌」＝路線收成一條細軌、站的底座縮成貼地的薄板、站珠縮小並抬到視線上方、近物更早淡出；
 // b「月台」＝板南線下面墊一條微微隆起的窄道床、路線色只剩中間一條、每站兩側各一塊長方形月台與一根不寫字的站牌柱，
-// 行進中不畫站珠，只有停靠的那站在軌道上方亮一顆小站珠。
+// 不畫站珠（停靠時那站的站牌換成站燈色，RideTrack）。
 // 版本由網址 `?ridestyle=` 選（state/url.ts rideStyleDebug，暫時的）；選定後只留一組數字、拿掉切換。
 import { rideStyleDebug, type RideStyle } from "../state/url";
 
@@ -16,7 +16,7 @@ export interface RideLook {
   hideRoutePlaza: boolean;
   /** 站珠大小倍數；0＝行進中不畫 */
   bead: number;
-  /** 停靠那站的站珠大小倍數（b）；null＝和其他站一樣 */
+  /** 停靠那站的站珠大小倍數；null＝和其他站一樣 */
   beadDocked: number | null;
   /** 站珠離地多高（場景單位）；null＝原本的位置（廣場上方 0.28） */
   beadY: number | null;
@@ -62,8 +62,9 @@ const LOOKS: Record<RideStyle, RideLook> = {
     railWidth: 0.12,
     plaza: [0.34, 0.3],
     hideRoutePlaza: true,
+    // 停靠的站珠就在鏡頭前約 1.3，再小也像一顆球擋著（第一輪截圖），所以整個不畫，改由站牌換色
     bead: 0,
-    beadDocked: 0.3,
+    beadDocked: null,
     beadY: 0.95,
     beadNear: [0.6, 0.3],
     trainNear: [6.0, 3.5],

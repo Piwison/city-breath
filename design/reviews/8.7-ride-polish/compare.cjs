@@ -64,7 +64,7 @@ async function open(browser, url, opts = {}) {
     await page.waitForSelector(".deck-ride:not([disabled])", { timeout: 120000 });
     await sleep(3000);
     const now = await page.evaluate(() => Date.now());
-    await page.clock.pauseAt(now + 1000);
+    await page.clock.pauseAt(now + 20000);
     await page.click(".deck-ride");
     // 鏡頭飛下來 1.2 秒（holdRide）＋走約 1.8 秒
     await frames(page, 30);
@@ -90,7 +90,7 @@ async function open(browser, url, opts = {}) {
     await page.waitForSelector(".card[data-kind=station]");
     await sleep(3000);
     const now = await page.evaluate(() => Date.now());
-    await page.clock.pauseAt(now + 1000);
+    await page.clock.pauseAt(now + 20000);
     await frames(page, 2);
     await page.click(".ride-btn >> nth=0");
     await frames(page, 17);

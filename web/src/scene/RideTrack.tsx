@@ -1,7 +1,7 @@
 // 搭乘中的道床與月台（8.7「搭乘畫面打磨」造型 b「月台」，rideStyle.ts）：只在搭乘時出現，全景完全不畫。
 // 道床：沿搭乘路徑（ridePath.ts，basemap 真實軌道經 project()）一條微微隆起的窄條，頂面在路線線（Rails，LIFT）下方一點，
 // 路線色的細線就成了道床中間的一條色帶。月台：每個停靠站在軌道兩側各一塊長方形的薄板，外緣一根不寫字的站牌柱，
-// 牌子是路線色。全是示意（AD-23），不加資料；顏色只從 :root token 來（AD-8）。幾何一次建好，月台與站牌各一個 InstancedMesh（AD-6）。
+// 牌子是路線色，停靠中的那站牌子換成站燈色（--station-glow；這個造型行進中不畫站珠）。全是示意（AD-23），不加資料；顏色只從 :root token 來（AD-8）。幾何一次建好，月台與站牌各一個 InstancedMesh（AD-6）。
 import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, InstancedMesh, Mesh, MeshStandardMaterial, Object3D } from "three";
@@ -95,6 +95,8 @@ function Bed({ path }: { path: RidePath }) {
   const platColor = useTokenColor("--station");
   const postColor = useTokenColor("--cable");
   const signColor = useTokenColor(lineToken(path.line));
+  const glowColor = useTokenColor("--station-glow");
+  const docked = useView((s) => (s.ride?.docked ? s.ride.station : null));
 
   const built = useMemo(() => {
     const bed = new Mesh(bedGeometry(path), new MeshStandardMaterial({ roughness: 0.95, metalness: 0, side: DoubleSide }));
@@ -160,8 +162,16 @@ function Bed({ path }: { path: RidePath }) {
     (built.bed.material as MeshStandardMaterial).color.copy(bedColor);
     (built.plat.material as MeshStandardMaterial).color.copy(platColor);
     (built.post.material as MeshStandardMaterial).color.copy(postColor);
-    (built.sign.material as MeshStandardMaterial).color.copy(signColor);
-  }, [built, bedColor, platColor, postColor, signColor]);
+  }, [built, bedColor, platColor, postColor]);
+  // 站牌：路線色；停靠中的那站換成站燈色（每站兩塊，順序同 path.stops）
+  useEffect(() => {
+    path.stops.forEach((stop, i) => {
+      const c = stop.id === docked ? glowColor : signColor;
+      built.sign.setColorAt(i * 2, c);
+      built.sign.setColorAt(i * 2 + 1, c);
+    });
+    if (built.sign.instanceColor) built.sign.instanceColor.needsUpdate = true;
+  }, [built, path, docked, signColor, glowColor]);
   // 上下車時陰影圖不會自己重畫（Daylight 只在光移動時重畫），補一次
   const shown = riding && layer;
   useEffect(() => {
