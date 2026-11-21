@@ -15,6 +15,17 @@ hitl = false
 risk = "medium"
 
 [[entry]]
+id = 7
+type = "story"
+title = "搭乘畫面打磨：近看的站與軌道"
+description = "Piwi 2026-11-21 看了 8.6 搭乘中的截圖（design/reviews/8.6-ride-bannan/）後決定：首頁減法（3.24）之後、上線品質（6.5）之前先修。問題：搭乘鏡頭離地面近，原本給全景看的造型放大後很粗糙：車站的深藍八角底座與站珠在近處很大顆、擋住前方；路線是一條很寬的平面藍帶，看起來像玩具軌道，不像搭車；停靠時鏡頭前有大顆的珠子或列車。這張只在搭乘中調整（全景的版面與比例不變）：底座與站珠在搭乘時縮小或改成貼地的月台樣式、路線改細或改成雙軌的樣子、鏡頭前的物件淡出得更早，讓前方的街景與下一站看得見；風格維持天光積木，不加新資料（AD-23）。改的方向先用 prototype 做 2 個以內的版本截圖給 Piwi 挑（同一段路、同一個時刻對照），選定後記進 DESIGN.md 搭乘段落。顏色只用 :root token、useTokenColor（AD-8）；reduced-motion 照 8.6 一站一站跳；`?debug=perf` 搭乘時 fps 不比 8.6 差。"
+verify = "搭乘中（板南線頂埔出發、台北車站往東、停靠永寧三個位置）截圖和 8.6 的同位置截圖對照：前方看得到下一站與街景，畫面下半部不被底座或站珠占滿；全景（沒搭乘）截圖和改之前相同；Piwi 選定的版本記在 DESIGN.md；程式裡沒有寫死的色碼（tokens 測試）；npm test 與 npm run build 通過。"
+covers = ["R3"]
+after = [6, "3.24"]
+hitl = true
+risk = "low"
+
+[[entry]]
 id = 1
 type = "story"
 title = "有故事的地標"
