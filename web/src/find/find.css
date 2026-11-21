@@ -1,34 +1,5 @@
-/* 「找你的站」主按鈕、搜尋面板與通勤面板（4.1）。只用 tokens.css 的 token；時長只用 --dur-*（減少動態時歸零＝直接出現）。
-   版面照 DESIGN.md（手機 390×844）：主按鈕在時間軸正上方置中（拇指夠得到，體驗原則 4）；面板從畫面下緣浮起，蓋住時間軸或小卡。 */
-
-/* 主按鈕：--dock-top＝畫面底到時間軸上緣（ScenePage 量）；高 48px（> 44px 的 --tap） */
-.find-main {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--dock-top, 170px) + 10px);
-  translate: -50% 0;
-  height: calc(var(--tap) + 4px);
-  padding: 0 22px 0 18px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--hud-accent);
-  color: var(--hud-on);
-  font-size: var(--text-md);
-  font-weight: 700;
-  white-space: nowrap;
-  box-shadow: 0 6px 18px var(--hud-shadow);
-  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-enter) var(--ease-out),
-    background-color var(--dur-phase) var(--ease-out), color var(--dur-phase) var(--ease-out);
-}
-.find-main svg { width: 18px; height: 18px; }
-.find-main:active:not(:disabled) { transform: scale(0.96); }
-.find-main:disabled { opacity: 0.6; cursor: progress; }
-@starting-style {
-  .find-main { opacity: 0; }
-}
+/* 「找你的站」的搜尋面板與通勤面板（4.1）。只用 tokens.css 的 token；時長只用 --dur-*（減少動態時歸零＝直接出現）。
+   版面照 DESIGN.md（手機 390×844）：按鈕在首頁底座下排左邊（3.24，HomeDeck）；面板從畫面下緣浮起，蓋住底座或小卡。 */
 
 /* 下方面板（搜尋、通勤）：和小卡同寬同位置，蓋在時間軸或小卡上面 */
 .find-sheet {

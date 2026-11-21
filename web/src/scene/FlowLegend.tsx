@@ -1,4 +1,4 @@
-// 流向圖例（時間軸下方）：顏色代表什麼（依模式換字，3.3／走查 F5）、線寬＝每小時人次（三段，用 views.ts 同一個 ribbonWidth）、
+// 流向的文字圖例（3.24 起在首頁「⋯更多」的「怎麼看這張圖」，小卡底部照放）：顏色代表什麼（依模式換字，3.3／走查 F5）、線寬＝每小時人次（三段，用 views.ts 同一個 ribbonWidth）、
 // 一顆光點＝N 人；靜態模式時光點換成光帶，最後一段改成光帶三級（views.ts bandCuts、BAND_W）。
 // 3.21：選區、選站時線寬用畫面上最大的那條當最粗，圖例寫「最粗 N 人」（決定 7，flowNow.ts 與緞帶同一份）；
 // 加一行柱高「柱子越高人越多」（決定 4，不寫倍數）。
@@ -51,7 +51,7 @@ export function FlowLegend({ source, stations, link }: { source?: FlowSource; st
   if (!on)
     return (
       <div className="legend">
-        流向已關閉，可從右上角「圖層」打開
+        流向已關閉，可從「⋯更多」的「圖層」打開
         {PILLAR_ROW}
       </div>
     );

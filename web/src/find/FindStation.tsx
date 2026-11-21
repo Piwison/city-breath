@@ -1,8 +1,9 @@
-// 「找你的站」（4.1，產品計畫 v2 決定 1、15；體驗原則 1、4）：畫面下方一顆主按鈕，取代左上角的「找你的通勤」。
-// 按了從下方浮起搜尋面板（打字、依路線分組、最近用過的站在最上面）；選一站＝selectStation()：鏡頭飛到那站（Selection.tsx
+// 「找你的站」（4.1，產品計畫 v2 決定 1、15；體驗原則 1、4）：3.24 起是首頁底座下排左邊的次按鈕（HomeDeck.tsx），
+// 這裡只畫面板。按了從下方浮起搜尋面板（打字、依路線分組、最近用過的站在最上面）；選一站＝selectStation()：鏡頭飛到那站（Selection.tsx
 // 的 SelectionCamera，減少動態時直接切）、開車站卡（3.12），卡上的「從這站找通勤」打開通勤面板。播放中也能直接按（不暫停；
 // 選了站、開了卡才暫停，和點地圖一樣）。也可以不搜尋、直接點地圖。
-// 面板開關是元件內的暫時 UI 狀態（不進網址、不保存）；通勤面板由 state/view.ts 的 commute 決定開不開：
+// 搜尋面板的開關是首頁的暫時 UI 狀態（ScenePage 持有、經 open／onOpenChange 傳進來；不進網址、不保存）；
+// 通勤面板由 state/view.ts 的 commute 決定開不開：
 // 起訖還沒選齊是這裡的通勤面板，選齊了（commuteReady）換成通勤卡（4.2；首頁由 ScenePage 的 Bottom 開，替代頁在這裡開）。
 // 打開搜尋送 commute_input_started（AD-20，不帶 props；StationSearch.tsx 的 startSearch）。
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -26,7 +27,7 @@ import {
   useView,
 } from "../state/view";
 import { CommuteInput, type CommuteData } from "./CommutePanel";
-import { startSearch, StationSearch } from "./StationSearch";
+import { StationSearch } from "./StationSearch";
 import "./find.css";
 
 function CloseIcon() {
@@ -37,7 +38,8 @@ function CloseIcon() {
   );
 }
 
-function PinIcon() {
+/** 找你的站的放大鏡（HomeDeck 的按鈕也用）。 */
+export function PinIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
@@ -81,39 +83,33 @@ function Sheet({ title, onClose, children, wide }: { title: string; onClose: () 
 }
 
 /**
- * 首頁的主按鈕與搜尋面板、通勤面板。model：首頁已載入的車站與路線；stations：同月 stations.json 的站。
- * hideMain：不放主按鈕（搭乘模式 8.6：停靠時從車站卡「從這站找通勤」照樣打開通勤面板）。
+ * 首頁的搜尋面板與通勤面板。model：首頁已載入的車站與路線；stations：同月 stations.json 的站。
+ * open／onOpenChange：搜尋面板開不開（按鈕在 HomeDeck，按了經 startSearch() 打開）。
+ * 搭乘模式（8.6）停靠時從車站卡「從這站找通勤」照樣打開通勤面板。
  */
 export function FindStation({
   model,
   stations,
   month,
-  hideMain = false,
+  open,
+  onOpenChange,
 }: {
   model?: SearchModel;
   stations?: readonly Station[];
   month?: string;
-  hideMain?: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const cardOpen = useView((s) => s.district !== null || s.station !== null);
   const commuteOpen = useView((s) => s.commute !== null);
   // 起訖選齊＝通勤卡（ScenePage 的 Bottom），通勤面板收起
   const commuteCard = useView((s) => commuteReady(s.commute));
-  const close = useCallback(() => setOpen(false), []);
-  const start = () => startSearch(() => setOpen(true));
+  const close = useCallback(() => onOpenChange(false), [onOpenChange]);
   // 通勤面板打開（車站卡「從這站找通勤」）時收起搜尋
   useEffect(() => {
-    if (commuteOpen) setOpen(false);
-  }, [commuteOpen]);
+    if (commuteOpen) onOpenChange(false);
+  }, [commuteOpen, onOpenChange]);
   return (
     <>
-      {!hideMain && !cardOpen && !open && !commuteOpen && (
-        <button type="button" className="find-main" aria-haspopup="dialog" disabled={!model} onClick={start}>
-          <PinIcon />
-          找你的站
-        </button>
-      )}
       {open && model && (
         <Sheet title="找你的站" onClose={close}>
           <StationSearch
@@ -121,7 +117,7 @@ export function FindStation({
             mode="station"
             label="找車站"
             onPick={(id) => {
-              setOpen(false);
+              onOpenChange(false);
               selectStation(id);
             }}
             footer={
@@ -129,7 +125,7 @@ export function FindStation({
                 type="button"
                 className="find-link"
                 onClick={() => {
-                  setOpen(false);
+                  onOpenChange(false);
                   openCommute();
                 }}
               >

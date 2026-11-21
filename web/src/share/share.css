@@ -136,37 +136,11 @@
 .share-btn-main { border-color: transparent; background: var(--hud-accent); color: var(--hud-on); }
 .share-status { min-height: 1.2em; font-size: var(--text-2xs); color: var(--hud-muted); text-align: center; }
 
-/* 上方「分享這一刻」：沒開卡時才有；窄螢幕只有圖示，寬一點才寫字 */
-.scene-share-btn {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  right: calc(12px + 2 * (var(--tap) + 8px));
-  min-width: var(--tap);
-  height: var(--tap);
-  padding: 0;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--hud-accent);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-quick) var(--ease-out);
-}
-.scene-share-btn svg { width: 17px; height: 17px; flex: none; }
-.scene-share-btn span { display: none; color: var(--hud-ink); }
-.scene-share-btn:active:not(:disabled) { transform: scale(0.96); }
-.scene-share-btn:disabled { opacity: 0.5; cursor: default; }
-@media (min-width: 520px) {
-  .scene-share-btn { padding: 0 14px 0 12px; }
-  .scene-share-btn span { display: inline; }
-}
-
 /* 打開的連結不合法或是舊月份：上方一行說明，點 × 才收（不計時消失，決定 23） */
 .scene-notice {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 12px + var(--tap) + 8px);
+  /* 3.24 起上方第一排沒有按鈕：說明直接放在最上面 */
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
   left: 12px;
   right: 12px;
   max-width: 520px;
