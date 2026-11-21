@@ -33,3 +33,4 @@
 - source_plan: `_bmad-output/initiative-city-breath/tickets/epic-explore-shortcuts/tickets/story-0-plan.md`
   summary: 廣慈/奉天宮被管線判成板南線（`nearest`），basemap.json 有一段從南港展覽館拉到廣慈/奉天宮約 4 km 的 BL approx 直線，地圖上看得到；它實際是信義線東延段的站。
   evidence: 1.12 起就有（basemap.json 的 `stationLines` 與 `tracks[]` approx 段），不是 8.6 造成的。8.6 的搭乘路徑不走 approx，所以不停這站。修法是在 `pipeline/config/station_lines.csv` 加人工修正（改成 R，附理由）或補信義線東延段的軌道，要 Piwi 決定這站該畫成哪條線。
+  resolution: 2026-11-21 Piwi 決定改歸信義線，開票 1.16。

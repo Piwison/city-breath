@@ -173,3 +173,15 @@ covers = ["R8"]
 after = [14]
 hitl = false
 risk = "medium"
+
+[[entry]]
+id = 16
+type = "story"
+title = "廣慈/奉天宮改歸信義線"
+description = "Piwi 2026-11-21 決定（deferred-work 8.6 那條）：廣慈/奉天宮被管線用 `nearest` 判成板南線，basemap.json 從 1.12 起就有一段從南港展覽館拉到廣慈/奉天宮約 4 km 的板南線 approx 直線，地圖上看得到；它實際是淡水信義線東延段的站。修法：在 `pipeline/config/station_lines.csv` 加人工修正，把這站改成信義線（R），附理由與官方來源網址（例如臺北市捷運工程局或臺北捷運公司的路線頁）；站名正規化與線別只在管線（AD-2）。先查官方來源確認這站的線別與營運狀態、以及它在原始資料裡的紀錄是否正常，跟票面不同就先問 Piwi。軌道：照 AD-21 先找真實軌跡（例如 OpenStreetMap，授權與來源登記在 basemap_sources.csv）從象山接過去；找不到就用 approx 直線接象山，畫面照現有 approx 的畫法。拿掉南港展覽館那段 BL approx 直線。重建 basemap.json（BASEMAP_REVISION 加一）；其他月份輸出除了這站的線別外逐格相同。8.6 的搭乘路徑不受影響（板南線本來就不停這站）。"
+verify = "pytest：廣慈/奉天宮的線別是 R、basemap.json 沒有南港展覽館到廣慈/奉天宮的 BL 軌道段、有一段 R 軌道（真實或 approx）連到象山；station_lines.csv 的修正列附來源網址；重建後其他站的輸出不變；npm test 通過（找你的站的站序把這站排在信義線象山之後）；地圖截圖看不到那條板南線直線。"
+covers = ["R5"]
+after = []
+hitl = false
+risk = "low"
+
