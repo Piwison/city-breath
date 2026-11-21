@@ -3,14 +3,14 @@ title: '首頁減法：三條路'
 type: 'feature'
 ticket: '24'
 created: '2026-11-21'
-status: 'in-progress'
+status: 'built'
 baseline_revision: 'dbb820b5116f0caaf94bce31e63333e02bdc4ca0'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: ['{project-root}/DESIGN.md', '{project-root}/design/prototypes/3.24-home-paths/README.md']
 ---
@@ -99,6 +99,10 @@ context: ['{project-root}/DESIGN.md', '{project-root}/design/prototypes/3.24-hom
 ## Plan Change Log
 
 ## Review Triage Log
+
+- 2026-11-21 第 1 輪（quick）：這個環境沒有子代理，quick lens 由實作者自己逐檔檢查 diff（相對 baseline）代替；建議合併前另開 session 跑 bmad-code-review。high 0／medium 0／low 2／false 0／maybe-false 0。
+  - low（reject）：`.scene-top` 仍保留 56px 高，流向標籤的上方安全區沒有因為拿掉上方按鈕而放大——只影響天空那一帶，不擋任何東西；改了要動標籤量測，不值得。
+  - low（reject）：更多清單打開時 HUD 約占 39.5%（Playwright `2-more-open`），超過首頁的 35%——是暫時翻開的清單（原型 C 一樣），沒動過的首頁 19.5%；碰到場景就翻回。
 
 ## Design Notes
 

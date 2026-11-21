@@ -1,0 +1,163 @@
+{
+  "1-home": {
+    "buttons": [
+      "暫停 44×44",
+      "平日 48×36",
+      "假日 48×36",
+      "找你的站 72×52",
+      "搭板南線 192×56",
+      "更多 64×52"
+    ],
+    "text": [
+      "05:30",
+      "9 月",
+      "平日",
+      "平均",
+      "・第一班車前後",
+      "平日",
+      "假日",
+      "找你的站",
+      "搭板南線",
+      "更多"
+    ],
+    "forbidden": [],
+    "pathsAtLeast44": true,
+    "hud": {
+      "pct": 19.5,
+      "hScroll": false
+    },
+    "pill": 0,
+    "canvas": true
+  },
+  "2-more-open": {
+    "items": [
+      "分享這一刻",
+      "圖層",
+      "播放速度",
+      "靜態模式",
+      "怎麼看這張圖"
+    ],
+    "timebarGone": true,
+    "moreExpanded": "true",
+    "pathsStill": [
+      "找你的站",
+      "搭板南線",
+      "更多"
+    ],
+    "about": false,
+    "ask": false,
+    "itemsAtLeast44": true,
+    "hud": {
+      "pct": 39.5,
+      "hScroll": false
+    }
+  },
+  "2-more-functions": {
+    "speed": [
+      "播放速度2x",
+      "播放速度1x"
+    ],
+    "stillOn": {
+      "pressed": "true",
+      "val": "靜態模式開"
+    },
+    "stillOff": "靜態模式關",
+    "labelsBefore": 21,
+    "labelsOff": 0,
+    "legendText": "9 月平日平均・早晨通勤尖峰 線寬＝每小時人次 1 千 3 千 6 千 橘＝全城流向 光帶 <2千 2–4.5千 ≥4.5千 柱子越高人越多（車站這小時進出，放大或選區才出現）"
+  },
+  "2-share-moment": {
+    "heading": "分享這一刻",
+    "actions": [
+      "複製連結"
+    ],
+    "url": "http://localhost:4199/?month=2026-09&day=weekday&hour=8",
+    "menuClosed": true
+  },
+  "2-flip-back": {
+    "timebar": 1,
+    "menu": 0
+  },
+  "3-recenter-drag": {
+    "before": 0,
+    "afterDrag": 1,
+    "pill": {
+      "w": 98,
+      "h": 44,
+      "right": 12,
+      "gapToDeck": 8
+    },
+    "afterHome": 0
+  },
+  "4-recenter-district": {
+    "district": "新店區",
+    "pillAboveCard": 8,
+    "afterHomePill": 0,
+    "cardStillOpen": true
+  },
+  "5-find-sheet": {
+    "deckHidden": true,
+    "title": "找你的站"
+  },
+  "6-station-card": {
+    "answer": "平日 8 點，從西門出發的人最常去南京復興",
+    "sheet": "full",
+    "commute": true,
+    "pill": 1
+  },
+  "7-reduced-motion": {
+    "face": "0s",
+    "ride": "0s, 0s, 0s, 0s",
+    "playing": "播放一整天",
+    "menuFace": "0s"
+  },
+  "8-terminal": {
+    "station": "s4afc9a98",
+    "buttons": [
+      "繼續 80×44",
+      "下一站 94×44",
+      "分享 80×44",
+      "下車 80×44"
+    ],
+    "card": "南港展覽館"
+  },
+  "8-terminal-share": {
+    "heading": "分享這趟搭乘",
+    "actions": [
+      "複製連結"
+    ],
+    "url": "http://localhost:4199/?month=2026-09&day=weekday&hour=8&station=s4afc9a98&ride=BL"
+  },
+  "9-ride-end": {
+    "text": "在昆陽下車 把這一站傳給朋友：連結打開會停在昆陽、暫停中。 分享 回到首頁",
+    "buttons": [
+      "分享 44",
+      "回到首頁 44"
+    ],
+    "controls": 0,
+    "hud": {
+      "pct": 15,
+      "hScroll": false
+    }
+  },
+  "9-ride-end-share": {
+    "heading": "分享這趟搭乘",
+    "actions": [
+      "複製連結"
+    ],
+    "link": "http://localhost:4199/?month=2026-09&day=weekday&hour=8&station=s784d43af&ride=BL"
+  },
+  "10-link-reopened": {
+    "station": "s784d43af",
+    "linkStation": "s784d43af",
+    "card": "昆陽",
+    "pauseButton": "繼續"
+  },
+  "11-back-home": {
+    "deck": 1,
+    "ride": 0,
+    "url": "?month=2026-09&day=weekday&hour=8",
+    "pill": 0
+  },
+  "errors": []
+}
