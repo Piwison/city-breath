@@ -3,7 +3,7 @@ title: '搭乘模式第 0 期：板南線試乘'
 type: 'feature'
 ticket: '6'
 created: '2026-11-20'
-status: 'built'
+status: done
 baseline_revision: '3f503102797b4ee95bc85b719ffa6a76bf9b7caa'
 route: 'full'
 route_source: 'auto'
