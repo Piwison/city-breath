@@ -53,51 +53,9 @@
 }
 .scene-top .hud { pointer-events: auto; }
 
-/* 右上：回到全景（圖層按鈕左邊）。減少動態時鏡頭直接切回（CameraRig），按鈕只有按壓回饋 */
-.scene-home-btn {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  right: calc(12px + var(--tap) + 8px);
-  width: var(--tap);
-  height: var(--tap);
-  padding: 0;
-  border-radius: var(--radius-pill);
-  display: grid;
-  place-items: center;
-  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-quick) var(--ease-out);
-}
-.scene-home-btn svg { width: 16px; height: 16px; }
-.scene-home-btn:active:not(:disabled) { transform: scale(0.96); }
-.scene-home-btn:disabled { opacity: 0.5; cursor: default; }
-
-/* 右上：圖層 */
-.scene-layer-btn {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  right: 12px;
-  width: var(--tap);
-  height: var(--tap);
-  padding: 0;
-  border-radius: var(--radius-pill);
-  display: grid;
-  place-items: center;
-  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
-}
-.scene-layer-btn svg { width: 16px; height: 16px; }
-.scene-layer-btn[aria-expanded="true"] { border-color: var(--hud-accent); }
-.scene-layer-btn:active { transform: scale(0.96); }
-
-.scene-layer-panel {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 60px);
-  right: 12px;
-  width: min(260px, calc(100vw - 24px));
-  padding: 10px;
-  display: grid;
-  gap: 2px;
-}
-.scene-layer-panel h2 { margin: 2px 6px 6px; font-size: var(--text-xs); font-weight: 700; }
-.scene-layer-panel label {
+/* 圖層開關（3.24 起在「⋯更多」的「圖層」裡展開） */
+.layer-list { display: grid; gap: 2px; }
+.layer-list label {
   display: grid;
   grid-template-columns: 18px 1fr auto;
   align-items: center;
@@ -108,25 +66,25 @@
   cursor: pointer;
   font-size: var(--text-sm);
 }
-.scene-layer-panel label:active { background: var(--hud-chip); }
-.scene-layer-panel small { color: var(--hud-muted); font-size: var(--text-2xs); }
-.scene-layer-panel .sw { width: 18px; height: 18px; border-radius: 6px; }
-.scene-layer-panel .sw-rail { background: linear-gradient(135deg, var(--line-r) 0 25%, var(--line-bl) 25% 50%, var(--line-g) 50% 75%, var(--line-o) 75%); }
-.scene-layer-panel .sw-flow { background: linear-gradient(180deg, transparent 0 30%, var(--flow-neutral) 30% 70%, transparent 70%); }
-.scene-layer-panel .sw-station { background: linear-gradient(90deg, transparent 0 42%, var(--station) 42% 58%, transparent 58%), radial-gradient(circle at 50% 22%, var(--line-r) 0 22%, transparent 24%); border: 1px solid var(--hud-muted); }
-.scene-layer-panel .sw-water { background: var(--water); }
-.scene-layer-panel .sw-green { background: var(--green); }
-.scene-layer-panel .sw-train { background: linear-gradient(180deg, transparent 0 32%, var(--line-bl) 32% 68%, transparent 68%); border: 1px solid var(--hud-muted); }
-.scene-layer-panel .sw-cloud { background: radial-gradient(circle at 35% 60%, var(--cloud) 0 30%, transparent 32%), radial-gradient(circle at 62% 45%, var(--cloud) 0 34%, transparent 36%); border: 1px solid var(--hud-muted); }
-.scene-layer-panel .sw-building { background: linear-gradient(90deg, var(--roof) 0 55%, var(--tree) 55%); border: 1px solid var(--hud-muted); }
-.scene-layer-panel .sw-label {
+.layer-list label:active { background: var(--hud-chip); }
+.layer-list small { color: var(--hud-muted); font-size: var(--text-2xs); }
+.layer-list .sw { width: 18px; height: 18px; border-radius: 6px; }
+.layer-list .sw-rail { background: linear-gradient(135deg, var(--line-r) 0 25%, var(--line-bl) 25% 50%, var(--line-g) 50% 75%, var(--line-o) 75%); }
+.layer-list .sw-flow { background: linear-gradient(180deg, transparent 0 30%, var(--flow-neutral) 30% 70%, transparent 70%); }
+.layer-list .sw-station { background: linear-gradient(90deg, transparent 0 42%, var(--station) 42% 58%, transparent 58%), radial-gradient(circle at 50% 22%, var(--line-r) 0 22%, transparent 24%); border: 1px solid var(--hud-muted); }
+.layer-list .sw-water { background: var(--water); }
+.layer-list .sw-green { background: var(--green); }
+.layer-list .sw-train { background: linear-gradient(180deg, transparent 0 32%, var(--line-bl) 32% 68%, transparent 68%); border: 1px solid var(--hud-muted); }
+.layer-list .sw-cloud { background: radial-gradient(circle at 35% 60%, var(--cloud) 0 30%, transparent 32%), radial-gradient(circle at 62% 45%, var(--cloud) 0 34%, transparent 36%); border: 1px solid var(--hud-muted); }
+.layer-list .sw-building { background: linear-gradient(90deg, var(--roof) 0 55%, var(--tree) 55%); border: 1px solid var(--hud-muted); }
+.layer-list .sw-label {
   border: 1px solid var(--hud-muted);
   font-size: var(--text-2xs);
   display: grid;
   place-items: center;
   color: var(--hud-muted);
 }
-.scene-layer-panel input {
+.layer-list input {
   appearance: none;
   -webkit-appearance: none;
   width: 36px;
@@ -139,7 +97,7 @@
   cursor: pointer;
   transition: background-color var(--dur-quick) var(--ease-out);
 }
-.scene-layer-panel input::after {
+.layer-list input::after {
   content: "";
   position: absolute;
   top: 2px;
@@ -150,11 +108,12 @@
   background: var(--hud-muted);
   transition: transform var(--dur-quick) var(--ease-out), background-color var(--dur-quick) var(--ease-out);
 }
-.scene-layer-panel input:checked { background: var(--hud-accent); border-color: transparent; }
-.scene-layer-panel input:checked::after { transform: translateX(14px); background: var(--hud-on); }
-.scene-layer-panel .src { margin: 6px 6px 2px; font-size: var(--text-2xs); line-height: 1.5; color: var(--hud-muted); }
+.layer-list input:checked { background: var(--hud-accent); border-color: transparent; }
+.layer-list input:checked::after { transform: translateX(14px); background: var(--hud-on); }
+.layer-list .src { margin: 6px 6px 2px; font-size: var(--text-2xs); line-height: 1.5; color: var(--hud-muted); }
 
-/* 下方：時間軸（3.5 最小版；3.3 加時段名、停止營運斜紋與刻度、速度、靜態模式） */
+/* 下方：首頁底座（3.24，原型 C「一個底座」）。上半是時間軸（3.5、3.3；刻度、速度、靜態模式 3.24 起拿掉或收進更多），
+   分隔線，下排是三條路。scene-dock 這個 class 留著：ScenePage 量它的上緣當流向標籤與停駛提示的底線 */
 .scene-dock {
   position: absolute;
   left: 12px;
@@ -162,10 +121,12 @@
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   max-width: 640px;
   margin: 0 auto;
-  padding: 10px 12px;
+  padding: 8px 10px 10px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
+  box-shadow: 0 8px 26px var(--hud-shadow);
 }
+.timebar { display: grid; gap: 6px; }
 .scene-dock .row { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .scene-dock .when { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .scene-dock .sub {
@@ -296,17 +257,16 @@
   -webkit-user-select: none;
   user-select: none;
 }
-.scene-dock .scrub-row { align-items: flex-start; gap: 8px; }
-.scene-dock .scrub-wrap { position: relative; flex: 1; min-width: 0; display: grid; gap: 2px; }
-/* 拖曳條：看得到的是 22px 的天色條（.scrub-wrap::before，底色由 TimeBar 寫進 --scrub-bg），
+.scene-dock .scrub-wrap { position: relative; min-width: 0; height: 22px; }
+/* 拖曳條：看得到的是 10px 的細天色條（.scrub-wrap::before，底色由 TimeBar 寫進 --scrub-bg；原型 C），
    點得到的是整個 --tap-min 高的 input（決定 25：次要點擊目標至少 36px），上下各伸出去、不改版面 */
 .scene-dock .scrub-wrap::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
-  height: 22px;
+  top: 6px;
+  height: 10px;
   box-sizing: border-box;
   border-radius: var(--radius-pill);
   border: 1px solid var(--hud-line);
@@ -329,8 +289,8 @@
 }
 .scene-dock .scrub::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: var(--radius-pill);
   background: var(--hud-bg);
   border: 2px solid var(--hud-ink);
@@ -338,8 +298,8 @@
 }
 .scene-dock .scrub::-moz-range-thumb {
   box-sizing: border-box;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: var(--radius-pill);
   background: var(--hud-bg);
   border: 2px solid var(--hud-ink);
@@ -348,32 +308,11 @@
 .scene-dock .scrub-closed {
   position: absolute;
   z-index: 1;
-  top: 1px;
-  height: 20px;
+  top: 7px;
+  height: 8px;
   pointer-events: none;
   background: repeating-linear-gradient(135deg, var(--scrub-closed) 0 2px, transparent 2px 5px);
 }
-.scene-dock .ticks { position: relative; height: 12px; font-size: var(--text-2xs); line-height: 12px; color: var(--hud-muted); }
-.scene-dock .ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
-.scene-dock .ticks .off { color: var(--hud-ink); font-weight: 700; }
-/* 速度、靜態模式：30px 的小鍵；靜態模式開時填滿強調色，一眼看得出開或關 */
-.scene-dock .mini {
-  flex: none;
-  height: var(--tap-min);
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid var(--hud-line);
-  background: transparent;
-  font-size: var(--text-xs);
-  color: var(--hud-muted);
-  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-quick) var(--ease-out),
-    color var(--dur-quick) var(--ease-out);
-}
-.scene-dock .mini:active { transform: scale(0.96); }
-.scene-dock .mini.still b { margin-left: 4px; font-weight: 700; color: var(--hud-ink); }
-.scene-dock .mini.still[aria-pressed="true"] { background: var(--hud-accent); border-color: transparent; color: var(--hud-on); }
-.scene-dock .mini.still[aria-pressed="true"] b { color: var(--hud-on); }
-
 /* 時段名浮出（3.3）與停駛時的睡覺提示（3.4）：上方第二排（這個時段最忙，8.2）之下；睡覺提示 3.21 移到時間軸正上方
    （決定 8，不蓋住月亮）。停駛時段名不浮出，所以兩個不會同時出現。收起時看不見、不接手指 */
 .period-toast,
@@ -444,32 +383,6 @@
 
 /* ── 搭乘模式（8.6） ───────────────────────────────────────── */
 
-/* 首頁暫時的「搭板南線」：在「找你的站」正上方（3.24 換成最大的主按鈕，版面到時再定） */
-.ride-start {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--dock-top, 170px) + 10px + var(--tap) + 4px + 10px);
-  translate: -50% 0;
-  min-height: var(--tap);
-  padding: 0 18px 0 14px;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  white-space: nowrap;
-  box-shadow: 0 6px 18px var(--hud-shadow);
-  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-enter) var(--ease-out),
-    background-color var(--dur-phase) var(--ease-out), color var(--dur-phase) var(--ease-out);
-}
-.ride-start svg { width: 18px; height: 18px; color: var(--line-bl); }
-.ride-start:active:not(:disabled) { transform: scale(0.96); }
-.ride-start:disabled { opacity: 0.6; cursor: progress; }
-@starting-style {
-  .ride-start { opacity: 0; }
-}
-
 /* 搭乘中的三顆控制：行進中在畫面下方；停靠開卡時在卡片上緣之上（--dock-top 由 ScenePage 量） */
 .ride-controls {
   position: absolute;
@@ -507,4 +420,169 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* ── 首頁三條路（3.24，原型 C「一個底座」） ───────────────────────── */
+
+/* 底座的上半（時間軸或更多清單）：翻面時淡入（減少動態時 --dur-enter 是 0＝直接切換，不滑不彈） */
+.deck-face { min-width: 0; transition: opacity var(--dur-enter) var(--ease-out); }
+@starting-style {
+  .deck-face { opacity: 0; }
+}
+.deck-divider { height: 1px; margin: 2px -10px; background: var(--hud-line); }
+
+/* 下排：找你的站（次）｜搭板南線（主，最大、置中）｜⋯更多。大小就是主次（體驗原則 10） */
+.deck-paths { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.deck-paths button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-quick) var(--ease-out),
+    color var(--dur-quick) var(--ease-out), opacity var(--dur-quick) var(--ease-out);
+}
+.deck-paths button:active:not(:disabled) { transform: scale(0.96); }
+.deck-paths button:disabled { opacity: 0.6; cursor: progress; }
+.deck-side {
+  min-width: calc(var(--tap) + 20px);
+  min-height: calc(var(--tap) + 8px);
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--hud-chip);
+  color: var(--hud-ink);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.deck-side svg { width: 18px; height: 18px; }
+.deck-more[aria-expanded="true"] { background: var(--hud-ink); color: var(--hud-bg); }
+.deck-ride {
+  min-height: calc(var(--tap) + 12px);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--hud-accent);
+  color: var(--hud-on);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: var(--text-md);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.deck-ride svg { width: 22px; height: 22px; }
+
+/* 更多清單（底座翻過來的那一面）：太長就在底座裡捲 */
+.deck-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  max-height: min(52dvh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.mitem {
+  width: 100%;
+  min-height: calc(var(--tap) + 4px);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--hud-ink);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  font-size: var(--text-sm);
+  touch-action: manipulation;
+  transition: background-color var(--dur-quick) var(--ease-out);
+}
+.mitem:active:not(:disabled) { background: var(--hud-chip); }
+.mitem:disabled { opacity: 0.6; cursor: progress; }
+.mitem svg { flex: none; width: 18px; height: 18px; color: var(--hud-muted); }
+.mitem .label { flex: 1; min-width: 0; }
+.mitem .val { font-size: var(--text-xs); font-weight: 700; color: var(--hud-ink); }
+.mitem[aria-pressed="true"] .val { color: var(--hud-accent); }
+.mitem .chev { width: 14px; height: 14px; transition: transform var(--dur-quick) var(--ease-out); }
+.mitem[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.mbody { padding: 2px 10px 10px 40px; display: grid; gap: 8px; font-size: var(--text-xs); color: var(--hud-muted); }
+.mbody .mnote { margin: 0; font-size: var(--text-2xs); }
+.mbody .legend { gap: 8px 6px; line-height: 1.4; }
+
+/* 回到全景：只在鏡頭動過或選了東西時，貼在底座（或小卡）上緣的右上方；--dock-top 由 ScenePage 量 */
+.home-recenter {
+  position: absolute;
+  right: max(12px, calc((100% - 640px) / 2));
+  bottom: calc(var(--dock-top, 190px) + 8px);
+  min-height: var(--tap);
+  padding: 0 14px 0 12px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px var(--hud-shadow);
+  touch-action: manipulation;
+  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-enter) var(--ease-out),
+    bottom var(--dur-sheet) var(--ease-drawer);
+}
+.home-recenter svg { width: 16px; height: 16px; }
+.home-recenter:active { transform: scale(0.96); }
+@starting-style {
+  .home-recenter { opacity: 0; }
+}
+
+/* 下車後的小卡：在哪一站下車、分享（只有複製連結）、回到首頁 */
+.ride-end {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  box-shadow: 0 8px 26px var(--hud-shadow);
+  transition: opacity var(--dur-enter) var(--ease-out), translate var(--dur-enter) var(--ease-out);
+}
+@starting-style {
+  .ride-end { opacity: 0; translate: 0 12px; }
+}
+.ride-end h2 { font-size: var(--text-md); font-weight: 700; }
+.ride-end p { font-size: var(--text-xs); color: var(--hud-muted); }
+.ride-end-btns { display: flex; gap: 8px; }
+.ride-end-btns button {
+  flex: 1;
+  min-height: var(--tap);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  touch-action: manipulation;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.ride-end-btns button:active { transform: scale(0.96); }
+.ride-end-btns svg { width: 16px; height: 16px; }
+.ride-end-share { border: 0; background: var(--hud-accent); color: var(--hud-on); }
+.ride-end-home { border: 1px solid var(--hud-line); background: var(--hud-chip); color: var(--hud-ink); }
+
+/* 減少動態：按壓不縮放（時長 token 已歸零，翻面、膠囊、小卡都是直接出現） */
+@media (prefers-reduced-motion: reduce) {
+  .deck-paths button:active:not(:disabled),
+  .home-recenter:active,
+  .ride-end-btns button:active,
+  .ride-btn:active { transform: none; }
 }

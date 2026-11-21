@@ -147,7 +147,7 @@ function arrive(j: number) {
  */
 export function advanceRide(dt: number, calm: boolean) {
   const ride = getView().ride;
-  if (!ride || !route) return;
+  if (!ride || !route || ride.left) return;
   const step = Math.min(Math.max(dt, 0), 0.1);
   if (m.hold > 0) {
     m.hold = Math.max(0, m.hold - step);
@@ -240,10 +240,11 @@ export function pauseRide() {
   if (ride?.playing) writeRide({ ride: { ...ride, playing: false } });
 }
 
+
 /** 暫停／繼續。繼續時鏡頭先接回軌道（使用者暫停時可能移動過）；停靠中按繼續就直接出發。 */
 export function toggleRide(calm = false) {
   const ride = getView().ride;
-  if (!ride) return;
+  if (!ride || ride.left) return;
   if (ride.playing) {
     writeRide({ ride: { ...ride, playing: false } });
     return;
@@ -259,7 +260,7 @@ export function toggleRide(calm = false) {
  */
 export function nextStop(calm = false) {
   const ride = getView().ride;
-  if (!ride || !route) return;
+  if (!ride || !route || ride.left) return;
   if (ride.docked) {
     m.dwell = 0;
     m.step = !ride.playing;
@@ -272,7 +273,29 @@ export function nextStop(calm = false) {
   arrive(m.to);
 }
 
-/** 下車：回到全景由呼叫端飛鏡頭；一天的播放維持暫停（票面：下車回到全景、播放維持暫停）。 */
+/**
+ * 停在路線的端點站（3.24）：到終點停住後（暫停中）控制列多一顆分享。上車的起點站不算（往前還有站）。
+ * 讀 rideMotion（非 React 欄位）；到站時 arrive() 先改 rideMotion 再寫畫面狀態，所以重繪時讀到的是新值。
+ */
+export function atLineEnd(ride: Ride | null = getView().ride): boolean {
+  if (!ride || !route || !ride.docked || ride.left) return false;
+  return route.stops[m.i]?.id === ride.station && isEnd(m.i, m.dir);
+}
+
+/**
+ * 按下車（3.24）：搭乘停住（不再前進、鏡頭留在原地）、收起停靠的車站卡與通勤，控制換成「在 X 下車」小卡；
+ * ride 留著（left），分享連結才是 ride＋station、打開回到這一站。按「回到首頁」才 leaveRide()。
+ */
+export function endRide() {
+  const ride = getView().ride;
+  if (!ride || ride.left) return;
+  m.step = false;
+  m.hold = 0;
+  m.rejoin = 0;
+  writeRide({ ride: { ...ride, playing: false, left: true }, station: null, focus: null, commute: null, sheet: "peek", playing: false });
+}
+
+/** 離開搭乘：回到全景由呼叫端飛鏡頭；一天的播放維持暫停（票面：下車回到全景、播放維持暫停）。 */
 export function leaveRide() {
   if (!getView().ride) return;
   m.hold = 0;

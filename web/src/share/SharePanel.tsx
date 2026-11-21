@@ -19,7 +19,9 @@ import { renderShareCard, saveShareCard } from "./render";
 import "./share.css";
 
 export interface ShareTarget {
-  /** 小字：分享的是哪一種（「行政區」「車站」「全城」） */
+  /** 面板標題；沒給時全城是「分享這一刻」、其他是「分享這張卡」（搭乘結束是「分享這趟搭乘」，3.24） */
+  heading?: string;
+  /** 小字：分享的是哪一種（「行政區」「車站」「全城」「板南線」） */
   kicker: string;
   title: string;
   /** 正在看的時段與日型（「假日 14 點」） */
@@ -63,12 +65,14 @@ export async function copyText(text: string, field?: HTMLInputElement | null): P
 
 /**
  * 複製連結時開著的是哪一種卡（AD-20 share_link_copied 的 kind）；沒開卡＝home。
+ * 搭乘中（含下車後、到終點，3.24）分享的是那一站的連結（ride＋station）：算 station，不另加 kind。
  * 通勤卡（4.2）蓋在車站卡上面，所以先看通勤。大日子等之後的票加進 ViewState 後在這裡接。
  */
 export function copiedKind(
-  v: Pick<ViewState, "station" | "district"> & Partial<Pick<ViewState, "commute">>,
+  v: Pick<ViewState, "station" | "district"> & Partial<Pick<ViewState, "commute" | "ride">>,
 ): "commute" | "station" | "district" | "home" {
   if (commuteReady(v.commute ?? null)) return "commute";
+  if (v.ride) return "station";
   if (v.station !== null) return "station";
   if (v.district !== null) return "district";
   return "home";
@@ -215,7 +219,7 @@ export function SharePanel({ open, target, onClose }: { open: boolean; target: S
       {open && (
         <>
           <header className="share-head">
-            <h2 id={titleId}>{target.kicker === "全城" ? "分享這一刻" : "分享這張卡"}</h2>
+            <h2 id={titleId}>{target.heading ?? (target.kicker === "全城" ? "分享這一刻" : "分享這張卡")}</h2>
             <button type="button" className="share-close" aria-label="關閉分享" onClick={onClose}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

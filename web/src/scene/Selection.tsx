@@ -13,7 +13,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { Raycaster, Vector2, type Intersection, type Mesh, type Object3D } from "three";
 import type { BaseView, StationIndex } from "../data/views";
-import { clearCommute, closeCard, getView, selectDistrict, selectStation, useView } from "../state/view";
+import { clearCommute, closeCard, getView, selectDistrict, selectStation, setAway, useView } from "../state/view";
 import type { PressLink } from "./DistrictLift";
 import type { StationLink } from "./Stations";
 import { project } from "./projection";
@@ -175,7 +175,11 @@ export function SelectionCamera({ view, index, reduced }: { view: BaseView; inde
   useEffect(() => {
     if (!controls || getView().ride) return;
     const narrow = aspect < 0.8;
-    const fly = (x: number, z: number, d: number) => void controls.setLookAt(...lookAtArgs(x, z, d, narrow), !calm);
+    const fly = (x: number, z: number, d: number) => {
+      void controls.setLookAt(...lookAtArgs(x, z, d, narrow), !calm);
+      // 鏡頭離開了開場構圖：關卡後鏡頭留在原地（決定 6），「回到全景」照樣出現（3.24）
+      setAway(true);
+    };
     const at = (id: string) => {
       const i = index.byId.get(id);
       return i === undefined ? null : project(index.stations[i].lon, index.stations[i].lat);

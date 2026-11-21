@@ -2,9 +2,11 @@
 // 底層：底座、地形台地、海、行政區薄片、河川、綠地、捷運路線、天空與光；上面是全市前 12 大流向。
 // 點一區：區抬起、鏡頭飛過去、流向換成這區的去哪／誰來、站珠展開；下方時間軸換成行政區卡（點站換成車站小卡）。
 // 車站柱與站珠（3.1）、建築與樹（3.13）；點站開車站卡、流向換成這站前 5 目的地的站對站緞帶（3.12）。列車與雲（3.14，示意）；地標等是之後的票。
-// 搭乘模式第 0 期（8.6）：首頁暫時的「搭板南線」或板南線車站卡的「搭這條線」上車；鏡頭沿真實軌道走（RideCamera），
+// 搭乘模式第 0 期（8.6）：首頁底座的「搭板南線」或板南線車站卡的「搭這條線」上車；鏡頭沿真實軌道走（RideCamera），
 // 行進中畫面上只有暫停、下一站、下車三顆（先玩，再給資訊），停靠才開那站的車站卡；首頁其他控制、標籤與流向收起。
-// 碰到場景或卡片就暫停搭乘。3.24 會把「搭板南線」換成首頁最大的主按鈕。
+// 碰到場景或卡片就暫停搭乘。到終點時控制列多一顆分享、按下車換成「在 X 下車」小卡（分享＋回到首頁）（3.24）。
+// 首頁三條路（3.24，原型 C「一個底座」）：沒開卡時下方只有底座（HomeDeck.tsx）——看城市呼吸的時間軸、
+// 找你的站｜搭板南線｜⋯更多；「回到全景」只在鏡頭動過或選了東西時貼在底座或小卡右上方。上方不再放按鈕。
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { NeutralToneMapping } from "three";
@@ -16,26 +18,25 @@ import { loadBasemap, loadDistrictFlows, loadDistricts, loadMonths, loadStations
 import type { BasemapFile, DistrictFlowsFile, DistrictsFile, LineId } from "../data/types";
 import { baseView, flowSource, stationIndex, type BaseView, type FlowSource, type StationIndex } from "../data/views";
 import { pickHour, startClock } from "../state/clock";
-import { canRide, leaveRide, nextStop, pauseRide, restoreRide, setRideRoute, startRide, toggleRide } from "../state/ride";
+import { atLineEnd, canRide, endRide, leaveRide, nextStop, pauseRide, restoreRide, setRideRoute, startRide, toggleRide } from "../state/ride";
 import { setService } from "../state/service";
 import { clearViewQuery, parseQuery, perfDebug, planLink, syncUrl, type ParsedQuery } from "../state/url";
 import { commuteReady, getView, restoreCommute, restoreSelection, setDayType, setMonth, setPlaying, useView, type ViewState } from "../state/view";
 import { useMeta } from "../data/useMeta";
 import { monthLabel } from "../card/DistrictCard";
-import { whenLabel } from "../data/periods";
-import { SharePanel, ShareIcon, type ShareTarget } from "../share/SharePanel";
 import { searchModel, type SearchModel } from "../data/stationSearch";
 import { FindStation } from "../find/FindStation";
+import { startSearch } from "../find/StationSearch";
 import { Blocks } from "./Blocks";
 import { CameraRig, type CameraLink } from "./CameraRig";
 import { Clouds } from "./Clouds";
 import { Daylight, type FrameLight } from "./Daylight";
 import { DistrictLabelLayer, DistrictLabelProjector, type LabelBoard, type LabelEls } from "./DistrictLabels";
 import { DistrictLift, type PressLink } from "./DistrictLift";
-import { FlowLegend, ScaleProbe, type LegendLink } from "./FlowLegend";
+import { ScaleProbe, type LegendLink } from "./FlowLegend";
 import { FlowLabelLayer, Flows, type FlowLabelEls } from "./Flows";
 import { lifts } from "./lift";
-import { LayerPanel } from "./LayerPanel";
+import { HomeDeck, RecenterButton, RideEnd, RideShare } from "./HomeDeck";
 import { PeriodToast } from "./PeriodToast";
 import { Plinth, plinthBox, type PlinthBox } from "./Plinth";
 import { Rails } from "./Rails";
@@ -47,7 +48,6 @@ import { Sky } from "./Sky";
 import { SleepHint } from "./SleepHint";
 import { StationLabelLayer, Stations, type StationLink } from "./Stations";
 import { Terrain } from "./Terrain";
-import { TimeBar } from "./TimeBar";
 import { Trains } from "./Trains";
 import { hasWebGL, prefersReducedMotion } from "./webgl";
 import "./scene.css";
@@ -178,34 +178,6 @@ const RIDE_LINE: LineId = "BL";
 /** 有小卡開著（行政區卡、車站卡，或蓋在最上面的通勤卡 4.2）。 */
 const anyCard = (s: ViewState) => s.district !== null || s.station !== null || commuteReady(s.commute);
 
-/** 上方「分享這一刻」（3.15，DESIGN.md 上方一排）：沒開卡時才有；按了停在這一刻、開分享面板（只有複製連結）。 */
-function ShareMoment({ month }: { month?: string }) {
-  const [target, setTarget] = useState<ShareTarget | null>(null);
-  const cardOpen = useView(anyCard);
-  if (cardOpen && !target) return null;
-  const open = () => {
-    // 停在這一刻再讀時刻（播放中按也分享畫面上的那一小時）
-    setPlaying(false);
-    const v = getView();
-    const when = whenLabel(v.dayType, v.hour);
-    setTarget({
-      kicker: "全城",
-      title: month ? `台北捷運・${monthLabel(month)}` : "台北捷運",
-      when,
-      summary: `${when}的台北捷運：各行政區之間，每小時誰去了哪。`,
-    });
-  };
-  return (
-    <>
-      <button type="button" className="hud scene-share-btn" aria-label="分享這一刻" title="分享這一刻" aria-haspopup="dialog" disabled={!month} onClick={open}>
-        <ShareIcon />
-        <span>分享這一刻</span>
-      </button>
-      {target && <SharePanel open target={target} onClose={() => setTarget(null)} />}
-    </>
-  );
-}
-
 /** 打開的連結有問題時的說明（3.15）：點 × 才收。 */
 function LinkNotice({ text, onClose }: { text: string; onClose: () => void }) {
   return (
@@ -235,11 +207,19 @@ function SceneCommuteCard({ data, commute }: { data: Loaded; commute: { o: strin
   );
 }
 
+/** 首頁的暫時 UI 狀態（ScenePage 持有，不進網址、不保存）：搜尋面板與更多清單開不開（3.24）。 */
+interface HomeUi {
+  searching: boolean;
+  setSearching: (open: boolean) => void;
+  menu: boolean;
+  setMenu: (open: boolean) => void;
+}
+
 /**
- * 下方：沒選東西時是時間軸；選了區是行政區卡、選了站是車站小卡（卡框與卡內時間列共用，打開就暫停）。
- * 通勤的起訖選齊了，通勤卡蓋在最上面（4.2）；關掉回到底下原本的車站卡、行政區卡或時間軸。
+ * 下方：沒選東西時是首頁底座（3.24：時間軸＋三條路）；選了區是行政區卡、選了站是車站小卡（卡框與卡內時間列共用，打開就暫停）。
+ * 通勤的起訖選齊了，通勤卡蓋在最上面（4.2）；關掉回到底下原本的車站卡、行政區卡或底座。
  */
-function Bottom({ data, legend, calm }: { data?: Loaded; legend: LegendLink; calm: boolean }) {
+function Bottom({ data, legend, calm, ui }: { data?: Loaded; legend: LegendLink; calm: boolean; ui: HomeUi }) {
   const district = useView((s) => s.district);
   const station = useView((s) => s.station);
   const commute = useView((s) => s.commute);
@@ -276,26 +256,20 @@ function Bottom({ data, legend, calm }: { data?: Loaded; legend: LegendLink; cal
       />
     );
   return (
-    <TimeBar month={data?.month} source={data?.flows}>
-      <FlowLegend source={data?.flows} stations={data?.stations} link={legend} />
-    </TimeBar>
-  );
-}
-
-/** 首頁暫時的「搭板南線」（8.6；3.24 換成最大的主按鈕）：沒開卡、沒開通勤時在「找你的站」正上方。 */
-function RideStart({ data, calm }: { data?: Loaded; calm: boolean }) {
-  const hidden = useView((s) => s.ride !== null || anyCard(s) || s.commute !== null);
-  if (hidden) return null;
-  return (
-    <button type="button" className="hud ride-start" disabled={!data?.ride} onClick={() => startRide(undefined, calm)}>
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <rect x="3.5" y="1.8" width="9" height="10" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M3.8 7.2h8.4M5.6 14.2l1-2.2M10.4 14.2l-1-2.2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <circle cx="6" cy="9.6" r=".9" fill="currentColor" />
-        <circle cx="10" cy="9.6" r=".9" fill="currentColor" />
-      </svg>
-      搭板南線
-    </button>
+    <HomeDeck
+      month={data?.month}
+      source={data?.flows}
+      stations={data?.stations}
+      legend={legend}
+      rideReady={!!data?.ride}
+      findReady={!!data}
+      onRide={() => startRide(undefined, calm)}
+      onFind={() => startSearch(() => ui.setSearching(true))}
+      menu={ui.menu}
+      onMenu={ui.setMenu}
+      // 搜尋面板、通勤面板（還在選起訖）蓋著時收起底座
+      hidden={ui.searching || commute !== null}
+    />
   );
 }
 
@@ -303,7 +277,7 @@ function RideStart({ data, calm }: { data?: Loaded; calm: boolean }) {
  * 搭乘中的三顆控制（8.6）：暫停／繼續、下一站、下車，點擊目標 --tap；停靠開卡時在卡片上方，行進中在畫面下方。
  * 畫面上不出現站名與數字；到站時給螢幕閱讀器一句「停靠 X」（看不到的 live region）。
  */
-function RideControls({ data, calm, onLeave }: { data: Loaded; calm: boolean; onLeave: () => void }) {
+function RideControls({ data, calm, onHome }: { data: Loaded; calm: boolean; onHome: () => void }) {
   const ride = useView((s) => s.ride);
   const card = useView((s) => s.station !== null || commuteReady(s.commute));
   // 停靠時從車站卡打開的通勤面板（還在選起訖）蓋住下方：先收起控制，關掉面板就回來
@@ -311,6 +285,9 @@ function RideControls({ data, calm, onLeave }: { data: Loaded; calm: boolean; on
   if (!ride || picking) return null;
   const i = data.stations.byId.get(ride.station);
   const name = i === undefined ? "" : data.stations.stations[i].display;
+  const line = data.lineNames.get(ride.line) ?? "";
+  // 按了下車（3.24）：控制換成「在 X 下車」小卡（分享＋回到首頁）
+  if (ride.left) return <RideEnd line={line} station={name} docked={ride.docked} onHome={onHome} />;
   return (
     <div className="ride-controls" role="group" aria-label="搭乘板南線" data-card={card || undefined}>
       <button type="button" className="hud ride-btn" onClick={() => toggleRide(calm)}>
@@ -332,7 +309,9 @@ function RideControls({ data, calm, onLeave }: { data: Loaded; calm: boolean; on
         </svg>
         下一站
       </button>
-      <button type="button" className="hud ride-btn" onClick={onLeave}>
+      {/* 停在終點（3.24）：多一顆分享，開分享面板（只有複製連結，回到這一站、暫停中） */}
+      {atLineEnd(ride) && name && <RideShare line={line} station={name} className="hud ride-btn" />}
+      <button type="button" className="hud ride-btn" onClick={endRide}>
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M9.5 2.5H4a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           <path d="M7.5 8h6M11 5.2L13.8 8 11 10.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -375,6 +354,13 @@ export default function ScenePage() {
   const top = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
   const main = useRef<HTMLElement>(null);
+  // 首頁的暫時 UI 狀態（3.24）：搜尋面板、更多清單開不開。開卡、上車就把更多清單翻回來
+  const [searching, setSearching] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const ui = useMemo<HomeUi>(() => ({ searching, setSearching, menu, setMenu }), [searching, menu]);
+  useEffect(() => {
+    if (cardOpen || riding) setMenu(false);
+  }, [cardOpen, riding]);
 
   // 開場讀網址（AD-16）：停在網址的時刻與日型；任一鍵不合法就照常從清晨播放（資料到了再退回全景並說明）。
   // 區與站要等資料載入後才查得到在不在（下一個 effect）；網址的寫回（syncUrl）也等還原完才開始，免得先把區與站洗掉。
@@ -433,38 +419,38 @@ export default function ScenePage() {
     return syncUrl();
   }, [data, reduced]);
 
-  // 流向標籤的安全區：上方 HUD 的下緣到時間軸（或小卡）的上緣；主按鈕「找你的站」出現時到它的上緣（4.1）。
+  // 流向標籤的安全區：上方 HUD 的下緣到首頁底座（或小卡）的上緣；「回到全景」膠囊出現時到它的上緣（3.24）。
   // 畫面、HUD 大小變了或換成小卡就重量。
   // 小卡兩段高度（3.22）只動 transform（大小不變），所以換段、拖曳結束與滑動結束（transitionend）也重量：標籤讓路到卡片上方
   // 時要跟著卡片的上緣（體驗原則 5）。
   useEffect(() => {
-    const bottom = () => dock.current?.querySelector<HTMLElement>(".scene-dock, .card") ?? null;
-    const findMain = () => dock.current?.querySelector<HTMLElement>(".find-main") ?? null;
-    // 首頁暫時的「搭板南線」（8.6）在「找你的站」上方：停駛提示再往上讓
-    const rideMain = () => dock.current?.querySelector<HTMLElement>(".ride-start") ?? null;
+    // 底座在搜尋、通勤面板蓋著時是 hidden（量不到）：當作沒有
+    const bottom = () => dock.current?.querySelector<HTMLElement>(".scene-dock:not([hidden]), .card") ?? null;
+    // 「回到全景」膠囊（3.24）在底座或小卡右上方：停駛提示與流向標籤再往上讓
+    const pill = () => dock.current?.querySelector<HTMLElement>(".home-recenter") ?? null;
     const measure = () => {
       const t = top.current?.getBoundingClientRect();
       const d = bottom()?.getBoundingClientRect();
-      const tops = [findMain(), rideMain()]
+      const tops = [pill()]
         .map((el) => el?.getBoundingClientRect())
         .filter((r): r is DOMRect => !!r && r.height > 0)
         .map((r) => r.top);
       const edge = d ? Math.min(d.top, ...tops) : innerHeight;
       overlays.board.safeTop = t ? Math.round(t.bottom) + 6 : 0;
       overlays.board.safeBottom = Math.round(edge) - 6;
-      // 主按鈕放在時間軸正上方；停駛提示（決定 8）再往上，放在主按鈕（沒有主按鈕時是時間軸或小卡）正上方：距離交給 CSS
+      // 膠囊貼在底座（或小卡）上緣之上；停駛提示（決定 8）再往上，放在膠囊（沒有時是底座或小卡）正上方：距離交給 CSS
       if (d) main.current?.style.setProperty("--dock-top", `${Math.round(innerHeight - d.top)}px`);
       main.current?.style.setProperty("--hint-bottom", `${Math.round(innerHeight - edge)}px`);
     };
     measure();
     const ro = new ResizeObserver(measure);
-    for (const el of [top.current, bottom(), findMain(), rideMain()]) if (el) ro.observe(el);
-    // 主按鈕在搜尋、通勤面板打開時收起、關掉時回來：下方換了元素就重量
+    for (const el of [top.current, bottom(), pill()]) if (el) ro.observe(el);
+    // 底座在搜尋、通勤面板打開時收起、關掉時回來，膠囊出現、收起：下方換了元素或 hidden 就重量
     const mo = new MutationObserver(() => {
-      for (const el of [findMain(), rideMain(), bottom()]) if (el) ro.observe(el);
+      for (const el of [pill(), bottom()]) if (el) ro.observe(el);
       measure();
     });
-    if (dock.current) mo.observe(dock.current, { childList: true });
+    if (dock.current) mo.observe(dock.current, { childList: true, subtree: true, attributeFilter: ["hidden"] });
     addEventListener("resize", measure);
     const d = dock.current;
     d?.addEventListener("transitionend", measure);
@@ -476,7 +462,7 @@ export default function ScenePage() {
       d?.removeEventListener("transitionend", measure);
       d?.removeEventListener("pointerup", measure);
     };
-  }, [overlays, cardOpen, sheet, data, riding]);
+  }, [overlays, cardOpen, sheet, data, riding, searching]);
 
   useEffect(() => {
     if (!webgl) return;
@@ -544,6 +530,8 @@ export default function ScenePage() {
             role="img"
             onPointerDown={() => {
               setPlaying(false);
+              // 碰到場景＝更多清單翻回（3.24）
+              setMenu(false);
               // 搭乘中碰到場景＝暫停搭乘（和首頁碰到就暫停播放一樣），可以自己看看四周
               pauseRide();
             }}
@@ -586,49 +574,29 @@ export default function ScenePage() {
         </p>
       )}
       <div ref={top} className="scene-top">
-        {/* 搭乘中上方不放按鈕：畫面上只有三顆搭乘控制（8.6） */}
-        {!riding && (
-          <>
-            <button
-              type="button"
-              className="hud scene-home-btn"
-              aria-label="回到全景"
-              title="回到全景"
-              disabled={!data}
-              onClick={() => overlays.camera.home?.()}
-            >
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path
-                  d="M2 5.5V2h3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="8" cy="8" r="1.8" fill="currentColor" />
-              </svg>
-            </button>
-            <ShareMoment month={data?.month} />
-            <LayerPanel />
-          </>
-        )}
+        {/* 3.24 起上方不放按鈕（都收進底座的「⋯更多」）；只剩打開的連結有問題時的說明 */}
         {notice && <LinkNotice text={notice} onClose={() => setNotice(null)} />}
       </div>
       {/* 搭乘中碰到卡片（停靠時的車站卡）＝暫停搭乘：讀卡時卡片不會因為出發而收起 */}
       <div ref={dock} onPointerDownCapture={riding ? pauseRide : undefined}>
-        <Bottom data={data} legend={overlays.legend} calm={calm} />
-        {/* 首頁暫時的「搭板南線」（8.6）：放在「找你的站」之前，搜尋面板打開時蓋在它上面 */}
-        <RideStart data={data} calm={calm} />
-        {/* 下方主按鈕「找你的站」與搜尋、通勤面板（4.1，決定 1）；搭乘中不放主按鈕（停靠時的通勤面板照常） */}
-        <FindStation model={data?.search} stations={data?.stations.stations} month={data?.month} hideMain={riding} />
+        <Bottom data={data} legend={overlays.legend} calm={calm} ui={ui} />
+        {/* 回到全景（3.24）：只在鏡頭動過或選了東西時，貼在底座或小卡右上方；更多清單、搜尋面板開著時不出 */}
+        {data && <RecenterButton hidden={menu || searching} onHome={() => overlays.camera.home?.()} />}
+        {/* 搜尋與通勤面板（4.1）：按鈕在底座（3.24）；停靠時從車站卡打開的通勤面板照常 */}
+        <FindStation
+          model={data?.search}
+          stations={data?.stations.stations}
+          month={data?.month}
+          open={searching}
+          onOpenChange={setSearching}
+        />
       </div>
       {data && riding && (
         <RideControls
           data={data}
           calm={calm}
-          onLeave={() => {
-            // 下車：回到全景（減少動態時直接切換），一天的播放維持暫停
+          onHome={() => {
+            // 回到首頁：離開搭乘、回到全景（減少動態時直接切換），一天的播放維持暫停
             leaveRide();
             overlays.camera.home?.();
           }}

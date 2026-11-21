@@ -51,6 +51,11 @@ export interface ViewState {
    * 停靠時 station 也寫成這一站（開現有的車站卡），行進中 station 是 null（不出卡片）。網址由 url.ts 在暫停或到站時寫。
    */
   ride: Ride | null;
+  /**
+   * 鏡頭離開了開場構圖（3.24）：使用者拖動、捏合、滾輪（CameraRig），或選取時鏡頭飛走（Selection）；
+   * 「回到全景」後、直式／橫式切換回開場鏡頭時是 false。首頁的「回到全景」只在這個是 true 或選了東西時出現。不進網址。
+   */
+  away: boolean;
 }
 
 export type SheetDetent = "peek" | "full";
@@ -63,6 +68,8 @@ export interface Ride {
   docked: boolean;
   /** 搭乘在前進（停靠時會自動再出發）；false＝暫停 */
   playing: boolean;
+  /** 按了下車（3.24）：搭乘停住、控制換成「在 X 下車」小卡（分享＋回到首頁）；ride 留著，分享連結才回得到這一站 */
+  left?: boolean;
 }
 
 /**
@@ -97,6 +104,7 @@ let state: ViewState = {
   commute: null,
   sheet: "peek",
   ride: null,
+  away: false,
 };
 const listeners = new Set<() => void>();
 /** 已送過 commute_result_shown 的起訖組（「起站>迄站」）；換起訖、收起通勤時重設。 */
@@ -154,6 +162,11 @@ export function setDayType(dayType: DayType) {
 
 export function setLayer(key: LayerKey, on: boolean) {
   if (state.layers[key] !== on) set({ layers: { ...state.layers, [key]: on } });
+}
+
+/** 鏡頭離開／回到開場構圖（3.24 的「回到全景」）。 */
+export function setAway(away: boolean) {
+  if (away !== state.away) set({ away });
 }
 
 // ── 選取（3.6）：行政區、站、聚焦的流向。小卡由選取決定開哪一張；暫停交給共用卡框（cardOpened）。 ──
