@@ -294,9 +294,11 @@ export function HomeDeck({
   );
 }
 
-/** 「回到全景」該不該出現（3.24）：沒在搭乘，且鏡頭動過或選了區、站、流向。 */
-export const showRecenter = (s: { ride: unknown; away: boolean; district: string | null; station: string | null; focus: string | null }) =>
-  s.ride === null && (s.away || s.district !== null || s.station !== null || s.focus !== null);
+/**
+ * 「回到全景」該不該出現（3.24）：沒在搭乘，且鏡頭離開了開場構圖（away）。使用者動了鏡頭（CameraRig），
+ * 或選了區、站、流向時鏡頭飛走（Selection）都會設 away；按了回到全景就清掉，所以卡片還開著也收起（票面「按了…收起」）。
+ */
+export const showRecenter = (s: { ride: unknown; away: boolean }) => s.ride === null && s.away;
 
 /** 「回到全景」膠囊：貼在底座（或小卡）右上方；按了飛回開場構圖（CameraRig 清掉 away）後收起。 */
 export function RecenterButton({ onHome, hidden = false }: { onHome: () => void; hidden?: boolean }) {

@@ -86,6 +86,16 @@ context: ['{project-root}/DESIGN.md', '{project-root}/design/prototypes/3.24-hom
 
 ## Implementation Notes
 
+- 沒有可用的子代理，直接照 plan 實作（step-03 允許）。CHECKPOINT 1 由協調者轉達的 Piwi 決定（2026-11-21）視為已核准。
+- 新檔 `web/src/scene/HomeDeck.tsx`（HomeDeck、MoreMenu、RecenterButton、RideShare、RideEnd、momentTarget、rideTarget）與 `HomeDeck.test.tsx`（13 條）。舊的 ShareMoment、RideStart、上方回到全景與 LayerPanel 按鈕、find-main、ride-start、時間軸刻度與 1x／靜態鍵都拿掉，樣式一併刪。
+- 「回到全景」的條件最後只看 `away`：選取時 SelectionCamera 飛走也設 away，所以「選了東西」照樣出現；按了 home() 清掉 away，卡片還開著也收起（票面「按了…收起」；原型 C 也是同一個旗標）。
+- 到終點的判斷用 rideMotion 的 i／dir（`atLineEnd()`）：上車的起點站不算；restore 的連結停在端點站時方向朝另一頭，也不算。
+- 下車改成 `endRide()`：ride 留著並標 `left`，搭乘停住、收起停靠的車站卡；網址照 8.6 寫 ride＋station。按「回到首頁」才 leaveRide()＋回到全景。行進中按下車時小卡寫「在 X 附近下車」（X＝剛離開的站，連結也回到 X）。
+- share_link_copied 的 kind：搭乘中（含下車後）回 "station"（是站的連結），沒有新增 AD-20 的 kind。
+- 底座在搜尋、通勤面板開著時用 hidden 收起（元素留著，面板關掉時焦點回到「找你的站」）；ScenePage 量安全區改量 `.scene-dock:not([hidden]), .card` 與膠囊。
+- 「關於」：3.17 還沒做、程式裡沒有任何關於內容，清單不放這一項；3.17 要把它加進 `MoreMenu`。
+- 測試沒有 DOM：HomeDeck.test 用 tokens.css 原文 stub `getComputedStyle`（時間軸的天色漸層讀 token）。
+
 ## Plan Change Log
 
 ## Review Triage Log

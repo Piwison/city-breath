@@ -171,23 +171,22 @@ describe("⋯更多（3.24）", () => {
 });
 
 describe("回到全景（3.24）", () => {
-  it("鏡頭動過或選了區、站、流向才出現；搭乘中不出", () => {
+  it("鏡頭離開開場構圖（拖曳、捏合，或選區、站、流向時鏡頭飛走）才出現；搭乘中不出", () => {
     expect(text(home())).not.toContain("回到全景");
     setAway(true);
     expect(text(home())).toContain("回到全景");
-    setAway(false);
-    selectDistrict("63000010");
-    expect(text(home())).toContain("回到全景");
-    closeCard();
-    expect(showRecenter({ ride: null, away: false, district: null, station: null, focus: "a>b" })).toBe(true);
-    expect(showRecenter({ ride: null, away: false, district: null, station: "s1", focus: null })).toBe(true);
-    expect(showRecenter({ ride: { line: "BL" }, away: true, district: null, station: null, focus: null })).toBe(false);
-    expect(showRecenter({ ride: null, away: false, district: null, station: null, focus: null })).toBe(false);
+    expect(showRecenter({ ride: { line: "BL" }, away: true })).toBe(false);
+    expect(showRecenter({ ride: null, away: false })).toBe(false);
   });
 
-  it("聚焦流向後也出現；hidden（更多清單、搜尋面板開著）時不出", () => {
+  it("按了回到全景（away 清掉）就收起，卡片還開著也一樣；hidden（更多清單、搜尋面板開著）時不出", () => {
+    selectDistrict("63000010");
     setFocus("a>b");
+    setAway(true);
     expect(text(home())).toContain("回到全景");
+    setAway(false);
+    expect(text(home())).not.toContain("回到全景");
+    setAway(true);
     expect(renderToStaticMarkup(<RecenterButton onHome={noop} hidden />)).toBe("");
   });
 });
