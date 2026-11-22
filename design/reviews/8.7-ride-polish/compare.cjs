@@ -9,10 +9,14 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
-const STYLE = process.argv[2] || "a";
-const OUT = process.argv[3] || __dirname;
-const BASE = process.argv[4] || "http://localhost:4199";
+const ARGS = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+const STYLE = ARGS[0] || "a";
+const OUT = ARGS[1] || __dirname;
+const BASE = ARGS[2] || "http://localhost:4199";
 const PREFIX = (process.argv.find((a) => a.startsWith("--prefix=")) || "").slice(9) || STYLE;
+/** --only=09 之類：只拍這幾個（逗號分隔：overview、02（含 03）、09） */
+const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").slice(7).split(",").filter(Boolean);
+const want = (k) => !ONLY.length || ONLY.includes(k);
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const GL = ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--proxy-bypass-list=<-loopback>"];
@@ -27,9 +31,14 @@ async function frames(page, n) {
   }
 }
 
-/** 假時鐘停著時 page.screenshot 會等頁面的 requestAnimationFrame（也被假了），所以直接用 CDP 拍。 */
+/**
+ * 假時鐘停著時 page.screenshot 會等頁面的 requestAnimationFrame（也被假了）而卡住，所以直接用 CDP 拍。新開的 CDP session
+ * 沒有 Playwright 那份 DPR 2 的模擬，直接拍會重設畫面、清掉 WebGL 畫布（又沒有下一格重畫）；先在這個 session 設成同樣的
+ * 390×844、DPR 2，畫面不變，拍出來是 780×1688。
+ */
 async function shot(page, file) {
   const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   const { data } = await cdp.send("Page.captureScreenshot", { format: "png" });
   fs.writeFileSync(file, Buffer.from(data, "base64"));
   await cdp.detach();
@@ -50,7 +59,7 @@ async function open(browser, url, opts = {}) {
   const log = {};
 
   // 全景（沒搭乘）：減少動態＝不自動播放、雲不動，畫面靜止，拿來比對和 main 相同
-  {
+  if (want("overview")) {
     const { ctx, page } = await open(browser, `${BASE}/?${q("hour=10&day=weekday")}`, { reducedMotion: "reduce" });
     await page.waitForSelector(".deck-ride:not([disabled])", { timeout: 120000 });
     await sleep(6000);
@@ -59,9 +68,11 @@ async function open(browser, url, opts = {}) {
   }
 
   // 02：從頂埔出發
-  {
+  if (want("02")) {
     const { ctx, page } = await open(browser, `${BASE}/?${q("hour=10&day=weekday")}`);
     await page.waitForSelector(".deck-ride:not([disabled])", { timeout: 120000 });
+    // 場景畫出第一格、品牌載入畫面收掉之後才停住時鐘（收場要 requestAnimationFrame，假時鐘停著就收不掉）
+    await page.waitForSelector("#boot", { state: "detached", timeout: 180000 });
     await sleep(3000);
     const now = await page.evaluate(() => Date.now());
     await page.clock.pauseAt(now + 20000);
@@ -84,10 +95,12 @@ async function open(browser, url, opts = {}) {
   }
 
   // 09：台北車站往東
-  {
+  if (want("09")) {
     const { ctx, page } = await open(browser, `${BASE}/?${q("hour=17&day=weekday&station=s560caae9&ride=BL")}`);
     await page.waitForSelector(".ride-controls", { timeout: 120000 });
     await page.waitForSelector(".card[data-kind=station]");
+    // 場景畫出第一格、品牌載入畫面收掉之後才停住時鐘（收場要 requestAnimationFrame，假時鐘停著就收不掉）
+    await page.waitForSelector("#boot", { state: "detached", timeout: 180000 });
     await sleep(3000);
     const now = await page.evaluate(() => Date.now());
     await page.clock.pauseAt(now + 20000);
