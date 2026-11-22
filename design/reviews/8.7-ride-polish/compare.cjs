@@ -34,14 +34,11 @@ async function frames(page, n) {
 /**
  * 假時鐘停著時 page.screenshot 會等頁面的 requestAnimationFrame（也被假了）而卡住，所以直接用 CDP 拍。新開的 CDP session
  * 沒有 Playwright 那份 DPR 2 的模擬，直接拍會重設畫面、清掉 WebGL 畫布（又沒有下一格重畫）；先在這個 session 設成同樣的
- * 390×844、DPR 2，畫面不變，拍出來是 780×1688。
+ * 390×844、DPR 2，畫面不變，拍出來是 780×1688。每頁只開一個 session、一開頁就設好（拍完 detach 會撤掉模擬，下一張又會清掉畫布）。
  */
 async function shot(page, file) {
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
-  const { data } = await cdp.send("Page.captureScreenshot", { format: "png" });
+  const { data } = await page.__cdp.send("Page.captureScreenshot", { format: "png" });
   fs.writeFileSync(file, Buffer.from(data, "base64"));
-  await cdp.detach();
 }
 
 async function open(browser, url, opts = {}) {
@@ -49,6 +46,8 @@ async function open(browser, url, opts = {}) {
   const page = await ctx.newPage();
   page.setDefaultTimeout(180000);
   page.on("pageerror", (e) => console.error("pageerror", String(e)));
+  page.__cdp = await ctx.newCDPSession(page);
+  await page.__cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await page.clock.install();
   await page.goto(url);
   return { ctx, page };
